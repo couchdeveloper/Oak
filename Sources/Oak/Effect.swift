@@ -1,25 +1,26 @@
 /// A named function that encapsulates an operation.
 ///
-/// An effect will be created in the _transduce_ function of the transducer.
-/// The transducer then immediately invokes the effect that executes
-/// the specified operation.
+/// An effect will be created in the _update_ function of the transducer.
+/// The transducer immediately invokes the effect _after_ the update
+/// function returns. This starts the operation. When invoking an effect,
+/// the transducer passes a _proxy_ representing itself and an _env_
+/// value, the _environment_.
 ///
-/// An Effect is used to access the outside world, for example calling a
-/// network API, accesing a database and so on.
+/// The proxy is used by the operation running the side effect to send
+/// events back to the transducer. The environment can be used to
+/// provide dependencies and other information to the operation.
+///
+/// An Effect is used to access the outside world, for example calling
+/// a network API, accesing a database and the like. For example, in
+/// order to send an HTTP response to the transducer, the response
+/// will be materialised as an event, and then sent to the transducer
+/// via its proxy.
 ///
 /// Depending on the way the effect has been created, the transducer
-/// may manage the underlying Swift.Task that executes the operation,
-/// so that it can be cancelled on demand and when the transducer will
-/// be destroyed.
-///
-/// An operation can send events to the transducer via the transudcer's
-/// proxy. For example, in order to send an HTTP response to the
-/// transducer, the response will be materialised as an event, and then
-/// sent to the transducer via its proxy.
-///
-/// - Important: The function `invoke(proxy:)` must call its
-/// operation _asynchronously_ through wrapping it into a `Swift.Task`.
-///
+/// may manage the underlying Swift Task that executes the operation,
+/// so that it can be cancelled on demand. These _managed_ effects
+/// will also be automatically cancelled when the transducer will be
+/// terminated or destroyed.
 public struct Effect<Event: Sendable, Env: Sendable>: Sendable /*, ~Copyable*/ {
     public typealias Event = Event
     public typealias Env = Env
