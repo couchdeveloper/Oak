@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		A13214A82DD1E76000727218 /* Oak in Frameworks */ = {isa = PBXBuildFile; productRef = A13214A72DD1E76000727218 /* Oak */; };
-		A13214C72DD2036500727218 /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = A13214C62DD2036100727218 /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -131,7 +130,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A13214C72DD2036500727218 /* README.md in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
