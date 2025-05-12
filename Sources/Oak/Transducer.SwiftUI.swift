@@ -19,7 +19,7 @@ import SwiftUI
 /// > Tip: A `TransducerView` can be used as a replacement of an observable
 /// object and an associated SwiftUI view which holds this object in a `@State`
 /// variable.
-struct TransducerView<T: Transducer, Content: View>: View where T.State: DefaultInitializable, T.State: Sendable {
+public struct TransducerView<T: Transducer, Content: View>: View where T.State: DefaultInitializable, T.State: Sendable {
     let terminateOnDisappear: Bool
     @SwiftUI.State private var state: T.State
     @SwiftUI.State private var proxy: Terminator<T.Event>?
