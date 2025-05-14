@@ -292,7 +292,7 @@ extension TransducerTests {
                     await #expect(
                         throws: CancellationError.self,
                         performing: {
-                            try await Task.sleep(for: .seconds(1))
+                            try await Task.sleep(nanoseconds: 1_000_000_000)
                         }
                     )
                 }
@@ -301,7 +301,7 @@ extension TransducerTests {
             let proxy = T.Proxy()
             Task {
                 try proxy.send(.start)
-                try? await Task.sleep(for: .milliseconds(10))
+                try? await Task.sleep(nanoseconds: 10_000_000)
                 proxy.terminate()
             }
             let _ = await confirmation("effect", expectedCount: 1) { confirm in
@@ -380,7 +380,6 @@ extension TransducerTests {
             #expect(result == (2, "finished"))
         }
         
-        @available(iOS 17.0.0, macOS 14.0.0, watchOS 10.0.0, tvOS 17.0.0, *)
         @MainActor
         @Test func testOutputRunWithInternalState() async throws {
             let proxy = T1.Proxy()
@@ -403,7 +402,6 @@ extension TransducerTests {
         }
         
         
-        @available(iOS 17.0.0, macOS 14.0.0, watchOS 10.0.0, tvOS 17.0.0, *)
         @MainActor
         @Test func testOutputRunWithExternalState() async throws {
             let store = Store<T1.State>(state: .start)
