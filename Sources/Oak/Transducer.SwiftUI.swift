@@ -1,15 +1,22 @@
 import SwiftUI
 
-
 // Regarding @State initialization: see also: https://forums.swift.org/t/why-swiftui-state-property-can-be-initialized-inside-init-this-other-way/62772
 
 /// A SwiftUI View that runs a transducer whose state will be provided by the
 /// view itself through a private `@State` variable.
 ///
+/// When the view's body will be executed the very first time it creates a _transducer
+/// identity_, i.e. the life-cycle of a transducer. In other words, when the view appears
+/// the very first time it starts the transducer. This also associates the proxy given in
+/// the view's initialiser to this transducer.
+///
+/// A transducer view will re-create a transducer identity when it will be mutated with
+/// a new proxy. This  also cancells the running transducer (if any).
+///
 /// A transducer view guarantees that the transducer will be terminated when the
 /// view's lifetime ceases.
 ///
-/// > Warning: A `TransducerView` _owns_ the state of the transducer. When
+/// > Important: A `TransducerView` _owns_ the state of the transducer. When
 /// a Transducer view gets deallocated, it's state will be destoyed and all running
 /// tasks will be cancelled. This might not reflect your use case, though! If you
 /// absolutely cannot allow a transducer being dependent on the lifetime of a
@@ -21,21 +28,24 @@ import SwiftUI
 /// variable.
 public struct TransducerView<T: Transducer, Content: View>: View where T.State: DefaultInitializable, T.State: Sendable {
     let terminateOnDisappear: Bool
-    @SwiftUI.State private var state: T.State
-    @SwiftUI.State private var proxy: Terminator<T.Event>?
+    @SwiftUI.State private var state: T.State = .init()
+    let proxy: T.Proxy
     let content: (T.State, @escaping (T.Event) -> Void) -> Content
     let run: @Sendable @isolated(any) (T.Proxy, Binding<T.State>) async throws -> Void
     
     /// Initialises a view, running a transducer which has an update function
     /// with the signature `(inout State, Event) -> Output`.
     ///
-    /// The transducer's life-time is bound to the view's life-time. If the view will be desroyed before
-    /// the transducer will be terminated, it will be forcibly terminated. If the transducer will be terminated,
-    /// before the view will be destroyed user interactions send to the transducer will be ignored.
+    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
+    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
+    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
+    /// ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
     ///   - initialState: The start state of the transducer. Default is `init()`.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
     ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the
     ///   output it produces. The `out` parameter is usually used to notify the parent view, for example
     ///   via a `Binding` which can be directly used for the parameter `out`.
@@ -43,7 +53,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     ///   `out` parameter immediately after the transducer has been started.
     ///   - terminateOnDisappear: A boolean value which indicates whether the transducer view
     ///   should terminate the transducer when it disapears, when it is not terminated already. Otherwise,
-    ///   the transducer would only enforce termination when it gets deallocated. The default is `true`.
+    ///   the transducer would only enforce termination when it gets deallocated. The default is `false`.
     ///   - content: A viewBuilder function that has a parameter providing the current state and a
     ///   closure with which the view can send events ("user intents") to the transducer. The transducer
     ///   view calls this function whenever the state has changed in order to update the content.
@@ -56,14 +66,14 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     ///```swift
     /// struct ContentView: View {
     ///     var body: some View {
-    ///         TransducerView(of: MyUseCase.self)(
+    ///         TransducerView(of: MyUseCase.self) {
     ///             content: { state, send in
     ///                 GreetingView(
     ///                     greeting: state.greeting,
     ///                     send: send
     ///                 )
     ///             }
-    ///         )
+    ///         }
     ///     }
     /// }
     /// ```
@@ -94,14 +104,16 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
         initialState: T.State = .init(),
+        proxy: T.Proxy? = nil,
         out: Out,
         initialOutput: Output? = nil,
-        terminateOnDisappear: Bool = true,
+        terminateOnDisappear: Bool = false,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.Output == Output, T.Env == Never {
-        self._state = .init(wrappedValue: initialState)
         self.content = content
+        self.proxy = proxy ?? Proxy()
         self.run = { @MainActor proxy, binding in
+            binding.wrappedValue = initialState
             try await T.run(
                 binding: binding,
                 proxy: proxy,
@@ -115,12 +127,14 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     public init(
         of type: T.Type,
         initialState: T.State = .init(),
-        terminateOnDisappear: Bool = true,
+        proxy: T.Proxy? = nil,
+        terminateOnDisappear: Bool = false,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.Output == Void, T.Env == Never {
-        self._state = .init(wrappedValue: initialState)
         self.content = content
+        self.proxy = proxy ?? Proxy()
         self.run = { @MainActor proxy, binding in
+            binding.wrappedValue = initialState
             try await T.run(
                 binding: binding,
                 proxy: proxy,
@@ -133,15 +147,17 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
         initialState: T.State = .init(),
+        proxy: T.Proxy? = nil,
         env: T.Env,
         out: Out,
         initialOutput: Output? = nil,
-        terminateOnDisappear: Bool = true,
+        terminateOnDisappear: Bool = false,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.Output == (Oak.Effect<T.Event, T.Env>?, Output) {
-        self._state = .init(wrappedValue: initialState)
         self.content = content
+        self.proxy = proxy ?? Proxy()
         self.run = { @MainActor proxy, binding in
+            binding.wrappedValue = initialState
             try await T.run(
                 binding: binding,
                 proxy: proxy,
@@ -156,13 +172,15 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     public init(
         of type: T.Type,
         initialState: T.State = .init(),
+        proxy: T.Proxy? = nil,
         env: T.Env,
-        terminateOnDisappear: Bool = true,
+        terminateOnDisappear: Bool = false,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.Output == Oak.Effect<T.Event, T.Env>? {
-        self._state = .init(wrappedValue: initialState)
         self.content = content
+        self.proxy = proxy ?? Proxy()
         self.run = { @MainActor proxy, binding in
+            binding.wrappedValue = initialState
             try await T.run(
                 binding: binding,
                 proxy: proxy,
@@ -173,22 +191,26 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     }
     
     public var body: some View {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
         content(state, send(_:))
-        .task {
-            if proxy == nil {
-                let proxy = T.Proxy()
-                self.proxy = Terminator(proxy: proxy)
-                runTransducerBoundToLifetime(proxy: proxy, state: $state)
+        .task(id: proxy.id) {
+            do {
+                try await run(proxy, $state)
+                // print("*** Transducer '\(T.self)' terminated with state: \(state)")
+            } catch {
+                logger.warning("Transducer '\(T.self)' terminated due to \(error)")
             }
         }
         .onDisappear {
-            print("TransducerView '\(T.self)' content view disappeared")
-            if let proxy = proxy, !state.isTerminal {
+            // print("*** TransducerView '\(T.self)' content view disappeared")
+            if !state.isTerminal {
                 Task {
                     await Task.yield()
                     if !state.isTerminal && self.terminateOnDisappear {
-                        print("WARNING: Transducer '\(T.self)' not in terminal state after its View disappeared and flag `terminateOnDisappear` is true. Forcibly terminating...")
-                        proxy.proxy.terminate()
+                        logger.warning("Transducer '\(T.self)' not in terminal state after its View disappeared and flag `terminateOnDisappear` is true. Forcibly terminating...")
+                        proxy.terminate()
                     }
                 }
             }
@@ -197,39 +219,10 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     
     private func send(_ event: T.Event) {
         do {
-            guard let proxy = proxy else {
-                throw ProxyNotInitializedError()
-            }
-            try proxy.proxy.send(event)
+            try proxy.send(event)
         } catch {
             // TODO: handle error
-            logger.warning ("Transducer '\(T.self)' did not handle event \(String(describing: event)) due to \(error)")
-        }
-    }
-    
-    // Runs the transducer synchronously with the appearance of the view, i.e.
-    // its lifetime is bound to the apearance state of the view, which might
-    // appear and disappear several times during its lifetime.
-    private func runTransducerBoundToAppearance(proxy: T.Proxy, state: Binding<T.State>) async {
-        do {
-            try await run(proxy, $state)
-        } catch {
-            print("transducer '\(T.self)' abnormally terminated with: \(error)")
-        }
-    }
-    
-    // Runs the transducer asynchronously with the appearance of the view, i.e.
-    // its lifetime is bound to the actual liftime of the view, i.e. it is
-    // run once and only once bound to the lifetime of the view.
-    private func runTransducerBoundToLifetime(proxy: T.Proxy, state: Binding<T.State>) {
-        Task {
-            print("Transducer '\(T.self)' started")
-            do {
-                try await run(proxy, state)
-                print("Transducer '\(T.self)' terminated with terminal state: \(state.wrappedValue)")
-            } catch {
-                print("Transducer '\(T.self)' terminated due to \(error)")
-            }
+            logger.warning("Transducer '\(T.self)' did not handle event \(String(describing: event)) due to \(error)")
         }
     }
 }
@@ -457,25 +450,7 @@ extension Transducer where Env: Sendable {
 }
 
 
-
-    
 struct ProxyNotInitializedError: Error {}
-
-
-final class Terminator<Event: Sendable> {
-    struct ViewTerminationError: Error {}
-    var proxy: Oak.Proxy<Event>
-    init(proxy: Oak.Proxy<Event>) {
-        self.proxy = proxy
-    }
-    deinit {
-        if !proxy.isTerminated {
-            print("Terminator terminating proxy")
-            proxy.terminate(failure: ViewTerminationError())
-        }
-    }
-}
-
 
 extension SwiftUI.Binding: Oak.Storage {
     var value: Value {
@@ -491,7 +466,7 @@ extension SwiftUI.Binding: Oak.Storage {
 
 // MARK: - Demo
 
-#if DEBUG
+#if false
 
 fileprivate enum A: Transducer {
     enum State: Terminable, DefaultInitializable {
@@ -614,7 +589,6 @@ extension Counters.Views {
                     send: send
                 )
                 .onDisappear {
-                    print("onDisappear")
                     send(.done)
                 }
             }
@@ -661,30 +635,57 @@ extension Counters.Views {
 
 }
 
-#Preview {
+#Preview("Counters ComponentView") {
     Counters.Views.ComponentView()
 }
 
-/*
-struct MyNavigationView: View {
+
+struct RepeatView: View {
+    enum T: Transducer {
+        enum State: Terminable, DefaultInitializable {
+            init() { self = .start }
+            case start
+            case idle
+        }
+        enum Event { case start }
+        static func update(_ state: inout State, event: Event) {
+            print("*** \(event), \(state)")
+            switch (event, state) {
+            case (.start, .start):
+                state = .idle
+            case (_, .idle):
+                return
+            }
+        }
+    }
+    
+    
+    @State private var proxy = T.Proxy(initialEvents: .start)
     
     var body: some View {
-        NavigationStack {
-            NavigationLink("Counter") {
-                Counters.ComponentView()
+        VStack {
+            TransducerView(
+                of: T.self,
+                initialState: .start,
+                proxy: proxy
+            ) { state, send in
+                Text("\(state)")
             }
+            .padding()
+            
+            Button("Start again") {
+                proxy = T.Proxy(initialEvents: .start)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding()
+            Text("\(proxy.id)")
         }
     }
 }
 
-#Preview("Within NavigationStack") {
-    
-    MyNavigationView()
+#Preview("Repeat View") {
+    RepeatView()
 }
- */
-
-
-#endif
 
 
 @MainActor
@@ -732,4 +733,4 @@ struct FSA<T: Transducer> where T.Output: Sendable {
     }
 }
 
-
+#endif
