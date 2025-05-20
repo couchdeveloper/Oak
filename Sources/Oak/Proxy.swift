@@ -1,18 +1,26 @@
+
 /// A type whose value acts on behalf of a Transducer.
 ///
-/// A value can be shared across arbitrary concurrent contexts.
-/// A proxy's life-time is independent on its subject, the
-/// transducer. It may also outlive its transducer, in which case
-/// its methods become no-ops.
+/// When a proxy is created, it is not yet associated to a running transducer,
+/// i.e. a _transducer identity_. The proxy will be associated to a transducer
+/// identity when is passed as a parameter to the transducer's `run` function,
+/// which creates a transducer identity and also associates it with the proxy.
 ///
-/// Proxies enable Transducers to communicate with other
-/// detached Transducers.
+/// A proxy can be assigned once and only once to one transducer identity.
+/// That is, when the transducer reaches a terminal state, the proxy cannot
+/// be reused for another transducer. Though, a proxy's life-time can outlive
+/// the identity of its transducer.
 ///
-/// - Important: A conforiming type must not hold a strong reference
-/// to its transducer.
-public protocol TransducerProxy<Event>: Sendable {
+/// A proxy is _sendable_, means, it can be moved across arbitrary concurrent
+/// contexts.
+public protocol TransducerProxy<Event>: Sendable, Identifiable {
     associatedtype Event
+    associatedtype ID
     
+    /// A unique identifier which is guaranteed to be unique for every proxy
+    /// instance.
+    var id: ID { get }
+
     /// Sends the given event to its transducer.
     ///
     ///`send(_:)` is assumed to run asynchronously with the transducer
@@ -31,19 +39,25 @@ protocol Invalidable {
     func invalidate()
 }
 
+import struct Foundation.UUID
+
 struct ProxyTerminationError: Swift.Error {}
 
 /// A Proxy represents a transducer which can be used to send events into
 /// it or – if needed – can be used to forcibly terminate the transducer.
 ///
-/// A proxy is a _sendable_ value that can be used accross isolation domains.
-/// It also forms an associated to the transducer once it has been passed to the
-/// `run()` function.
+/// When a proxy is created, it is not yet associated to a running transducer,
+/// i.e. a _transducer identity_. The proxy will be associated to a transducer
+/// identity when is passed as a parameter to the transducer's `run` function,
+/// which creates a transducer identity and also associates it with the proxy.
 ///
-/// A proxy should be created and subsequently passed as a parameter to the
-/// `run` function which associates the proxy with the transducer and starts
-/// it. A proxy can be associated once and only once with one running transducer.
-// @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+/// A proxy can be assigned once and only once to one transducer identity.
+/// That is, when the transducer reaches a terminal state, the proxy cannot
+/// be reused for another transducer. Though, a proxy's life-time can outlive
+/// the identity of its transducer.
+///
+/// A proxy is _sendable_, means, it can be moved across arbitrary concurrent
+/// contexts.
 public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
     typealias Stream = AsyncThrowingStream<TransducerEvent, Swift.Error>
     typealias Continuation = Stream.Continuation
@@ -75,6 +89,43 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
         )
         continuation.onTermination = { _ in }
     }
+    
+    /// Initialise a proxy, that can be associated to a transducer by passing it as a parameter
+    /// to the `run` function.
+    /// 
+    /// - Parameter eventBufferSize: The number of events, that fit into the internal
+    /// event buffer. If the size is not specified, the default is 16.
+    /// - Parameter initialEvents: An array of events which will be send to the input
+    /// of the proxy.
+    public init(eventBufferSize: Int = 16, initialEvents: [Event]) {
+        (input, continuation) = AsyncThrowingStream.makeStream(
+            of: TransducerEvent.self,
+            throwing: Swift.Error.self,
+            bufferingPolicy: .bufferingOldest(eventBufferSize)
+        )
+        continuation.onTermination = { _ in }
+        do {
+            try initialEvents.forEach { try self.send($0) }
+        } catch {
+            fatalError("Failed to enqueue events into the proxy.")
+        }
+    }
+
+    /// Initialise a proxy, that can be associated to a transducer by passing it as a parameter
+    /// to the `run` function.
+    ///
+    /// - Parameter eventBufferSize: The number of events, that fit into the internal
+    /// event buffer. If the size is not specified, the default is 16.
+    /// - Parameter initialEvents: An array of events which will be send to the input
+    /// of the proxy.
+    public init(eventBufferSize: Int = 16, initialEvents: Event...) {
+        let events: [Event] = initialEvents
+        self.init(eventBufferSize: eventBufferSize, initialEvents: events)
+    }
+    
+    /// A unique identifier which is guaranteed to be unique for every proxy
+    /// instance.
+    public let id: UUID = UUID()
     
     /// Enques the event and returns immediately.
     ///
@@ -160,6 +211,10 @@ struct ActionProxy<Event: Sendable>: TransducerProxy {
         self.proxy = proxy
     }
     
+    var id: UUID {
+        return proxy.id
+    }
+    
     func send(_ event: sending Event) throws {
         try self.proxy.send(event)
     }
@@ -176,6 +231,13 @@ final class EffectProxy<Event: Sendable>: Oak.TransducerProxy, Invalidable, @unc
     
     init(proxy: Proxy<Event>) {
         self.proxy = proxy
+    }
+    
+    var id: UUID {
+        guard let proxy else {
+            fatalError("proxy is invalidated")
+        }
+        return proxy.id
     }
     
     func send(_ event: sending Event) throws {
