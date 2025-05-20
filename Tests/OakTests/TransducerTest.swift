@@ -1,10 +1,3 @@
-//
-//  TransducerTest.swift
-//  Oak
-//
-//  Created by Andreas Grosam on 29.04.25.
-//
-
 import Testing
 import Oak
 @testable import struct Oak.TransducerDidNotProduceAnOutputError

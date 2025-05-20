@@ -1,10 +1,3 @@
-//
-//  Subject.SwftUI.swift
-//  Oak
-//
-//  Created by Andreas Grosam on 10.05.25.
-//
-
 import SwiftUI
 
 extension Binding: Oak.Subject {
