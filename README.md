@@ -2,15 +2,25 @@
 
 Oak brings the power of finite state machines (FSM) to your projects. 
 
+The Oak library is primarily intended to implement the typical frontend patterns and artefacts, like ViewModels, Interactors, etc., but it is not limited to this.
+
 
 ## Overview
 
-FSMs are utilized to develop systems characterized by discrete and sequential behavior, effectively addressing a wide range of problems. The correctness of these systems is guaranteed by their mathematical framework, while their strength lies in their ability to be composed together.
+FSMs are utilized to develop systems characterized by discrete and sequential behavior. The correctness of these systems is guaranteed by their mathematical framework, while their strength lies in their ability to be composed together.
 
-The Oak library is primarily intended to help implementing the typical frontend patterns and architectures, ViewModels, Interactors, MVI, etc., but it is not limited to this use case.
+This makes them an ideal candidate to implement the logic in user interfaces, but they can effectively address a wide range of problems. 
 
 
 ## Why Oak
+
+Focuses on the principles that matter:
+
+- improves static reasonability
+- uses pure functions
+- is event driven
+- is unidirectional
+- favours coding style with high LoB
 
 ## Table of Contents
 
