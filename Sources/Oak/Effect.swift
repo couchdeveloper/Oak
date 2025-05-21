@@ -21,6 +21,10 @@
 /// so that it can be cancelled on demand. These _managed_ effects
 /// will also be automatically cancelled when the transducer will be
 /// terminated or destroyed.
+///
+/// - TODO: `Effect` would benefit from being a noncopyable type.
+/// However, currently noncopyable types cannot be used within a
+/// variadic type.
 public struct Effect<Event: Sendable, Env: Sendable>: Sendable /*, ~Copyable*/ {
     public typealias Event = Event
     public typealias Env = Env
@@ -63,10 +67,13 @@ extension Effect {
     /// given asynchronous throwing operation.
     ///
     /// When invoked, the effect creates a `Swift.Task` executing the operation.
-    /// A managed task will be automatically cancelled when the transducer terminates.
+    /// When there is already an operation running with the same id, the existing
+    /// operation will be cancelled.
     ///
     /// The `id` can be used in the transition function to explicitly cancel the
     /// operation, if needed.
+    ///
+    /// A managed task will be automatically cancelled when the transducer terminates.
     ///
     /// The operation receives an environment value, that can be used to obtain
     /// dependencies or other information. It also is given the proxy - that is the receiver
@@ -87,8 +94,8 @@ extension Effect {
     ///   - id: An ID that identifies this operation.
     ///   - operation: An async throwing function receiving the environment and the proxy
     ///     as parameter.
-    public init<ID: Hashable & Sendable>(
-        id: ID,
+    public init(
+        id: some Hashable & Sendable,
         operation: @escaping @isolated(any) @Sendable (Env, AnyProxy) async throws -> Void
     ) {
         self.f = { env, proxy in
@@ -134,10 +141,13 @@ extension Effect {
     /// operation.
     ///
     /// When invoked, the effect creates a `Swift.Task` executing the operation.
-    /// A managed task will be automatically cancelled when the transducer terminates.
+    /// When there is already an operation running with the same id, the existing
+    /// operation will be cancelled.
     ///
     /// The `id` can be used in the transition function to explicitly cancel the
     /// operation, if needed.
+    ///
+    /// A managed task will be automatically cancelled when the transducer terminates.
     ///
     /// The operation receives an environment value, that can be used to obtain
     /// dependencies or other information. It also is given the proxy - that is the receiver
@@ -150,12 +160,12 @@ extension Effect {
     /// it would be possible to send events to the transducer.
     ///
     /// - Parameters:
-    ///   - id: An ID that identifies this operation.
+    ///   - id: A  value conforming to `Hashable & Sendable` that identifies this operation.
     ///   - operation: An async throwing function receiving the environment and the proxy
     ///     as parameter.
     ///  - Returns: An asynchronous effect.
-    public static func task<ID: Hashable & Sendable>(
-        _ id: ID,
+    public static func task(
+        _ id: some Hashable & Sendable,
         operation: @escaping @isolated(any) @Sendable (Env, AnyProxy) async throws -> Void
     ) -> Effect {
         Effect(id: id, operation: operation)
@@ -187,24 +197,30 @@ extension Effect {
         }
     }
     
-    /// Returns an asynchronous effect that, when executed after the specified duration, sends the
-    /// specified event to the transducer.
+    /// Returns an asynchronous effect that, when executed sends the specified event after the
+    /// specified duration to the transducer.
     ///
-    /// The effect can be cancelled using the id specified in the initialiser. A pending effect will be
-    /// automatically cancelled when the transducer terminates.
+    /// The `id` can be used in the transition function to explicitly cancel the
+    /// intent, if needed.
+    ///
+    /// When there is already an operation running with the same id, the existing
+    /// operation will be cancelled.
+    ///
+    /// A pending effect will be automatically cancelled when the transducer terminates.
     ///
     /// - Parameters:
-    ///   - event: The event that will be send to the transducer at deadline.
-    ///   - id: The id that can be used to cancel the send event operation, if needed.
+    ///   - event: The event that will be sent to the transducer at deadline.
+    ///   - id: A value conforming to `Hashable & Sendable` that identifies this intent. Unless
+    ///   the event has already been sent to the transducer, it can be used to cancel this intent.
     ///   - duration: The duration after that the event should be sent to the transducer.
     ///   - tolerance: The a leeway around the deadline. If no tolerance is specified (i.e. nil is passed
     ///   in) the operation is expected to be scheduled with a default tolerance strategy.
     ///   - clock: A clock, conforming to protocol `Swift.Clock`.
     /// - Returns: An asynchronous effect.
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-    public static func event<ID: Hashable & Sendable, C: Clock>(
+    public static func event<C: Clock>(
         _ event: Event,
-        id: ID,
+        id: some Hashable & Sendable,
         after duration: C.Instant.Duration,
         tolerance: C.Instant.Duration? = nil,
         clock: C = ContinuousClock()
@@ -244,11 +260,11 @@ extension Effect {
     /// given ID.
     ///
     /// - Parameters:
-    ///   - id: An ID that identifies this operation.
+    ///   - id: The ID of the operation that should be cancelled.
     ///
     /// - Returns: A synchronous effect.
-    public static func cancelTask<ID: Hashable & Sendable>(
-        _ id: ID
+    public static func cancelTask(
+        _ id: some Hashable & Sendable
     ) -> Effect {
         Effect { _, proxy in
             try? proxy.cancelTask(TaskID(id))
@@ -284,8 +300,8 @@ extension Effect {
 
 
 struct OakTask {
-    init<ID: Hashable & Sendable>(
-        id: ID,
+    init(
+        id: some Hashable & Sendable,
         task: Task<Void, Error>,
         taskProxy: (any Invalidable)?
     ) {
