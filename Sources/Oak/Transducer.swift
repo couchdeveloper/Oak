@@ -97,12 +97,13 @@ struct TransducerDidNotProduceAnOutputError: Swift.Error {}
 
 // MARK: - Implementations
 
+#if false
 extension Transducer where Env == Never {
     
-    /// Creates a transducer with a strictly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a strictly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -159,7 +160,7 @@ extension Transducer where Env == Never {
         return result
     }
     
-    /// Creates a transducer with a strictly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a strictly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
     /// The update function is isolated by the given Actor, that can be exlicitly specified, or it will be
@@ -187,13 +188,17 @@ extension Transducer where Env == Never {
             out: NoCallbacks<Output>()
         )
     }
+    
 }
+#endif
 
+#if false
 extension Transducer where Env: Sendable {
-    /// Creates a transducer whose update function has the signatur
+    
+    /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -278,10 +283,10 @@ extension Transducer where Env: Sendable {
         return result
     }
     
-    /// Creates a transducer with a stricly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a stricly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -318,10 +323,10 @@ extension Transducer where Env: Sendable {
         )
     }
     
-    /// Creates a transducer whose update function has the signatur
+    /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> Effect?`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -388,23 +393,24 @@ extension Transducer where Env: Sendable {
         try Task.checkCancellation() // we do throw on a Task cancellation, even in the case the FST is finished!
     }
 }
+#endif
 
 extension Transducer where Env == Never {
 
-    /// Creates a transducer whose update function has the signatur
+    /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
-    /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// The update function and the `output` closure are isolated by the given Actor, that
+    /// can be explicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
-    /// The update function must at least run once, in order successully execute the transducer.
+    /// The update function must at least run once, in order to successfully execute the transducer.
     /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - storage: The underlying backing store for the state. It's type must conform to `Oak.Storage<State>`.
+    ///   - storage: The underlying backing store for the state. Its type must conform to `Oak.Storage<State>`.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the output it produces. The client uses a type where it can react on the given outputs.
     ///   - initialOutput: The output value which – when not `nil` – will be produced by the transducer when setting its initial state.Note: an initial output value is required when implementing a _Mealy_ automaton.
@@ -454,10 +460,10 @@ extension Transducer where Env == Never {
         return result
     }
 
-    /// Creates a transducer with a strictly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a strictly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -488,7 +494,7 @@ extension Transducer where Env == Never {
         )
     }
     
-    /// Creates a transducer with a strictly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a strictly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
     /// The update function is isolated by the given Actor, that can be exlicitly specified, or it will be
@@ -516,10 +522,10 @@ extension Transducer where Env == Never {
         )
     }
     
-    /// Creates a transducer with an observable state whose update function has the signatur
+    /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -553,7 +559,7 @@ extension Transducer where Env == Never {
         )
     }
     
-    /// Creates a transducer with an observable state whose update function has the signatur
+    /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
     /// The update function is isolated by the given Actor, that
@@ -591,10 +597,10 @@ extension Transducer where Env == Never {
 
 extension Transducer where Env: Sendable {
 
-    /// Creates a transducer whose update function has the signatur
+    /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -607,7 +613,7 @@ extension Transducer where Env: Sendable {
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - storage: The underlying backing store for the state. It's type must conform to `Oak.Storage<State>`.
+    ///   - storage: The underlying backing store for the state. Its type must conform to `Oak.Storage<State>`.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
     ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the output it produces. The client uses a type where it can react on the given outputs.
@@ -679,10 +685,10 @@ extension Transducer where Env: Sendable {
         return result
     }
     
-    /// Creates a transducer whose update function has the signatur
+    /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> Effect?`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -695,7 +701,7 @@ extension Transducer where Env: Sendable {
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - storage: The underlying backing store for the state. It's type must conform to `Oak.Storage<State>`.
+    ///   - storage: The underlying backing store for the state. Its type must conform to `Oak.Storage<State>`.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
     /// - Warning: The backing store for the state variable must not be mutated by the caller.
@@ -750,10 +756,10 @@ extension Transducer where Env: Sendable {
     }
 
     
-    /// Creates a transducer with a stricly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a stricly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -793,10 +799,10 @@ extension Transducer where Env: Sendable {
         )
     }
     
-    /// Creates a transducer with a stricly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a stricly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -832,10 +838,10 @@ extension Transducer where Env: Sendable {
         )
     }
 
-    /// Creates a transducer with an observable state whose update function has the signatur
+    /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -878,10 +884,10 @@ extension Transducer where Env: Sendable {
         )
     }
     
-    /// Creates a transducer with an observable state whose update function has the signatur
+    /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///

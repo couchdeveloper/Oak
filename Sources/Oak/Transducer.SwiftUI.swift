@@ -26,6 +26,7 @@ import SwiftUI
 /// > Tip: A `TransducerView` can be used as a replacement of an observable
 /// object and an associated SwiftUI view which holds this object in a `@State`
 /// variable.
+@MainActor
 public struct TransducerView<T: Transducer, Content: View>: View where T.State: DefaultInitializable, T.State: Sendable {
     let terminateOnDisappear: Bool
     @SwiftUI.State private var state: T.State = .init()
@@ -231,26 +232,26 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
 
 extension Transducer where Env == Never {
     
-    /// Runs a transducer with an observable state whose update function has the signatur
+    /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor (a `SwiftUI.View`),
-    /// that can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// The update function and the `output` closure are isolated by the given Actor (a `SwiftUI.View`),
+    /// that can be explicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
-    /// The update function must at least run once, in order successully execute the transducer.
+    /// The update function must at least run once, in order to successfully execute the transducer.
     /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - binding: The underlying backing store for the state. It's usually a `@State` variable in the
+    ///   - binding: The underlying backing store for the state. Its usually a `@State` variable in the
     ///   SwiftUI view.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - output: A type conforming to `Oak.Subject<Output>` where the transducer sends the
     ///   output it produces. The client uses a type where it can react on the given outputs.
     ///   - initialOutput: The output value which – when not `nil` – will be produced by the
-    ///   transducer when setting its initial state.Note: an initial output value is required when implementing
+    ///   transducer when setting its initial state. Note: an initial output value is required when implementing
     ///   a _Mealy_ automaton.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
     /// - Warning: The backing store for the state variable must not be mutated by the caller.
@@ -273,20 +274,20 @@ extension Transducer where Env == Never {
         )
     }
 
-    /// Runs a transducer with an observable state whose update function has the signatur
+    /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
     /// The update function is isolated by the given Actor (a `SwiftUI.View`),
-    /// that can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// that can be explicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
-    /// The update function must at least run once, in order successully execute the transducer.
+    /// The update function must at least run once, in order to successfully execute the transducer.
     /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - binding: The underlying backing store for the state. It's usually a `@State` variable in the
+    ///   - binding: The underlying backing store for the state. Its usually a `@State` variable in the
     ///   SwiftUI view.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
@@ -311,11 +312,11 @@ extension Transducer where Env == Never {
 
 extension Transducer where Env: Sendable {
     
-    /// Runs a transducer with an observable state whose update function has the signatur
+    /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor (a `SwiftUI.View`),
-    /// that can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// The update function and the `output` closure are isolated by the given Actor (a `SwiftUI.View`),
+    /// that can be explicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
     /// The update function can be designed to optionally return an _effect_. Effects are invoked by
@@ -324,20 +325,20 @@ extension Transducer where Env: Sendable {
     /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
     /// running tasks will be cancelled.
     ///
-    /// The update function must at least run once, in order successully execute the transducer.
+    /// The update function must at least run once, in order to successfully execute the transducer.
     /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - binding: The underlying backing store for the state. It's usually a `@State` variable in the
+    ///   - binding: The underlying backing store for the state. Its usually a `@State` variable in the
     ///   SwiftUI view.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
     ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the
     ///   output it produces. The client uses a type where it can react on the given outputs.
     ///   - initialOutput: The output value which – when not `nil` – will be produced by the
-    ///   transducer when setting its initial state.Note: an initial output value is required when implementing
+    ///   transducer when setting its initial state. Note: an initial output value is required when implementing
     ///   a _Mealy_ automaton.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
     /// - Warning: The backing store for the state variable must not be mutated by the caller.
@@ -362,11 +363,11 @@ extension Transducer where Env: Sendable {
         )
     }
     
-    /// Runs a transducer with an observable state whose update function has the signatur
+    /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Effect?`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor (a `SwiftUI.View`),
-    /// that can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// The update function and the `output` closure are isolated by the given Actor (a `SwiftUI.View`),
+    /// that can be explicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
     /// The update function can be designed to optionally return an _effect_. Effects are invoked by
@@ -375,17 +376,17 @@ extension Transducer where Env: Sendable {
     /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
     /// running tasks will be cancelled.
     ///
-    /// The update function must at least run once, in order successully execute the transducer.
+    /// The update function must at least run once, in order to successfully execute the transducer.
     /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - binding: The underlying backing store for the state. It's usually a `@State` variable in the
+    ///   - binding: The underlying backing store for the state. Its usually a `@State` variable in the
     ///   SwiftUI view.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
-    ///   transducer when setting its initial state.Note: an initial output value is required when implementing
+    ///   transducer when setting its initial state. Note: an initial output value is required when implementing
     ///   a _Mealy_ automaton.
     /// - Warning: The backing store for the state variable must not be mutated by the caller.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
@@ -404,11 +405,11 @@ extension Transducer where Env: Sendable {
         )
     }
 
-    /// Runs a transducer with an observable state whose update function has the signatur
+    /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
     /// The update function is isolated by the given Actor (a `SwiftUI.View`),
-    /// that can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// that can be explicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
     /// The update function can be designed to optionally return an _effect_. Effects are invoked by
@@ -417,13 +418,13 @@ extension Transducer where Env: Sendable {
     /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
     /// running tasks will be cancelled.
     ///
-    /// The update function must at least run once, in order successully execute the transducer.
+    /// The update function must at least run once, in order to successfully execute the transducer.
     /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - binding: The underlying backing store for the state. It's usually a `@State` variable in the
+    ///   - binding: The underlying backing store for the state. Its usually a `@State` variable in the
     ///   SwiftUI view.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
@@ -464,9 +465,10 @@ extension SwiftUI.Binding: Oak.Storage {
 }
 
 
+#if DEBUG
+
 // MARK: - Demo
 
-#if false
 
 fileprivate enum A: Transducer {
     enum State: Terminable, DefaultInitializable {
@@ -488,28 +490,23 @@ fileprivate enum A: Transducer {
         }
     }
     
-    @MainActor
-    static var view: some View {
-        TransducerView(of: A.self) { state, send in
-            Text("\(state)")
-            Button("+") {
-                send(.start)
-            }
-        }
-    }
 }
 
 #Preview("TransducerView A") {
-    A.view
+    TransducerView(of: A.self) { state, send in
+        Text("\(state)")
+        Button("+") {
+            send(.start)
+        }
+    }
 }
-
 
 
 fileprivate enum Counters {}
 
 extension Counters: Transducer {
     
-    fileprivate enum State: Terminable, DefaultInitializable {
+    enum State: Terminable, DefaultInitializable {
         init() { self = .start }
         
         case start
@@ -528,7 +525,7 @@ extension Counters: Transducer {
         }
     }
     
-    fileprivate enum Event {
+    enum Event {
         case intentPlus
         case intentMinus
         case done
@@ -536,7 +533,7 @@ extension Counters: Transducer {
     
     typealias Output = Int
         
-    fileprivate static func update(
+    static func update(
         _ state: inout State,
         event: Event
     ) -> Int {
@@ -581,7 +578,7 @@ extension Counters { enum Views {} }
 
 extension Counters.Views {
     fileprivate struct ComponentView: View {
-        @State private var output: Counters.Output = 0
+        @SwiftUI.State private var output: Counters.Output = 0
         var body: some View {
             TransducerView(of: Counters.self, out: $output) { state, send in
                 ContentView(
