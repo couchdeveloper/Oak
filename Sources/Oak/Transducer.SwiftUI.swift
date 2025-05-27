@@ -27,12 +27,27 @@ import SwiftUI
 /// object and an associated SwiftUI view which holds this object in a `@State`
 /// variable.
 @MainActor
-public struct TransducerView<T: Transducer, Content: View>: View where T.State: DefaultInitializable, T.State: Sendable {
-    let terminateOnDisappear: Bool
-    @SwiftUI.State private var state: T.State = .init()
+public struct TransducerView<T: Transducer, Content: View>: View where T.State: Sendable {
+    @SwiftUI.State private var task: AutoCancellabelTask? = nil
+    @SwiftUI.State private var state: T.State
     let proxy: T.Proxy
     let content: (T.State, @escaping (T.Event) -> Void) -> Content
     let run: @Sendable @isolated(any) (T.Proxy, Binding<T.State>) async throws -> Void
+    
+    private final class AutoCancellabelTask {
+        let task: Task<Void, Error>
+        let id: UUID
+        init(task: Task<Void, Error>, id: UUID) {
+            self.task = task
+            self.id = id
+        }
+        func cancel() {
+            task.cancel()
+        }
+        deinit {
+            cancel()
+        }
+    }
     
     /// Initialises a view, running a transducer which has an update function
     /// with the signature `(inout State, Event) -> Output`.
@@ -52,9 +67,6 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     ///   via a `Binding` which can be directly used for the parameter `out`.
     ///   - initialOutput: An initial value for the output which will be send by the transducer to the
     ///   `out` parameter immediately after the transducer has been started.
-    ///   - terminateOnDisappear: A boolean value which indicates whether the transducer view
-    ///   should terminate the transducer when it disapears, when it is not terminated already. Otherwise,
-    ///   the transducer would only enforce termination when it gets deallocated. The default is `false`.
     ///   - content: A viewBuilder function that has a parameter providing the current state and a
     ///   closure with which the view can send events ("user intents") to the transducer. The transducer
     ///   view calls this function whenever the state has changed in order to update the content.
@@ -104,15 +116,15 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     /// by the transducer.
     public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
-        initialState: T.State = .init(),
+        initialState: T.State,
         proxy: T.Proxy? = nil,
         out: Out,
         initialOutput: Output? = nil,
-        terminateOnDisappear: Bool = false,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.Output == Output, T.Env == Never {
         self.content = content
         self.proxy = proxy ?? Proxy()
+        self._state = .init(initialValue: initialState)
         self.run = { @MainActor proxy, binding in
             binding.wrappedValue = initialState
             try await T.run(
@@ -122,18 +134,38 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
                 initialOutput: initialOutput
             )
         }
-        self.terminateOnDisappear = terminateOnDisappear
     }
-    
+
+    public init<Output: Sendable, Out: Subject<Output>>(
+        of type: T.Type,
+        proxy: T.Proxy? = nil,
+        out: Out,
+        initialOutput: Output? = nil,
+        @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
+    ) where T.Output == Output, T.Env == Never, T.State: DefaultInitializable {
+        self.content = content
+        self.proxy = proxy ?? Proxy()
+        self._state = .init(initialValue: .init())
+        self.run = { @MainActor proxy, binding in
+            binding.wrappedValue = .init()
+            try await T.run(
+                binding: binding,
+                proxy: proxy,
+                out: out,
+                initialOutput: initialOutput
+            )
+        }
+    }
+
     public init(
         of type: T.Type,
-        initialState: T.State = .init(),
+        initialState: T.State,
         proxy: T.Proxy? = nil,
-        terminateOnDisappear: Bool = false,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.Output == Void, T.Env == Never {
         self.content = content
         self.proxy = proxy ?? Proxy()
+        self._state = .init(initialValue: initialState)
         self.run = { @MainActor proxy, binding in
             binding.wrappedValue = initialState
             try await T.run(
@@ -142,21 +174,38 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
                 out: NoCallbacks()
             )
         }
-        self.terminateOnDisappear = terminateOnDisappear
     }
     
+    public init(
+        of type: T.Type,
+        proxy: T.Proxy? = nil,
+        @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
+    ) where T.Output == Void, T.Env == Never, T.State: DefaultInitializable {
+        self.content = content
+        self.proxy = proxy ?? Proxy()
+        self._state = .init(initialValue: .init())
+        self.run = { @MainActor proxy, binding in
+            binding.wrappedValue = .init()
+            try await T.run(
+                binding: binding,
+                proxy: proxy,
+                out: NoCallbacks()
+            )
+        }
+    }
+
     public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
-        initialState: T.State = .init(),
+        initialState: T.State,
         proxy: T.Proxy? = nil,
         env: T.Env,
         out: Out,
         initialOutput: Output? = nil,
-        terminateOnDisappear: Bool = false,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.Output == (Oak.Effect<T.Event, T.Env>?, Output) {
         self.content = content
         self.proxy = proxy ?? Proxy()
+        self._state = .init(initialValue: initialState)
         self.run = { @MainActor proxy, binding in
             binding.wrappedValue = initialState
             try await T.run(
@@ -167,19 +216,41 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
                 initialOutput: initialOutput
             )
         }
-        self.terminateOnDisappear = terminateOnDisappear
     }
     
-    public init(
+    public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
-        initialState: T.State = .init(),
         proxy: T.Proxy? = nil,
         env: T.Env,
-        terminateOnDisappear: Bool = false,
+        out: Out,
+        initialOutput: Output? = nil,
+        @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
+    ) where T.Output == (Oak.Effect<T.Event, T.Env>?, Output), T.State: DefaultInitializable {
+        self.content = content
+        self.proxy = proxy ?? Proxy()
+        self._state = .init(initialValue: .init())
+        self.run = { @MainActor proxy, binding in
+            binding.wrappedValue = .init()
+            try await T.run(
+                binding: binding,
+                proxy: proxy,
+                env: env,
+                out: out,
+                initialOutput: initialOutput
+            )
+        }
+    }
+
+    public init(
+        of type: T.Type,
+        initialState: T.State,
+        proxy: T.Proxy? = nil,
+        env: T.Env,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.Output == Oak.Effect<T.Event, T.Env>? {
         self.content = content
         self.proxy = proxy ?? Proxy()
+        self._state = .init(initialValue: initialState)
         self.run = { @MainActor proxy, binding in
             binding.wrappedValue = initialState
             try await T.run(
@@ -188,42 +259,66 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
                 env: env
             )
         }
-        self.terminateOnDisappear = terminateOnDisappear
     }
-    
+
+    public init(
+        of type: T.Type,
+        proxy: T.Proxy? = nil,
+        env: T.Env,
+        @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
+    ) where T.Output == Oak.Effect<T.Event, T.Env>?, T.State: DefaultInitializable {
+        self.content = content
+        self.proxy = proxy ?? Proxy()
+        self._state = .init(initialValue: .init())
+        self.run = { @MainActor proxy, binding in
+            binding.wrappedValue = .init()
+            try await T.run(
+                binding: binding,
+                proxy: proxy,
+                env: env
+            )
+        }
+    }
+
     public var body: some View {
-        #if DEBUG
-        let _ = Self._printChanges()
-        #endif
+        // #if DEBUG
+        // let _ = Self._printChanges()
+        // #endif
         content(state, send(_:))
         .task(id: proxy.id) {
-            do {
-                try await run(proxy, $state)
-                // print("*** Transducer '\(T.self)' terminated with state: \(state)")
-            } catch {
-                logger.warning("Transducer '\(T.self)' terminated due to \(error)")
+            if let autoCancellingTask = self.task, autoCancellingTask.id == proxy.id {
+                return
             }
-        }
-        .onDisappear {
-            // print("*** TransducerView '\(T.self)' content view disappeared")
-            if !state.isTerminal {
-                Task {
-                    await Task.yield()
-                    if !state.isTerminal && self.terminateOnDisappear {
-                        logger.warning("Transducer '\(T.self)' not in terminal state after its View disappeared and flag `terminateOnDisappear` is true. Forcibly terminating...")
-                        proxy.terminate()
-                    }
-                }
-            }
+            self.task?.cancel()
+            let task = Self.makeTask(proxy: proxy, binding: $state, run: run)
+            self.task = AutoCancellabelTask(task: task, id: proxy.id)
         }
     }
     
+    static func makeTask(
+        proxy: T.Proxy,
+        binding: Binding<T.State>,
+        run: @escaping @Sendable @isolated(any) (T.Proxy, Binding<T.State>) async throws -> Void
+    ) -> Task<Void, Error> {
+        return Task { @MainActor in
+            do {
+                logger.info("Transducer '\(T.self)' (\(proxy.id)) started")
+                print("*** Transducer '\(T.self)' (\(proxy.id)) started")
+                try await run(proxy, binding)
+                print("*** Transducer '\(T.self)' terminated with state: \(binding)")
+            } catch {
+                print("*** Transducer '\(T.self)' (\(proxy.id)) terminated due to \(error)")
+                logger.warning("Transducer '\(T.self)' (\(proxy.id)) terminated due to \(error)")
+            }
+        }
+    }
+
     private func send(_ event: T.Event) {
         do {
             try proxy.send(event)
         } catch {
             // TODO: handle error
-            logger.warning("Transducer '\(T.self)' did not handle event \(String(describing: event)) due to \(error)")
+            logger.warning("Transducer '\(T.self)' (\(proxy.id)) did not handle event \(String(describing: event)) due to \(error)")
         }
     }
 }
@@ -472,31 +567,45 @@ extension SwiftUI.Binding: Oak.Storage {
 
 fileprivate enum A: Transducer {
     enum State: Terminable, DefaultInitializable {
-        init() { self = .start }
-        case start
+        init() { self = .start() }
+        case start(events: [Event] = [])
         var isTerminal: Bool { false }
+        var events: [Event] {
+            switch self {
+                case .start(events: let events):
+                return events
+            }
+        }
     }
     enum Event {
-        case start
+        case buttonTapped
     }
     
     static func update(
         _ state: inout State,
         event: Event
     ) -> Void {
-        switch event {
-        case .start:
-            break
+        switch (event, state) {
+        case (.buttonTapped, .start(var events)):
+            events.append(event)
+            state = .start(events: events)
         }
     }
     
 }
 
 #Preview("TransducerView A") {
-    TransducerView(of: A.self) { state, send in
-        Text("\(state)")
-        Button("+") {
-            send(.start)
+    TransducerView(of: A.self, initialState: .init()) { state, send in
+        VStack {
+            Button("+") {
+                send(.buttonTapped)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(32)
+            
+            let events = state.events.map { "\($0)" }.joined(separator: ", ")
+            TextEditor(text: .constant(events))
+            .padding()
         }
     }
 }
@@ -651,37 +760,66 @@ struct RepeatView: View {
             case (.start, .start):
                 state = .idle
             case (_, .idle):
-                return
+                break
             }
+            print("*** -> state: \(state)")
         }
     }
     
     
-    @State private var proxy = T.Proxy(initialEvents: .start)
+    @State private var proxy: T.Proxy? = nil
     
     var body: some View {
         VStack {
-            TransducerView(
-                of: T.self,
-                initialState: .start,
-                proxy: proxy
-            ) { state, send in
-                Text("\(state)")
+            if let proxy {
+                TransducerView(
+                    of: T.self,
+                    proxy: proxy,
+                ) { state, send in
+                    let _ = Self._printChanges()
+                    Text("\(state)")
+                }
+                .padding()
+                Button("Start again") {
+                    self.proxy = T.Proxy(initialEvents: .start)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding()
+                Text("proxy.id: \(proxy.id)")
+                    .font(.caption)
+            } else {
+                Text("not initialized")
+                .task {
+                    proxy = T.Proxy(initialEvents: .start)
+                }
             }
-            .padding()
-            
-            Button("Start again") {
-                proxy = T.Proxy(initialEvents: .start)
-            }
-            .buttonStyle(.borderedProminent)
-            .padding()
-            Text("\(proxy.id)")
         }
     }
 }
 
 #Preview("Repeat View") {
     RepeatView()
+}
+
+struct RepeatViewInSheet: View {
+    @State var isPresented = false
+    
+    var body: some View {
+        Button("Show sheet") {
+            self.isPresented.toggle()
+        }
+        .sheet(isPresented: $isPresented) {
+            VStack {
+                Text("Swipe down to dismiss the sheet and cancel the transducer.")
+                    .padding(32)
+                RepeatView()
+            }
+        }
+    }
+}
+
+#Preview("RepeatViewInSheet") {
+    RepeatViewInSheet()
 }
 
 

@@ -15,7 +15,7 @@
 /// contexts.
 public protocol TransducerProxy<Event>: Sendable, Identifiable {
     associatedtype Event
-    associatedtype ID
+    associatedtype ID: Hashable
     
     /// A unique identifier which is guaranteed to be unique for every proxy
     /// instance.

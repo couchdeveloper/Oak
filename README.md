@@ -35,9 +35,9 @@ To ensure the correctness of the logic, we need to recognise that most computati
 A state machine aligns well with views that adhere to the "a view is a function of state" principle, like those in SwiftUI, because it can effectively provide the necessary state for the view. This approach also promotes an event-driven and unidirectional model, enhancing clarity and simplifying the process of ensuring correctness.
 
 
-## Why Oak
+## Theory and Concepts
 
-Emphasises fundamental principles such as:
+Oak emphasises on fundamental principles such as:
 
 - Enhancing static reasonability
 - Utilising pure functions
@@ -46,9 +46,6 @@ Emphasises fundamental principles such as:
 - Prioritising coding styles that promote high _Locality of Behaviour_ (LoB)
 
 
-
-
-## Theory and Concepts
 
 ### What is a state machine
 
