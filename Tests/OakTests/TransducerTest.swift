@@ -394,7 +394,6 @@ extension TransducerTests {
             #expect(out2 == ["running", "finished"])
         }
         
-        
         @MainActor
         @Test func testOutputRunWithExternalState() async throws {
             let store = Store<T1.State>(state: .start)
@@ -466,7 +465,6 @@ extension TransducerTests {
             print(type(of: T1.Proxy.self))
         }
         
-        
         @MainActor
         @Test func testResultRunWithInternalState() async throws {
             let proxy = T1.Proxy()
@@ -520,7 +518,6 @@ extension TransducerTests {
             #expect(out1 == [0, 2])
             #expect(out2 == ["running", "finished"])
         }
-        
         
         @MainActor
         @Test func testOutputRunWithExternalState() async throws {

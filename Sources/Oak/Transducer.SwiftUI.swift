@@ -302,12 +302,13 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     ) -> Task<Void, Error> {
         return Task { @MainActor in
             do {
+                // print("*** Transducer '\(T.self)' (\(proxy.id)) started")
                 logger.info("Transducer '\(T.self)' (\(proxy.id)) started")
-                print("*** Transducer '\(T.self)' (\(proxy.id)) started")
                 try await run(proxy, binding)
-                print("*** Transducer '\(T.self)' terminated with state: \(binding)")
+                // print("*** Transducer '\(T.self)' terminated with state: \(binding)")
+                // logger.info("*** Transducer '\(T.self)' terminated with state: \(binding)")
             } catch {
-                print("*** Transducer '\(T.self)' (\(proxy.id)) terminated due to \(error)")
+                // print("*** Transducer '\(T.self)' (\(proxy.id)) terminated due to \(error)")
                 logger.warning("Transducer '\(T.self)' (\(proxy.id)) terminated due to \(error)")
             }
         }
@@ -349,7 +350,7 @@ extension Transducer where Env == Never {
     ///   transducer when setting its initial state. Note: an initial output value is required when implementing
     ///   a _Mealy_ automaton.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -386,7 +387,7 @@ extension Transducer where Env == Never {
     ///   SwiftUI view.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -436,7 +437,7 @@ extension Transducer where Env: Sendable {
     ///   transducer when setting its initial state. Note: an initial output value is required when implementing
     ///   a _Mealy_ automaton.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -483,7 +484,7 @@ extension Transducer where Env: Sendable {
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
     ///   transducer when setting its initial state. Note: an initial output value is required when implementing
     ///   a _Mealy_ automaton.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -524,7 +525,7 @@ extension Transducer where Env: Sendable {
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.

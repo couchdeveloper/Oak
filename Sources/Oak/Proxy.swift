@@ -1,3 +1,4 @@
+import struct Foundation.UUID
 
 /// A type whose value acts on behalf of a Transducer.
 ///
@@ -15,8 +16,7 @@
 /// contexts.
 public protocol TransducerProxy<Event>: Sendable, Identifiable {
     associatedtype Event
-    associatedtype ID: Hashable
-    
+
     /// A unique identifier which is guaranteed to be unique for every proxy
     /// instance.
     var id: ID { get }
@@ -39,7 +39,6 @@ protocol Invalidable {
     func invalidate()
 }
 
-import struct Foundation.UUID
 
 struct ProxyTerminationError: Swift.Error {}
 
@@ -51,9 +50,9 @@ struct ProxyTerminationError: Swift.Error {}
 /// identity when is passed as a parameter to the transducer's `run` function,
 /// which creates a transducer identity and also associates it with the proxy.
 ///
-/// A proxy can be assigned once and only once to one transducer identity.
-/// That is, when the transducer reaches a terminal state, the proxy cannot
-/// be reused for another transducer. Though, a proxy's life-time can outlive
+/// A proxy must be assigned once and only once to one transducer identity.
+/// When the transducer reaches a terminal state, the proxy must not be
+/// reused for another transducer. Though, a proxy's life-time can outlive
 /// the identity of its transducer.
 ///
 /// A proxy is _sendable_, means, it can be moved across arbitrary concurrent
@@ -87,7 +86,6 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
             throwing: Swift.Error.self,
             bufferingPolicy: .bufferingOldest(eventBufferSize)
         )
-        continuation.onTermination = { _ in }
     }
     
     /// Initialise a proxy, that can be associated to a transducer by passing it as a parameter
@@ -103,7 +101,6 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
             throwing: Swift.Error.self,
             bufferingPolicy: .bufferingOldest(eventBufferSize)
         )
-        continuation.onTermination = { _ in }
         do {
             try initialEvents.forEach { try self.send($0) }
         } catch {
@@ -157,10 +154,14 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
         continuation.finish(throwing: failure ?? ProxyTerminationError())
     }
     
-    /// Returns `true` when the transducer is terminated.
+    /// Returns `true` when the transducer is terminated or when the proxy
+    /// hasn't been associated to a transducer yet.
     ///
     /// A transducer becomes terminated either by forcibly terminating it,
     /// or when the transducer's state transitioned to a terminal state.
+    ///
+    /// > Caution: Using this property is prone to race conditions, because
+    /// it might have changed shortly after getting the value from the property.
     public var isTerminated: Bool {
         continuation.onTermination == nil
     }
