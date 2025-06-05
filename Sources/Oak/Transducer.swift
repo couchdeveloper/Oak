@@ -92,6 +92,12 @@ struct TerminalStateError: Swift.Error {
     let message: String
 }
 
+// Thrown when the proxy is already associated to another transducer.
+struct ProxyAlreadyAssociatedError: Swift.Error {
+    let message: String = "Proxy already associated to another transducer"
+}
+
+
 // Thrown when the transducer terminated but has not produced an output.
 struct TransducerDidNotProduceAnOutputError: Swift.Error {}
 
@@ -99,25 +105,25 @@ struct TransducerDidNotProduceAnOutputError: Swift.Error {}
 
 extension Transducer where Env == Never {
 
-    /// Creates a transducer whose update function has the signatur
+    /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
-    /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// The update function and the `output` closure are isolated by the given Actor, that
+    /// can be explicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
-    /// The update function must at least run once, in order successully execute the transducer.
+    /// The update function must at least run once, in order to successfully execute the transducer.
     /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - storage: The underlying backing store for the state. It's type must conform to `Oak.Storage<State>`.
+    ///   - storage: The underlying backing store for the state. Its type must conform to `Oak.Storage<State>`.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the output it produces. The client uses a type where it can react on the given outputs.
     ///   - initialOutput: The output value which – when not `nil` – will be produced by the transducer when setting its initial state.Note: an initial output value is required when implementing a _Mealy_ automaton.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -128,6 +134,10 @@ extension Transducer where Env == Never {
         out: some Subject<Output>,
         initialOutput: Output? = nil
     ) async throws -> Output {
+        guard proxy.continuation.onTermination == nil else {
+            throw ProxyAlreadyAssociatedError()
+        }
+        proxy.continuation.onTermination = { _ in }
         var result: Output?
         if let initialOutput {
             try await out.send(initialOutput)
@@ -162,15 +172,12 @@ extension Transducer where Env == Never {
         return result
     }
 
-    /// Creates a transducer with a strictly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a strictly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
-    ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
@@ -199,14 +206,11 @@ extension Transducer where Env == Never {
         )
     }
     
-    /// Creates a transducer with a strictly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a strictly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
     /// The update function is isolated by the given Actor, that can be exlicitly specified, or it will be
     /// inferred from the caller. If it's not specified, and the caller is not isolated, the compilation will fail.
-    ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
@@ -230,15 +234,12 @@ extension Transducer where Env == Never {
         )
     }
     
-    /// Creates a transducer with an observable state whose update function has the signatur
+    /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
-    ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
@@ -249,7 +250,7 @@ extension Transducer where Env == Never {
     ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the output it produces. The client uses a type where it can react on the given outputs.
     ///   - initialOutput: The output value which – when not `nil` – will be produced by the transducer when setting its initial state.Note: an initial output value is required when implementing a _Mealy_ automaton.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -270,15 +271,12 @@ extension Transducer where Env == Never {
         )
     }
     
-    /// Creates a transducer with an observable state whose update function has the signatur
+    /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
     /// The update function is isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
-    ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
@@ -287,7 +285,7 @@ extension Transducer where Env == Never {
     ///   - host: The host providing the backing store for the state.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -311,10 +309,10 @@ extension Transducer where Env == Never {
 
 extension Transducer where Env: Sendable {
 
-    /// Creates a transducer whose update function has the signatur
+    /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -324,19 +322,16 @@ extension Transducer where Env: Sendable {
     /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
     /// running tasks will be cancelled.
     ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
-    ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - storage: The underlying backing store for the state. It's type must conform to `Oak.Storage<State>`.
+    ///   - storage: The underlying backing store for the state. Its type must conform to `Oak.Storage<State>`.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
     ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the output it produces. The client uses a type where it can react on the given outputs.
     ///   - initialOutput: The output value which – when not `nil` – will be produced by the transducer when setting its initial state.Note: an initial output value is required when implementing a _Mealy_ automaton.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -348,6 +343,12 @@ extension Transducer where Env: Sendable {
         out: some Subject<Output>,
         initialOutput: Output? = nil,
     ) async throws -> Output where Self.Output == (Oak.Effect<Event, Env>?, Output) {
+        // TODO: there's a potential race condition when accessing `onTermination` in case the proxy will be used for multiple transducers at the same time. This is illegal according the documentation, though.
+        guard proxy.continuation.onTermination == nil else {
+            throw ProxyAlreadyAssociatedError()
+        }
+        proxy.continuation.onTermination = { _ in }
+        
         let context = Context()
         defer {
             context.cancelAll()
@@ -402,10 +403,10 @@ extension Transducer where Env: Sendable {
         return result
     }
     
-    /// Creates a transducer whose update function has the signatur
+    /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> Effect?`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -415,16 +416,13 @@ extension Transducer where Env: Sendable {
     /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
     /// running tasks will be cancelled.
     ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
-    ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
     ///   will be mutated.
-    ///   - storage: The underlying backing store for the state. It's type must conform to `Oak.Storage<State>`.
+    ///   - storage: The underlying backing store for the state. Its type must conform to `Oak.Storage<State>`.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -434,6 +432,10 @@ extension Transducer where Env: Sendable {
         proxy: Proxy,
         env: Env,
     ) async throws -> Void where Self.Output == Oak.Effect<Event, Env>? {
+        guard proxy.continuation.onTermination == nil else {
+            throw ProxyAlreadyAssociatedError()
+        }
+        proxy.continuation.onTermination = { _ in }
         let context = Context()
         defer {
             context.cancelAll()
@@ -476,10 +478,10 @@ extension Transducer where Env: Sendable {
     }
 
     
-    /// Creates a transducer with a stricly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a stricly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -488,9 +490,6 @@ extension Transducer where Env: Sendable {
     /// operation can emit events which will be feed back to the transducer. The managed tasks can
     /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
     /// running tasks will be cancelled.
-    ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
@@ -522,10 +521,10 @@ extension Transducer where Env: Sendable {
         )
     }
     
-    /// Creates a transducer with a stricly encapsulated state whose update function has the signatur
+    /// Creates a transducer with a stricly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -534,9 +533,6 @@ extension Transducer where Env: Sendable {
     /// operation can emit events which will be feed back to the transducer. The managed tasks can
     /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
     /// running tasks will be cancelled.
-    ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
@@ -564,10 +560,10 @@ extension Transducer where Env: Sendable {
         )
     }
 
-    /// Creates a transducer with an observable state whose update function has the signatur
+    /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -576,9 +572,6 @@ extension Transducer where Env: Sendable {
     /// operation can emit events which will be feed back to the transducer. The managed tasks can
     /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
     /// running tasks will be cancelled.
-    ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
@@ -590,7 +583,7 @@ extension Transducer where Env: Sendable {
     ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the output it produces. The client uses a type where it can react on the given outputs.
     ///   - initialOutput: The output value which – when not `nil` – will be produced by the transducer when setting its initial state.Note: an initial output value is required when implementing a _Mealy_ automaton.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
@@ -613,10 +606,10 @@ extension Transducer where Env: Sendable {
         )
     }
     
-    /// Creates a transducer with an observable state whose update function has the signatur
+    /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
-    /// The update function and the `output` closure is isolated by the given Actor, that
+    /// The update function and the `output` closure are isolated by the given Actor, that
     /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
     /// caller is not isolated, the compilation will fail.
     ///
@@ -625,9 +618,6 @@ extension Transducer where Env: Sendable {
     /// operation can emit events which will be feed back to the transducer. The managed tasks can
     /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
     /// running tasks will be cancelled.
-    ///
-    /// The update function must at least run once, in order successully execute the transducer.
-    /// The initial state must not be a terminal state.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
@@ -660,6 +650,8 @@ extension Transducer where Env: Sendable {
     }
 }
  
+// MARK: - Internal
+
 extension Transducer where Env == Never {
     internal static func compute(
         state: inout State,
@@ -667,13 +659,12 @@ extension Transducer where Env == Never {
         proxy: Proxy
     ) -> Output {
         guard !state.isTerminal else {
-            fatalError("Could not process event \(event) because the transducer is already terminated.")
+            fatalError("Could not process event '\(event)' because the transducer (\(proxy.id.uuidString)) is already terminated.")
         }
         let transducerOutput = update(&state, event: event)
         return transducerOutput
     }
 }
-
 
 extension Transducer where Env: Sendable {
     internal static func compute<Output>(
@@ -685,7 +676,7 @@ extension Transducer where Env: Sendable {
         env: Env
     ) -> Output where Self.Output == (Oak.Effect<Event, Env>?, Output) {
         guard !state.isTerminal else {
-            fatalError("Could not process event \(event) because the transducer is already terminated.")
+            fatalError("Could not process event \(event) because the transducer (\(proxy.id.uuidString)) is already terminated.")
         }
         let transducerOutput = update(&state, event: event)
         if let effect = transducerOutput.0 {
@@ -710,7 +701,7 @@ extension Transducer where Output == Oak.Effect<Event, Env>?, Env: Sendable {
         env: Env
     ) -> Void {
         guard !state.isTerminal else {
-            fatalError("Could not process event \(event) because the transducer is already terminated.")
+            fatalError("Could not process event \(event) because the transducer (\(proxy.id.uuidString)) is already terminated.")
         }
         let transducerOutput = update(&state, event: event)
         if let effect = transducerOutput {
@@ -773,7 +764,7 @@ extension Transducer where Env: Sendable {
 }
 
 
-// MARK: -
+// MARK: - Internal
 
 struct TaskID: @unchecked Sendable, Hashable {
     private let wrapped: AnyHashable
@@ -840,6 +831,16 @@ internal protocol Storage<Value> {
     associatedtype Value
     
     var value: Value { get nonmutating set }
+    
+    func lock()
+    func unlock()
+}
+
+extension Storage {
+    // Default is no-op
+    func lock() {}
+    // Default is no-op
+    func unlock() {}
 }
 
 internal struct LocalStorage<Value>: Storage {
@@ -887,11 +888,5 @@ internal struct ReferenceKeyPathStorage<Host, Value>: Storage {
             host[keyPath: keyPath] = newValue
         }
     }
-}
-
-// MARK: -
-
-public protocol DefaultInitializable {
-    init()
 }
 
