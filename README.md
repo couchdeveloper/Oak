@@ -15,270 +15,270 @@ This makes them an ideal candidate to implement the logic in user interfaces, bu
 
 > Tip: Oak state machines seamlessly integrate directly into SwiftUI views, eliminating the need to employ observable classes or utilise the Observation framework. 
 
-The code below shows a basic example how this will be implemented. The code can be copy pasted and run in the Xcode Preivew.
+The code below shows a basic example how this will be implemented. The code can be copy pasted and run in the Xcode Preview.
 
 <details>
     <summary>File: `Timers.Transducer.swift`</summary>
 
-    ```swift
-    import Oak
+```swift
+import Oak
 
-    /// Defines a FST which can start and stop a timer (a side effect).
-    /// Only one timer can run at a time. The timer itself sends an
-    /// event `ping` to the FST which increments a counter variable
-    /// within the state of the FST.
-    ///
-    /// An Oak transducer can be run with an _observable_ state.
-    /// That is, there's a kind of "host" which runs the transducer and
-    /// provides it its state whose mutations can be observed by the
-    /// host. A SwiftUI View is a perfect host for running a transducer.
-    /// Not only can it render the state accordingly, views also provide
-    /// a natural means to send events into the FSA, i.e. user intents,
-    /// via UI controls.
-    ///
-    /// This is a very simple variant of a FST. Yet, it demonstrates one
-    /// of the key feature of Oak Transducers: the FSM keeps track of
-    /// the management of running _side effects_. A side effect can be a
-    /// Swift Task, which emits events during its lifetime, or an async
-    /// function which may or may not return a result which materialises
-    /// as an event, or simply a synchronous function which may or
-    /// may not cause an effect on the "outer world".
-    ///
-    /// See also ``Oak.Transduder``.
-    enum Timers: Transducer {
+/// Defines a FST which can start and stop a timer (a side effect).
+/// Only one timer can run at a time. The timer itself sends an
+/// event `ping` to the FST which increments a counter variable
+/// within the state of the FST.
+///
+/// An Oak transducer can be run with an _observable_ state.
+/// That is, there's a kind of "host" which runs the transducer and
+/// provides it its state whose mutations can be observed by the
+/// host. A SwiftUI View is a perfect host for running a transducer.
+/// Not only can it render the state accordingly, views also provide
+/// a natural means to send events into the FSA, i.e. user intents,
+/// via UI controls.
+///
+/// This is a very simple variant of a FST. Yet, it demonstrates one
+/// of the key feature of Oak Transducers: the FSM keeps track of
+/// the management of running _side effects_. A side effect can be a
+/// Swift Task, which emits events during its lifetime, or an async
+/// function which may or may not return a result which materialises
+/// as an event, or simply a synchronous function which may or
+/// may not cause an effect on the "outer world".
+///
+/// See also ``Oak.Transduder``.
+enum Timers: Transducer {
+    
+    /// The state of the transducer. This is also used as  the "view state".
+    enum State: Terminable, DefaultInitializable {
+        init() { self = .start(count: 0) }
         
-        /// The state of the transducer. This is also used as  the "view state".
-        enum State: Terminable, DefaultInitializable {
-            init() { self = .start(count: 0) }
-            
-            case start(count: Int = 0)
-            case running(count: Int)
-            case terminated
-            
-            var isTerminal: Bool {
-                if case .terminated = self { true } else { false }
-            }
-        }
+        case start(count: Int = 0)
+        case running(count: Int)
+        case terminated
         
-        /// Defines the "Input" values of the transducer.
-        ///
-        /// Inputs are always _events_, that is, "things" that _happen_.
-        /// Events can be _user intents_ and results or messages sent
-        /// from side effects, which need to be _materialized_ as events
-        /// and send back to the transducer.
-        enum Event {
-            case start, stop, ping, terminate
-        }
-        
-        /// An _environment_ can be used to provide dependencies for _effects_
-        /// when they get invoked and start _side effects_.
-        struct Env {}
-        
-        /// See also: ``Oak.Effect``
-        typealias Effect = Oak.Effect<Event, Env>
-        
-        /// A _pure_ function which implementes the transition function and the output function
-        /// of a stransducer. The output is an optioanal `Effect`.
-        static func update(_ state: inout State, event: Event) -> Effect? {
-            print("*** event: \(event), state: \(state)")
-            switch (event, state) {
-            case (.start, .start(let count)):
-                state = .running(count: count)
-                return timer
-            case (.start, .running):
-                return .none
-
-            case (.stop, .running(let count)):
-                state = .start(count: count)
-                return .cancelTask("timer")
-                
-            case (.stop, .start):
-                return .none
-                
-            case (.ping, .running(let count)):
-                state = .running(count: count + 1)
-                return .none
-                
-            case (.ping, .start):
-                return .none
-                
-            case (.terminate, .running):
-                state = .terminated
-                return .cancelTask("timer")
-
-            case (.terminate, .start):
-                state = .terminated
-                return .none
-
-            case (.terminate, .terminated):
-                return .none
-                
-            case (.ping, .terminated):
-                return .none
-            case (.stop, .terminated):
-                return .none
-            case (.start, .terminated):
-                return .none
-            }
-        }
-
-        /// Implements a timer which periodically sends a `ping` event to the
-        /// transducer until it will be cancelled.
-        ///
-        /// The Oak transducer wraps an asynchronous function in a Swift Task and
-        /// manages it, allowing you to control the timer's lifetime by sending special
-        /// events to the transducer. This means a timer can be started and cancelled
-        /// ("invalidated") at any time, for instance, by the user. The transducer
-        /// achieves this by cancelling the wrapping Swift Task. However, this
-        /// requires the running operation (in this case, `Task.sleep(nanoseconds:)`)
-        /// to be a good citizen of Swift Concurrency and stop running when its task
-        /// is cancelled. Fortunately, this is the case with a library function, so
-        /// it will work.
-        static let timer = Effect(id: "timer") { env, proxy in
-            while true {
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                try? proxy.send(.ping)
-            }
+        var isTerminal: Bool {
+            if case .terminated = self { true } else { false }
         }
     }
-    ```
+    
+    /// Defines the "Input" values of the transducer.
+    ///
+    /// Inputs are always _events_, that is, "things" that _happen_.
+    /// Events can be _user intents_ and results or messages sent
+    /// from side effects, which need to be _materialized_ as events
+    /// and send back to the transducer.
+    enum Event {
+        case start, stop, ping, terminate
+    }
+    
+    /// An _environment_ can be used to provide dependencies for _effects_
+    /// when they get invoked and start _side effects_.
+    struct Env {}
+    
+    /// See also: ``Oak.Effect``
+    typealias Effect = Oak.Effect<Event, Env>
+    
+    /// A _pure_ function which implementes the transition function and the output function
+    /// of a stransducer. The output is an optioanal `Effect`.
+    static func update(_ state: inout State, event: Event) -> Effect? {
+        print("*** event: \(event), state: \(state)")
+        switch (event, state) {
+        case (.start, .start(let count)):
+            state = .running(count: count)
+            return timer
+        case (.start, .running):
+            return .none
+
+        case (.stop, .running(let count)):
+            state = .start(count: count)
+            return .cancelTask("timer")
+            
+        case (.stop, .start):
+            return .none
+            
+        case (.ping, .running(let count)):
+            state = .running(count: count + 1)
+            return .none
+            
+        case (.ping, .start):
+            return .none
+            
+        case (.terminate, .running):
+            state = .terminated
+            return .cancelTask("timer")
+
+        case (.terminate, .start):
+            state = .terminated
+            return .none
+
+        case (.terminate, .terminated):
+            return .none
+            
+        case (.ping, .terminated):
+            return .none
+        case (.stop, .terminated):
+            return .none
+        case (.start, .terminated):
+            return .none
+        }
+    }
+
+    /// Implements a timer which periodically sends a `ping` event to the
+    /// transducer until it will be cancelled.
+    ///
+    /// The Oak transducer wraps an asynchronous function in a Swift Task and
+    /// manages it, allowing you to control the timer's lifetime by sending special
+    /// events to the transducer. This means a timer can be started and cancelled
+    /// ("invalidated") at any time, for instance, by the user. The transducer
+    /// achieves this by cancelling the wrapping Swift Task. However, this
+    /// requires the running operation (in this case, `Task.sleep(nanoseconds:)`)
+    /// to be a good citizen of Swift Concurrency and stop running when its task
+    /// is cancelled. Fortunately, this is the case with a library function, so
+    /// it will work.
+    static let timer = Effect(id: "timer") { env, proxy in
+        while true {
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+            try? proxy.send(.ping)
+        }
+    }
+}
+```
 </details>
 
 <details>
     <summary>File: `Timers.Views.TimerView`</summary>
 
-    ```swift
-    import SwiftUI
-    import Oak
+```swift
+import SwiftUI
+import Oak
 
-    extension Timers { enum Views {} }
+extension Timers { enum Views {} }
 
-    fileprivate extension Timers.State {        
-        var isStartable: Bool {
-            switch self {
-            case .start:
-                true
-            case .terminated, .running:
-                false
-            }
+fileprivate extension Timers.State {        
+    var isStartable: Bool {
+        switch self {
+        case .start:
+            true
+        case .terminated, .running:
+            false
         }
-
-        var isStopable: Bool {
-            switch self {
-            case .start, .terminated:
-                false
-            case .running:
-                true
-            }
-        }
-        
-        var count: Int? {
-            switch self {
-            case .start(count: let count), .running(count: let count):
-                count
-            default:
-                nil
-            }
-        }        
     }
 
-    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-    extension Timers.Views {
+    var isStopable: Bool {
+        switch self {
+        case .start, .terminated:
+            false
+        case .running:
+            true
+        }
+    }
+    
+    var count: Int? {
+        switch self {
+        case .start(count: let count), .running(count: let count):
+            count
+        default:
+            nil
+        }
+    }        
+}
+
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+extension Timers.Views {
+    
+    struct TimerView: View {
+        let state: Timers.State
+        let send: (Timers.Event) -> Void
         
-        struct TimerView: View {
-            let state: Timers.State
-            let send: (Timers.Event) -> Void
-            
-            var body: some View {
-                VStack {
-                    switch state {
-                    case .start(count: let count), .running(count: let count):
-                        Text("\(count)")
-                            .font(.largeTitle)
-                            .contentTransition(.numericText()) // Note: `contentTransition` is only available in iOS 16.0 or newer
-                            .animation(.default, value: state.count)
-                    case .terminated:
-                        Text("done")
-                    }
-                    if !state.isTerminal {
-                        let label = state.isStartable ? "Start" : state.isStopable ? "Stop" : "?"
-                        let action: Timers.Event? = state.isStartable ? .start : state.isStopable ? .stop : nil
-                        if let action = action {
-                            Button("\(label)") {
-                                self.send(action)
-                            }
+        var body: some View {
+            VStack {
+                switch state {
+                case .start(count: let count), .running(count: let count):
+                    Text("\(count)")
+                        .font(.largeTitle)
+                        .contentTransition(.numericText()) // Note: `contentTransition` is only available in iOS 16.0 or newer
+                        .animation(.default, value: state.count)
+                case .terminated:
+                    Text("done")
+                }
+                if !state.isTerminal {
+                    let label = state.isStartable ? "Start" : state.isStopable ? "Stop" : "?"
+                    let action: Timers.Event? = state.isStartable ? .start : state.isStopable ? .stop : nil
+                    if let action = action {
+                        Button("\(label)") {
+                            self.send(action)
                         }
                     }
                 }
-                .navigationTitle(Text("Timer"))
             }
+            .navigationTitle(Text("Timer"))
         }
     }
+}
 
-    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-    extension Timers.Views {
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+extension Timers.Views {
+    
+    struct NavigationStackView: View {
         
-        struct NavigationStackView: View {
-            
-            struct Timer: Identifiable, Hashable {
-                let id: Int
-            }
+        struct Timer: Identifiable, Hashable {
+            let id: Int
+        }
 
-            @State private var timers: [Timer] = (1...10).map { Timer(id: $0) }
-            
-            var body: some View {
-                NavigationStack {  //
-                    List(timers) { timer in
-                        NavigationLink("\(timer.id)", value: timer)
+        @State private var timers: [Timer] = (1...10).map { Timer(id: $0) }
+        
+        var body: some View {
+            NavigationStack {  //
+                List(timers) { timer in
+                    NavigationLink("\(timer.id)", value: timer)
+                }
+                .navigationDestination(for: Timer.self) { timer in
+                    TransducerView(of: Timers.self, env: Timers.Env()) { state, send in
+                        Timers.Views.TimerView(
+                            state: state,
+                            send: send
+                        )
                     }
-                    .navigationDestination(for: Timer.self) { timer in
-                        TransducerView(of: Timers.self, env: Timers.Env()) { state, send in
-                            Timers.Views.TimerView(
-                                state: state,
-                                send: send
-                            )
-                        }
-                        .navigationTitle("Timer \(timer.id)")
-                    }
+                    .navigationTitle("Timer \(timer.id)")
                 }
             }
         }
-        
     }
+    
+}
 
-    // MARK: - Previews
+// MARK: - Previews
 
-    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-    #Preview("Timer View start") {
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+#Preview("Timer View start") {
+    Timers.Views.TimerView(
+        state: .init(),
+        send: { print($0) }
+    )
+}
+
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+#Preview("Timer View running(3)") {
+    Timers.Views.TimerView(
+        state: .running(count: 3),
+        send: { print($0) }
+    )
+}
+
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+#Preview("TransducerView with TimerView") {
+    TransducerView(of: Timers.self, env: Timers.Env()) { state, send in
         Timers.Views.TimerView(
-            state: .init(),
-            send: { print($0) }
+            state: state,
+            send: send
         )
     }
+}
 
-    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-    #Preview("Timer View running(3)") {
-        Timers.Views.TimerView(
-            state: .running(count: 3),
-            send: { print($0) }
-        )
-    }
-
-    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-    #Preview("TransducerView with TimerView") {
-        TransducerView(of: Timers.self, env: Timers.Env()) { state, send in
-            Timers.Views.TimerView(
-                state: state,
-                send: send
-            )
-        }
-    }
-
-    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-    #Preview("Timer List") {
-        Timers.Views.NavigationStackView()
-    }
-    ```
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+#Preview("Timer List") {
+    Timers.Views.NavigationStackView()
+}
+```
 </details>
 
 
