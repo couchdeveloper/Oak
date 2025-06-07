@@ -121,7 +121,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         out: Out,
         initialOutput: Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.Output == Output, T.Env == Never {
+    ) where T.TransducerOutput == Output, T.Env == Never {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: initialState)
@@ -142,7 +142,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         out: Out,
         initialOutput: Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.Output == Output, T.Env == Never, T.State: DefaultInitializable {
+    ) where T.TransducerOutput == Output, T.Env == Never, T.State: DefaultInitializable {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: .init())
@@ -162,7 +162,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         initialState: T.State,
         proxy: T.Proxy? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.Output == Void, T.Env == Never {
+    ) where T.TransducerOutput == Void, T.Env == Never {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: initialState)
@@ -180,7 +180,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         of type: T.Type,
         proxy: T.Proxy? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.Output == Void, T.Env == Never, T.State: DefaultInitializable {
+    ) where T.TransducerOutput == Void, T.Env == Never, T.State: DefaultInitializable {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: .init())
@@ -202,7 +202,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         out: Out,
         initialOutput: Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.Output == (Oak.Effect<T.Event, T.Env>?, Output) {
+    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, Output) {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: initialState)
@@ -225,7 +225,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         out: Out,
         initialOutput: Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.Output == (Oak.Effect<T.Event, T.Env>?, Output), T.State: DefaultInitializable {
+    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, Output), T.State: DefaultInitializable {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: .init())
@@ -247,7 +247,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         proxy: T.Proxy? = nil,
         env: T.Env,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.Output == Oak.Effect<T.Event, T.Env>? {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>? {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: initialState)
@@ -266,7 +266,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         proxy: T.Proxy? = nil,
         env: T.Env,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.Output == Oak.Effect<T.Event, T.Env>?, T.State: DefaultInitializable {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.State: DefaultInitializable {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: .init())
@@ -355,13 +355,13 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run(
+    public static func run<Output>(
         isolated: isolated any Actor = #isolation,
         binding: Binding<State>,
         proxy: Proxy,
         out: some Subject<Output>,
         initialOutput: Output? = nil
-    ) async throws -> Output {
+    ) async throws -> Output where Output == TransducerOutput {
         try await run(
             storage: binding,
             proxy: proxy,
@@ -392,11 +392,11 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run(
+    public static func run<Output>(
         isolated: isolated any Actor = #isolation,
         binding: Binding<State>,
         proxy: Proxy
-    ) async throws -> Output {
+    ) async throws -> Output where Output == TransducerOutput {
         try await run(
             binding: binding,
             proxy: proxy,
@@ -449,7 +449,7 @@ extension Transducer where Env: Sendable {
         env: Env,
         out: some Subject<Out>,
         initialOutput: Out? = nil,
-    ) async throws -> Out where Output == (Oak.Effect<Event, Env>?, Out) {
+    ) async throws -> Out where TransducerOutput == (Oak.Effect<Event, Env>?, Out) {
         try await run(
             storage: binding,
             proxy: proxy,
@@ -493,7 +493,7 @@ extension Transducer where Env: Sendable {
         binding: Binding<State>,
         proxy: Proxy,
         env: Env,
-    ) async throws -> Void where Output == Oak.Effect<Event, Env>? {
+    ) async throws -> Void where TransducerOutput == Oak.Effect<Event, Env>? {
         try await run(
             storage: binding,
             proxy: proxy,
@@ -535,7 +535,7 @@ extension Transducer where Env: Sendable {
         binding: Binding<State>,
         proxy: Proxy,
         env: Env
-    ) async throws -> Out where Output == (Oak.Effect<Event, Env>?, Out) {
+    ) async throws -> Out where TransducerOutput == (Oak.Effect<Event, Env>?, Out) {
         try await run(
             isolated: isolated,
             binding: binding,
@@ -641,7 +641,7 @@ extension Counters: Transducer {
         case done
     }
     
-    typealias Output = Int
+    typealias TransducerOutput = Int
         
     static func update(
         _ state: inout State,
@@ -688,7 +688,7 @@ extension Counters { enum Views {} }
 
 extension Counters.Views {
     fileprivate struct ComponentView: View {
-        @SwiftUI.State private var output: Counters.Output = 0
+        @SwiftUI.State private var output: Counters.TransducerOutput = 0
         var body: some View {
             TransducerView(of: Counters.self, out: $output) { state, send in
                 ContentView(
@@ -821,52 +821,6 @@ struct RepeatViewInSheet: View {
 
 #Preview("RepeatViewInSheet") {
     RepeatViewInSheet()
-}
-
-
-@MainActor
-struct FSA<T: Transducer> where T.Output: Sendable {
-    let proxy: T.Proxy
-    
-    init(
-        binding: Binding<T.State>,
-        initialOutput: T.Output? = nil,
-        onOutput: @escaping @Sendable (T.Output) -> Void
-    ) where T.Env == Never {
-        let proxy = T.Proxy()
-        Task {
-            try await T.run(
-                binding: binding,
-                proxy: proxy,
-                out: Callback(onOutput),
-                initialOutput: initialOutput
-            )
-        }
-        self.proxy = proxy
-    }
-
-    init<Output: Sendable>(
-        binding: Binding<T.State>,
-        initialOutput: Output? = nil,
-        env: T.Env,
-        onOutput: @escaping @Sendable (Output) -> Void
-    ) where T.Env: Sendable, T.Output == (Effect<T.Event, T.Env>?, Output) {
-        let proxy = T.Proxy()
-        Task {
-            try await T.run(
-                binding: binding,
-                proxy: proxy,
-                env: env,
-                out: Callback(onOutput),
-                initialOutput: initialOutput
-            )
-        }
-        self.proxy = proxy
-    }
-
-    func abort() {
-        proxy.terminate()
-    }
 }
 
 #endif

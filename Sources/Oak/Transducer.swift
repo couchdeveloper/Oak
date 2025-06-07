@@ -2,15 +2,157 @@
 /// A conforming type defines a concrete _model of computation_
 /// or _abstract machine_ for an _extended_ Finite State Automaton (FSA).
 ///
-/// A conforming type defines `State`, `Event`, `Output` and the
-/// _update_ function for the FSA. The update function combines the _transition_
-/// and _output_ function. These parts complete the definition of a
-/// FSA or FST (Finite State Transducer).
+/// When a FSA produces an output, which is optional for an FSA, the FSA
+/// is said to be a _Finite State Transducer_ (FST). Oak frequently uses the
+/// term FST even though it might be an FSA not producing an output.
+///
+/// A conforming type defines `State`, `Event`, `TransducerOutput`
+/// and the update function `update(_:event:) -> TransducerOuptut`
+/// for the FSA. The update function combines the _transition_ and _output_
+/// function.
+///
+/// ## Defining the FSA
+///
+/// Below is a very basic FSA (`T1`) which is not producing an output:
+///
+///```swift
+///enum T1: Transducer {
+///    enum State: Terminable {
+///        case start
+///        case terminated
+///        var isTerminal: Bool {
+///            if case .terminated = self { true } else { false }
+///        }
+///    }
+///    enum Event { case start }
+///    static func update(
+///        _ state: inout State,
+///        event: Event
+///    ) -> Void {
+///        switch (event, state) {
+///        case (.start, .start):
+///            return .terminated
+///        case (_, .terminated):
+///            return state
+///        }
+///    }
+///}
+///```
+///
+/// The next example (`T2`) uses a more advanced FST which produces an
+/// output on every transition with is a tuple of an _effect_ and a value (here
+/// a tuple). The effect in this example is a very basic one, which simply sends
+/// an event `ping` after a specified duration to the FSA when it gets executed.
+/// When the FSA receives an event `ping` it will send another effect which
+/// will send the event `ping` to the transducer after the duration. The FSA
+/// can be terminated by sending it the `cancel` event.
+///
+/// Note that the FST will handle the effect execution already, and there's
+/// nothing more one needs to do.
+///```swift
+/// enum T1: Transducer {
+///     enum State: Terminable {
+///         case start, running, finished
+///         var isTerminal: Bool {
+///             if case .finished = self { true } else { false }
+///         }
+///     }
+///     enum Event {
+///         case start, cancel, ping
+///     }
+///
+///     struct Env {}
+///
+///     typealias Effect = Oak.Effect<Event, Env>
+///
+///     static func update(_ state: inout State, event: Event) -> (Effect?, (Int, String)) {
+///         switch (event, state) {
+///         case (.start, .start):
+///             state = .running
+///             return (.event(.ping, id: "ping", after: .milliseconds(100)), (0, "running"))
+///         case (.start, .running):
+///             return (.none, (1, "running"))
+///         case (.cancel, .running):
+///             state = .finished
+///             return (.none, (2, "finished"))
+///         case (.ping, .running):
+///             return (.event(.ping, id: "ping", after: .milliseconds(100)), (3, "ping"))
+///
+///         case (_, .finished):
+///             return (.none, (-1, "??"))
+///         case (.ping, .start):
+///             return (.none, (-1, "??"))
+///         case (.cancel, .start):
+///             return (.none, (-1, "??"))
+///         }
+///     }
+/// }
+///```
+///
+/// ## Executing a FSA
 ///
 /// A finite state transducer will be finally created and put into the initial state
 /// with the protocol extension function `run()`. The function is async and
 /// throwing. The function returns when the transducer's state transitioned to
 /// a terminal state.
+///
+/// The `run()` function has a couple of overloads. The exact overload
+/// to use depends an how the FSA has been defined.
+///
+/// For example, the transducer `T1` in the given example above, can be
+/// exeuted as shown below:
+///
+///```swift
+///let proxy = T1.Proxy()
+///try await T1.run(
+///    initialState: .start,
+///    proxy: proxy,
+///)
+///```
+/// Elsewhere, the `proxy` will be used to send events into the FSA:
+///```swift
+///proxy.send(.start)
+///```
+/// In the example above, once the FSA receices an event `start` it also
+/// will terminate and the asynchronous `run()` will return.
+///
+/// The transducer `T2` in the given example executes an effect. Due
+/// to this, it requires an additional parameter which is the
+/// "environment" for the side effect which will be executed by the FSA.
+///
+/// To exetute the FSA we need to provide the environment as shown
+/// below:
+///
+///```swift
+/// let proxy = T2.Proxy()
+/// let env = T2.Env()
+///
+/// let result = try await T2.run(
+///     initialState: .start,
+///     proxy: proxy,
+///     env: env
+/// )
+///```
+/// Elsewhere we can use the proxy to send events into the FSA `T2`:
+///```swift
+///try proxy.send(.start)
+///```
+/// In the example `T2` above this will cause the FSA to transition to
+/// the `running` state.
+///
+/// In order to put the FSA `T2` into the terminal state (i.e. it will finish) we
+/// can send the `cancel` event:
+///```swift
+///try proxy.send(.cancel)
+///```
+/// This will eventually cause the FSA's `run` function to return and yield
+/// the final result - which is the last output value generated by the FSA
+/// during its last transition into the terminal state.
+///
+/// Note that all events are specific to the use case `T2`.
+///
+///
+/// ## Thread-safety
 ///
 /// A FSA needs to run in an _isolated domain_, that needs to be provided
 /// by the call-site. Isolation basically means, that the _state_ is _isolated_
@@ -19,15 +161,22 @@
 /// software within a concurrent environment. In Oak, the isolation will be
 /// realised with an `Swift.Actor`.
 ///
+/// ## Creating Advanced FSAs
+///
 /// A basic transducer would define an update function whose signature is
 /// ```swift
 /// (inout State, Event) -> Output
 ///```
-/// With that, you can implement a _Mealy_ and a _Moore_ machine, or a mix of
-/// both. Since `State` and `Event` can carry associated data, even more
-/// complex machines are possible.
+/// where `Output` is just a value which can be used as a signal or an
+/// input event for another FSA.
 ///
-/// A more sophisticated transducer can be defined, that creates _Effects_ as
+/// With that, you can implement a _Mealy_ and a _Moore_ machine, or a mix of
+/// both.
+///
+/// Both, `State` and `Event` can carry associated data, which makes it
+/// possibly to create more complex FSAs, socalled _extended FSAs_.
+///
+/// An even more sophisticated FST can be defined, that creates _Effects_ as
 /// part of the output. Effects are function objects, that will be invoked outside
 /// the update function. Effects can be used to
 ///  - create events, that get sent back to the transducer,
@@ -51,13 +200,14 @@
 /// This kind of transducer would define an update function whose signature
 /// is
 /// ```swift
-/// (inout State, Event) -> (Effect?, Output)
+/// (inout State, Event) -> (Effect?, TransducerOutput)
 ///```
 ///or, where the effect itself is the whole output:
 /// ```swift
 /// (inout State, Event) -> Effect?
 ///```
-/// The Output can be used to connect FST's. For example, in hierarchically
+///
+/// The TransducerOutput can be used to connect FST's. For example, in hierarchically
 /// nested or composite states, the child FST emits events to its output, that
 /// it does not handle itself. Previously, the parent FST, that is responsible
 /// to create the child FST, has setup the output closure such, that it routes
@@ -68,13 +218,13 @@
 public protocol Transducer {
     associatedtype State: Terminable
     associatedtype Event: Sendable
-    associatedtype Output: Sendable
+    associatedtype TransducerOutput: Sendable
     associatedtype Env = Never
     
     typealias Proxy = Oak.Proxy<Event>
     
     /// The combined _transition_ and _output_ function of the FST. This function will be isolated on the caller's actor.
-    static func update(_ state: inout State, event: Event) -> Output
+    static func update(_ state: inout State, event: Event) -> TransducerOutput
 }
 
 public protocol Terminable {
@@ -127,13 +277,13 @@ extension Transducer where Env == Never {
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
-    internal static func run(
+    internal static func run<Output>(
         isolated: isolated any Actor = #isolation,
         storage: some Oak.Storage<State>,
         proxy: Proxy,
         out: some Subject<Output>,
         initialOutput: Output? = nil
-    ) async throws -> Output {
+    ) async throws -> Output where Output == TransducerOutput {
         guard proxy.continuation.onTermination == nil else {
             throw ProxyAlreadyAssociatedError()
         }
@@ -191,13 +341,13 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run(
+    public static func run<Output>(
         isolated: isolated any Actor = #isolation,
         initialState: State,
         proxy: Proxy,
         out: some Subject<Output>,
         initialOutput: Output? = nil
-    ) async throws -> Output {
+    ) async throws -> Output where Output == TransducerOutput {
         try await run(
             storage: LocalStorage(value: initialState),
             proxy: proxy,
@@ -222,11 +372,11 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run(
+    public static func run<Output>(
         isolated: isolated any Actor = #isolation,
         initialState: State,
         proxy: Proxy
-    ) async throws -> Output {
+    ) async throws -> Output where Output == TransducerOutput {
         try await run(
             initialState: initialState,
             proxy: proxy,
@@ -255,14 +405,14 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Host>(
+    public static func run<Host, Output>(
         isolated: isolated any Actor = #isolation,
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy,
         out: some Subject<Output>,
         initialOutput: Output? = nil
-    ) async throws -> Output {
+    ) async throws -> Output where Output == TransducerOutput {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
@@ -290,12 +440,12 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Host>(
+    public static func run<Host, Output>(
         isolated: isolated any Actor = #isolation,
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy
-    ) async throws -> Output {
+    ) async throws -> Output where Output == TransducerOutput {
         try await run(
             isolated: isolated,
             state: state,
@@ -342,7 +492,7 @@ extension Transducer where Env: Sendable {
         env: Env,
         out: some Subject<Output>,
         initialOutput: Output? = nil,
-    ) async throws -> Output where Self.Output == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
         // TODO: there's a potential race condition when accessing `onTermination` in case the proxy will be used for multiple transducers at the same time. This is illegal according the documentation, though.
         guard proxy.continuation.onTermination == nil else {
             throw ProxyAlreadyAssociatedError()
@@ -431,7 +581,7 @@ extension Transducer where Env: Sendable {
         storage: some Oak.Storage<State>,
         proxy: Proxy,
         env: Env,
-    ) async throws -> Void where Self.Output == Oak.Effect<Event, Env>? {
+    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Event, Env>? {
         guard proxy.continuation.onTermination == nil else {
             throw ProxyAlreadyAssociatedError()
         }
@@ -511,7 +661,7 @@ extension Transducer where Env: Sendable {
         env: Env,
         out: some Subject<Output>,
         initialOutput: Output? = nil,
-    ) async throws -> Output where Self.Output == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
         try await run(
             storage: LocalStorage(value: initialState),
             proxy: proxy,
@@ -550,7 +700,7 @@ extension Transducer where Env: Sendable {
         initialState: State,
         proxy: Proxy,
         env: Env
-    ) async throws -> Output where Self.Output == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
         try await run(
             isolated: isolated,
             initialState: initialState,
@@ -596,7 +746,7 @@ extension Transducer where Env: Sendable {
         env: Env,
         out: some Subject<Output>,
         initialOutput: Output? = nil
-    ) async throws -> Output where Self.Output == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
@@ -638,7 +788,7 @@ extension Transducer where Env: Sendable {
         host: Host,
         proxy: Proxy,
         env: Env
-    ) async throws -> Output where Self.Output == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
         try await run(
             isolated: isolated,
             state: state,
@@ -657,7 +807,7 @@ extension Transducer where Env == Never {
         state: inout State,
         event: Event,
         proxy: Proxy
-    ) -> Output {
+    ) -> TransducerOutput {
         guard !state.isTerminal else {
             fatalError("Could not process event '\(event)' because the transducer (\(proxy.id.uuidString)) is already terminated.")
         }
@@ -674,7 +824,7 @@ extension Transducer where Env: Sendable {
         proxy: Proxy,
         context: Context,
         env: Env
-    ) -> Output where Self.Output == (Oak.Effect<Event, Env>?, Output) {
+    ) -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
         guard !state.isTerminal else {
             fatalError("Could not process event \(event) because the transducer (\(proxy.id.uuidString)) is already terminated.")
         }
@@ -691,7 +841,7 @@ extension Transducer where Env: Sendable {
     }
 }
 
-extension Transducer where Output == Oak.Effect<Event, Env>?, Env: Sendable {
+extension Transducer where TransducerOutput == Oak.Effect<Event, Env>?, Env: Sendable {
     internal static func compute(
         isolated: isolated any Actor = #isolation,
         state: inout State,
