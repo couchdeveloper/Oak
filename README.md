@@ -7,15 +7,13 @@ The Oak library is primarily intended to implement the typical frontend patterns
 
 ## Overview
 
-FSMs are utilized to develop systems characterized by discrete and sequential behavior. The correctness of these systems is guaranteed by their mathematical framework, while their strength lies in their ability to be composed together.
+Finite State Machines (FSMs) are invaluable tools for managing systems with discrete and sequential behaviours. Their mathematical framework ensures correctness, providing a robust foundation that helps prevent logical errors. One of the key strengths of FSMs is their composability, allowing complex behaviours to be constructed from simpler, well-defined states and transitions.
 
 This makes them an ideal candidate to implement the logic in user interfaces, but they can effectively address a wide range of problems. 
 
-
-
 > Tip: Oak state machines seamlessly integrate directly into SwiftUI views, eliminating the need to employ observable classes or utilise the Observation framework. 
 
-The code below shows a basic example how this will be implemented. The code can be copy pasted and run in the Xcode Preview.
+The code below provides a basic example of how this functionality can be implemented using Oak. It can be copied and pasted into Xcode Preview and run.
 
 <details>
     <summary>File: `Timers.Transducer.swift`</summary>
@@ -282,16 +280,14 @@ extension Timers.Views {
 </details>
 
 
-## Motivation 
 
-The bugs we frequently encounter in applications often stem from incorrect logic. For instance, consider a view model with a method to retrieve data from a network API. The error in this scenario arises when the method is executed before a request has been initiated and completed.
+## Benefits of using State Machines
 
-To ensure the correctness of our logic, we must recognise that most computations are stateful. The most straightforward approach to achieving stateful logic is through the use of a state machine.
+Applications often suffer from bugs due to incorrect logic, such as issues arising when a method is invoked multiple times before a prior operation completes. FSMs address this by explicitly modelling the state of the system, reducing the likelihood of such errors. For example, in handling network API requests within a view model, an FSM can manage the state of pending requests, ensuring that subsequent calls behave appropriately depending on the current state.
 
-A state machine aligns well with views that adhere to the "a view is a function of state" principle, like those in SwiftUI, because it can effectively provide the necessary state for the view. This approach also promotes an event-driven and unidirectional model, enhancing clarity and simplifying the process of ensuring correctness.
+Acknowledging that most computations are inherently stateful, FSMs offer a structured and clear approach to implementing state-dependent logic. By defining explicit states and transitions, they enhance the clarity, maintainability, and reliability of the system.
 
-
-## Benefits of using Oak State Machines for UI code
+A state machine aligns well with views that adhere to the "a view is a function of state" principle, like those in SwiftUI, because it can effectively provide the necessary state for the view. This approach also promotes an event-driven and unidirectional model, enhancing clarity and simplifying the process of ensuring correctness. Oak State machines can be directly used in SwiftUI as a View.
 
 Oak emphasises on fundamental principles such as:
 
@@ -307,7 +303,7 @@ Oak emphasises on fundamental principles such as:
 
 Finite State Machines (FSMs) are mathematical models used to represent and control behaviour, particularly in digital logic. Their core principles revolve around a finite set of _states_, _transitions_ between these states based on _inputs_, and potentially _outputs_ that depend on the current state and input. 
 
-### Key Principles of Finite State Machines (FSMs):
+### Key Concept of Finite State Machines (FSMs):
 
 1. States: FSMs have a finite number of states, each representing a different condition or situation. A FSM is always in one of these states. A state can carry more complex data, which is called an _extended_ state and the FSM is called an Extended Finite State Machine (EFSM).
 
