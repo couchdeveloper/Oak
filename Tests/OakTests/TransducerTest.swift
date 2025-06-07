@@ -105,7 +105,7 @@ extension TransducerTests {
                 static func update(_ state: inout State, event: Event) -> Void { }
             }
             let proxy = T.Proxy()
-            let result: Void = try await T.run(initialState: .start, proxy: proxy)
+            let result: Void = try await T.run(initialState: .start, proxy: proxy, out: NoCallbacks(), initialOutput: Void())
             #expect(result == ())
         }
      
@@ -612,7 +612,7 @@ extension TransducerTests {
                     proxy: proxy,
                     env: T1.Env(),
                     out: Callback { output in
-                        // print(output)
+                        print(output)
                     }
                 )
                 #expect(result == (2, "finished"))

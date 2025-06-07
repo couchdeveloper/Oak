@@ -343,7 +343,7 @@ extension Transducer where Env == Never {
     @discardableResult
     public static func run<Output>(
         isolated: isolated any Actor = #isolation,
-        initialState: State,
+        initialState: sending State,
         proxy: Proxy,
         out: some Subject<Output>,
         initialOutput: Output? = nil
@@ -374,7 +374,7 @@ extension Transducer where Env == Never {
     @discardableResult
     public static func run<Output>(
         isolated: isolated any Actor = #isolation,
-        initialState: State,
+        initialState: sending State,
         proxy: Proxy
     ) async throws -> Output where Output == TransducerOutput {
         try await run(
@@ -656,7 +656,7 @@ extension Transducer where Env: Sendable {
     @discardableResult
     public static func run<Output: Sendable>(
         isolated: isolated any Actor = #isolation,
-        initialState: State,
+        initialState: sending State,
         proxy: Proxy,
         env: Env,
         out: some Subject<Output>,
@@ -697,7 +697,7 @@ extension Transducer where Env: Sendable {
     @discardableResult
     public static func run<Output: Sendable>(
         isolated: isolated any Actor = #isolation,
-        initialState: State,
+        initialState: sending State,
         proxy: Proxy,
         env: Env
     ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
@@ -997,12 +997,12 @@ internal struct LocalStorage<Value>: Storage {
     final class Reference {
         var value: Value
 
-        init(value: Value) {
+        init(value: sending Value) {
             self.value = value
         }
     }
     
-    init(value: Value) {
+    init(value: sending Value) {
         storage = Reference(value: value)
     }
     

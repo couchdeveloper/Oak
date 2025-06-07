@@ -116,7 +116,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     /// by the transducer.
     public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
-        initialState: T.State,
+        initialState: sending T.State,
         proxy: T.Proxy? = nil,
         out: Out,
         initialOutput: Output? = nil,
@@ -159,7 +159,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
 
     public init(
         of type: T.Type,
-        initialState: T.State,
+        initialState: sending T.State,
         proxy: T.Proxy? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.TransducerOutput == Void, T.Env == Never {
@@ -196,7 +196,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
 
     public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
-        initialState: T.State,
+        initialState: sending T.State,
         proxy: T.Proxy? = nil,
         env: T.Env,
         out: Out,
@@ -243,7 +243,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
 
     public init(
         of type: T.Type,
-        initialState: T.State,
+        initialState: sending T.State,
         proxy: T.Proxy? = nil,
         env: T.Env,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
