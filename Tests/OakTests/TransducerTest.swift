@@ -95,7 +95,7 @@ extension TransducerTests {
     struct RunTests {
         
         @MainActor
-        @Test func testTypeInference1() async throws {
+        @Test func testRun1() async throws {
             enum T: Transducer {
                 enum State: Terminable {
                     case start
@@ -110,7 +110,7 @@ extension TransducerTests {
         }
      
         @MainActor
-        @Test func testTypeInference2() async throws {
+        @Test func testRun2() async throws {
             enum T: Transducer {
                 enum State: Terminable {
                     case start
@@ -125,7 +125,7 @@ extension TransducerTests {
         }
 
         @MainActor
-        @Test func testTypeInference3() async throws {
+        @Test func testRun3() async throws {
             enum T: Transducer {
                 enum State: Terminable {
                     case start
@@ -139,7 +139,7 @@ extension TransducerTests {
         }
         
         @MainActor
-        @Test func testTypeInference4() async throws {
+        @Test func testRun4() async throws {
             enum T: Transducer {
                 enum State: Terminable {
                     case start
@@ -155,7 +155,7 @@ extension TransducerTests {
         }
 
         @MainActor
-        @Test func testTypeInference5() async throws {
+        @Test func testRun5() async throws {
             enum T: Transducer {
                 enum State: Terminable {
                     case start
@@ -620,7 +620,5 @@ extension TransducerTests {
                 
             }
         }
-
-        
     }
 }
