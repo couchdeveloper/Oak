@@ -20,13 +20,19 @@ struct TransducerTests  {
         @MainActor
         @Test func testTypeInference1() async throws {
             enum T: Transducer {
-                enum State: Terminable { case start }
+                enum State: Terminable {
+                    case start
+                    case terminated
+                    var isTerminal: Bool {
+                        if case .terminated = self { true } else { false }
+                    }
+                }
                 enum Event { case start }
                 static func update(_ state: inout State, event: Event) -> Void { }
             }
             
             #expect(T.Env.self == Never.self)
-            #expect(T.Output.self == Void.self)
+            #expect(T.TransducerOutput.self == Void.self)
             #expect(T.Proxy.self == Oak.Proxy<T.Event>.self)
         }
         
@@ -39,7 +45,7 @@ struct TransducerTests  {
             }
             
             #expect(T.Env.self == Never.self)
-            #expect(T.Output.self == Int.self)
+            #expect(T.TransducerOutput.self == Int.self)
             #expect(T.Proxy.self == Oak.Proxy<T.Event>.self)
         }
         
@@ -52,7 +58,7 @@ struct TransducerTests  {
             }
             
             #expect(T.Env.self == Never.self)
-            #expect(T.Output.self == (Int, Int).self)
+            #expect(T.TransducerOutput.self == (Int, Int).self)
             #expect(T.Proxy.self == Oak.Proxy<T.Event>.self)
         }
         
@@ -65,7 +71,7 @@ struct TransducerTests  {
                 static func update(_ state: inout State, event: Event) -> (Oak.Effect<Event, Env>?, Int) { (.none, 0) }
             }
             
-            #expect(T.Output.self == (Oak.Effect<T.Event, T.Env>?, Int).self)
+            #expect(T.TransducerOutput.self == (Oak.Effect<T.Event, T.Env>?, Int).self)
             #expect(T.Proxy.self == Oak.Proxy<T.Event>.self)
         }
         
@@ -78,7 +84,7 @@ struct TransducerTests  {
                 static func update(_ state: inout State, event: Event) -> (Oak.Effect<Event, Env>?, (Int, Int)) { (.none, (0, 0)) }
             }
             
-            #expect(T.Output.self == (Oak.Effect<T.Event, T.Env>?, (Int, Int)).self)
+            #expect(T.TransducerOutput.self == (Oak.Effect<T.Event, T.Env>?, (Int, Int)).self)
             #expect(T.Proxy.self == Oak.Proxy<T.Event>.self)
         }
     }
@@ -98,7 +104,8 @@ extension TransducerTests {
                 enum Event { case start }
                 static func update(_ state: inout State, event: Event) -> Void { }
             }
-            let result: Void = try await T.run(initialState: .start, proxy: T.Proxy(), out: NoCallbacks(), initialOutput: Void())
+            let proxy = T.Proxy()
+            let result: Void = try await T.run(initialState: .start, proxy: proxy)
             #expect(result == ())
         }
      
@@ -459,7 +466,7 @@ extension TransducerTests {
         @Test func testTypes() async throws {
             print(type(of: T1.State.self))
             print(type(of: T1.Event.self))
-            print(type(of: T1.Output.self))
+            print(type(of: T1.TransducerOutput.self))
             print(type(of: T1.Effect.self))
             print(type(of: T1.Env.self))
             print(type(of: T1.Proxy.self))
@@ -545,4 +552,75 @@ extension TransducerTests {
         
     }
 
+}
+
+extension TransducerTests {
+    
+    struct Examples {
+        @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+        enum T1: Transducer {
+            enum State: Terminable {
+                case start, running, finished
+                var isTerminal: Bool {
+                    if case .finished = self { true } else { false }
+                }
+            }
+            enum Event {
+                case start, cancel, ping
+            }
+            
+            struct Env {}
+            
+            typealias Effect = Oak.Effect<Event, Env>
+
+            static func update(_ state: inout State, event: Event) -> (Effect?, (Int, String)) {
+                switch (event, state) {
+                case (.start, .start):
+                    state = .running
+                    return (.event(.ping, id: "ping", after: .milliseconds(10)), (0, "running"))
+                case (.start, .running):
+                    return (.none, (1, "running"))
+                case (.cancel, .running):
+                    state = .finished
+                    return (.none, (2, "finished"))
+                case (.ping, .running):
+                    return (.event(.ping, id: "ping", after: .milliseconds(10)), (3, "ping"))
+
+                case (_, .finished):
+                    return (.none, (-1, "??"))
+                case (.ping, .start):
+                    return (.none, (-1, "??"))
+                case (.cancel, .start):
+                    return (.none, (-1, "??"))
+                }
+            }
+        }
+        
+        @MainActor
+        @Test
+        func testEventEffect() async throws {
+            if #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) {
+                let proxy = T1.Proxy()
+                Task {
+                    try proxy.send(.start)
+                    try await Task.sleep(for: .seconds(0.05))
+                    try proxy.send(.cancel)
+                }
+                
+                let result = try await T1.run(
+                    initialState: .start,
+                    proxy: proxy,
+                    env: T1.Env(),
+                    out: Callback { output in
+                        // print(output)
+                    }
+                )
+                #expect(result == (2, "finished"))
+            } else {
+                
+            }
+        }
+
+        
+    }
 }
