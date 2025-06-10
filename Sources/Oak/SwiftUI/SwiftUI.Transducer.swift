@@ -582,6 +582,8 @@ fileprivate enum A: Transducer {
         case buttonTapped
     }
     
+    typealias Output = Void
+    
     static func update(
         _ state: inout State,
         event: Event
@@ -641,7 +643,7 @@ extension Counters: Transducer {
         case done
     }
     
-    typealias TransducerOutput = Int
+    typealias Output = Int
         
     static func update(
         _ state: inout State,
@@ -755,6 +757,7 @@ struct RepeatView: View {
             case idle
         }
         enum Event { case start }
+        typealias Output = Void
         static func update(_ state: inout State, event: Event) {
             print("*** \(event), \(state)")
             switch (event, state) {

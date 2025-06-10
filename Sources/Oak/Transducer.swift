@@ -220,6 +220,7 @@ public protocol Transducer {
     associatedtype Event: Sendable
     associatedtype TransducerOutput: Sendable
     associatedtype Env = Never
+    associatedtype Output: Sendable
     
     typealias Proxy = Oak.Proxy<Event>
     
