@@ -185,8 +185,9 @@ public struct StateTransducer<T: Oak.Transducer>: @preconcurrency DynamicPropert
         self._once = .init(wrappedValue: OnceFSA(thunk: thunk))
     }
 
-    /// Creates a new state transducer with an initial start state.
-    /// 
+    /// Creates a new state transducer with an initial start state whose update
+    /// function has the signature `(inout State, Event) -> Output`
+    ///
     /// You typically don’t call this initializer directly. Instead, SwiftUI
     /// calls it for you when you declare a property with the `@StateTransducer`
     /// attribute in an ``App``, ``Scene``, or ``View`` and provide an initial
@@ -244,8 +245,8 @@ public struct StateTransducer<T: Oak.Transducer>: @preconcurrency DynamicPropert
         self._once = .init(wrappedValue: OnceFSA(thunk: thunk))
     }
         
-    /// Creates a new state transducer with an initial start state whose output can
-    /// also have effects.
+    /// Creates a new state transducer with an initial start state whose update
+    /// function has the signature `(inout State, Event) -> (Effect?, Output)`
     ///
     /// You typically don’t call this initializer directly. Instead, SwiftUI
     /// calls it for you when you declare a property with the `@StateTransducer`
@@ -307,6 +308,67 @@ public struct StateTransducer<T: Oak.Transducer>: @preconcurrency DynamicPropert
         self._once = .init(wrappedValue: OnceFSA(thunk: thunk))
     }
     
+    /// Creates a new state transducer with an initial start state whose update
+    /// function has the signature `(inout State, Event) -> Effect?`
+    ///
+    /// You typically don’t call this initializer directly. Instead, SwiftUI
+    /// calls it for you when you declare a property with the `@StateTransducer`
+    /// attribute in an ``App``, ``Scene``, or ``View`` and provide an initial
+    /// value:
+    ///
+    ///     struct MyView: View {
+    ///         @StateTransducer private var counter(
+    ///             of: Counters.self
+    ///         ) = .start
+    ///
+    ///         // ...
+    ///     }
+    ///
+    /// SwiftUI creates only one instance of the state transducer for each
+    /// container instance that you declare. In the above code, SwiftUI
+    /// creates `counter` only the first time it initializes a particular
+    /// instance of `MyView`. On the other hand, each instance of `MyView`
+    /// creates a distinct instance of the data model. For example, each of
+    /// the views in the following ``VStack`` has its own transducer:
+    ///
+    ///     var body: some View {
+    ///         VStack {
+    ///             MyView()
+    ///             MyView()
+    ///         }
+    ///     }
+    ///
+    /// ### Initialize using external data
+    ///
+    /// If the initial state of a state transducer depends on external data, you can
+    /// call this initializer directly. However, use caution when doing this,
+    /// because SwiftUI only initializes the object once during the lifetime of
+    /// the view --- even if you call the state transducer initializer more than
+    /// once --- which might result in unexpected behavior. For more information
+    /// and an example, see ``StateTransducer``.
+    ///
+    /// - Parameters:
+    ///   - initialState: The initial state of the transducer. The initials state value should be a valid start state.
+    ///   - of: The type of the transducer.
+    ///   - proxy: The proxy of the transducer.
+    ///   - env: The environment value which will be passed as an argument to effects when they will be invoked.
+    public init(
+        wrappedValue initialState: T.State,
+        of: T.Type = T.self,
+        proxy: T.Proxy = T.Proxy(),
+        env: T.Env
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>? {
+        let thunk: () -> FSA<T> = {
+            FSA<T>.init(
+                initialState: initialState,
+                proxy: proxy,
+                env: env
+            )
+        }
+        self._once = .init(wrappedValue: OnceFSA(thunk: thunk))
+    }
+        
+
     public func update() {
         once()
     }
@@ -346,10 +408,16 @@ public struct StateTransducer<T: Oak.Transducer>: @preconcurrency DynamicPropert
 }
 
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+extension StateTransducer {
+
+}
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension StateTransducer where T.State: DefaultInitializable {
     
-    /// Creates a new state transducer with the initial start value given by the
-    /// default init function `init()`.
+    /// Creates a new state transducer with an initial start state whose update
+    /// function has the signature `(inout State, Event) -> Output`
+    /// with the initial start value given by the default init function `init()`.
     ///
     /// You typically don’t call this initializer directly. Instead, SwiftUI
     /// calls it for you when you declare a property with the `@StateTransducer`
@@ -402,8 +470,9 @@ extension StateTransducer where T.State: DefaultInitializable {
         )
     }
     
-    /// Creates a new state transducer with the initial start state given by the default
-    /// init function `init()` and whose output can also have effects.
+    /// Creates a new state transducer with an initial start state whose update
+    /// function has the signature `(inout State, Event) -> (Effect?, Output)`
+    /// with the initial start value given by the default init function `init()`.
     ///
     /// You typically don’t call this initializer directly. Instead, SwiftUI
     /// calls it for you when you declare a property with the `@StateTransducer`
@@ -449,13 +518,68 @@ extension StateTransducer where T.State: DefaultInitializable {
         proxy: T.Proxy = T.Proxy(),
         env: T.Env,
         initialOutput: T.Output? = nil
-    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, T.Output), T.Output: Sendable  {
+    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, T.Output), T.Output: Sendable {
         self.init(
             wrappedValue: .init(),
             of: of,
             proxy: proxy,
             env: env,
             initialOutput: initialOutput
+        )
+    }
+    
+    /// Creates a new state transducer with an initial start state whose update
+    /// function has the signature `(inout State, Event) -> Effect?`
+    /// with the initial start value given by the default init function `init()`.
+    ///
+    /// You typically don’t call this initializer directly. Instead, SwiftUI
+    /// calls it for you when you declare a property with the `@StateTransducer`
+    /// attribute in an ``App``, ``Scene``, or ``View`` and provide an initial
+    /// value:
+    ///
+    ///     struct MyView: View {
+    ///         @StateTransducer<Counters> private var counter
+    ///
+    ///         // ...
+    ///     }
+    ///
+    /// SwiftUI creates only one instance of the state transducer for each
+    /// container instance that you declare. In the above code, SwiftUI
+    /// creates `counter` only the first time it initializes a particular
+    /// instance of `MyView`. On the other hand, each instance of `MyView`
+    /// creates a distinct instance of the data model. For example, each of
+    /// the views in the following ``VStack`` has its own transducer:
+    ///
+    ///     var body: some View {
+    ///         VStack {
+    ///             MyView()
+    ///             MyView()
+    ///         }
+    ///     }
+    ///
+    /// ### Initialize using external data
+    ///
+    /// If the initial state of a state transducer depends on external data, you can
+    /// call this initializer directly. However, use caution when doing this,
+    /// because SwiftUI only initializes the object once during the lifetime of
+    /// the view --- even if you call the state transducer initializer more than
+    /// once --- which might result in unexpected behavior. For more information
+    /// and an example, see ``StateTransducer``.
+    ///
+    /// - Parameters:
+    ///   - of: The type of the transducer.
+    ///   - proxy: The proxy of the transducer.
+    ///   - env: The environment value which will be passed as an argument to effects when they will be invoked.
+    public init(
+        of: T.Type = T.self,
+        proxy: T.Proxy = T.Proxy(),
+        env: T.Env
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>? {
+        self.init(
+            wrappedValue: .init(),
+            of: of,
+            proxy: proxy,
+            env: env
         )
     }
     
@@ -499,7 +623,7 @@ final class OnceFSA<T: Transducer> {
         fsa.proxy
     }
     var output: some Publisher<T.Output, Never> {
-        return fsa.out
+        return fsa.out!
     }
 
     func callAsFunction() {
@@ -522,21 +646,22 @@ final class FSA<T: Oak.Transducer> {
     @ObservationIgnored
     private var task: Task<Void, Error>!
     @ObservationIgnored
-    let out: PassthroughSubject<T.Output, Never> = .init()
+    let out: PassthroughSubject<T.Output, Never>?
 
     init(
         initialState: T.State,
         proxy: T.Proxy,
         initialOutput: T.Output? = nil
-    ) where T.TransducerOutput == T.Output, T.Env == Never {
+    ) where T.TransducerOutput == T.Output, T.Env == Never, T.Output: Sendable {
         self.state = initialState
         self.proxy = proxy
+        self.out = PassthroughSubject()
         task = Task {
             let _ = try await T.run(
                 state: \.state,
                 host: self,
                 proxy: proxy,
-                out: Callback(subject: out),
+                out: Callback(subject: out!),
                 initialOutput: initialOutput
             )
         }
@@ -547,27 +672,49 @@ final class FSA<T: Oak.Transducer> {
         proxy: T.Proxy,
         env: T.Env,
         initialOutput: T.Output? = nil
-    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, T.Output) {
+    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, T.Output), T.Env: Sendable, T.Output: Sendable {
         self.state = initialState
         self.proxy = proxy
+        self.out = PassthroughSubject()
         task = Task {
             let _ = try await T.run(
                 state: \.state,
                 host: self,
                 proxy: proxy,
                 env: env,
-                out: Callback(subject: out),
+                out: Callback(subject: out!),
                 initialOutput: initialOutput
             )
         }
     }
     
-    var output: some Publisher<T.Output, Never> {
-        return out
+    init(
+        initialState: T.State,
+        proxy: T.Proxy,
+        env: T.Env,
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Env: Sendable {
+        self.state = initialState
+        self.proxy = proxy
+        self.out = nil
+        task = Task {
+            try await T.run(
+                state: \.state,
+                host: self,
+                proxy: proxy,
+                env: env
+            )
+        }
     }
     
     deinit {
         proxy.terminate()
+    }
+}
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+extension FSA where T.Output: Sendable {
+    var output: some Publisher<T.Output, Never> {
+        return out!
     }
 }
 
