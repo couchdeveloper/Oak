@@ -28,6 +28,7 @@ struct TransducerTests  {
                     }
                 }
                 enum Event { case start }
+                typealias Output = Void
                 static func update(_ state: inout State, event: Event) -> Void { }
             }
             
@@ -41,6 +42,7 @@ struct TransducerTests  {
             enum T: Transducer {
                 enum State: Terminable { case start }
                 enum Event { case start }
+                typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> Int { 0 }
             }
             
@@ -54,6 +56,7 @@ struct TransducerTests  {
             enum T: Transducer {
                 enum State: Terminable { case start }
                 enum Event { case start }
+                typealias Output = (Int, Int)
                 static func update(_ state: inout State, event: Event) -> (Int, Int) { (0, 0) }
             }
             
@@ -68,6 +71,7 @@ struct TransducerTests  {
                 enum State: Terminable { case start }
                 enum Event { case start }
                 struct Env {}
+                typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> (Oak.Effect<Event, Env>?, Int) { (.none, 0) }
             }
             
@@ -81,6 +85,7 @@ struct TransducerTests  {
                 enum State: Terminable { case start }
                 enum Event { case start }
                 struct Env {}
+                typealias Output = (Int, Int)
                 static func update(_ state: inout State, event: Event) -> (Oak.Effect<Event, Env>?, (Int, Int)) { (.none, (0, 0)) }
             }
             
@@ -102,6 +107,7 @@ extension TransducerTests {
                     var isTerminal: Bool { true }
                 }
                 enum Event { case start }
+                typealias Output = Void
                 static func update(_ state: inout State, event: Event) -> Void { }
             }
             let proxy = T.Proxy()
@@ -117,6 +123,7 @@ extension TransducerTests {
                     var isTerminal: Bool { true }
                 }
                 enum Event { case start }
+                typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> Int { 0 }
             }
             
@@ -132,6 +139,7 @@ extension TransducerTests {
                     var isTerminal: Bool { true }
                 }
                 enum Event { case start }
+                typealias Output = (Int, Int)
                 static func update(_ state: inout State, event: Event) -> (Int, Int) { (0, 0) }
             }
             let result = try await T.run(initialState: .start, proxy: T.Proxy(), out: NoCallbacks(), initialOutput: (1, 1))
@@ -147,6 +155,7 @@ extension TransducerTests {
                 }
                 enum Event { case start }
                 struct Env {}
+                typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> (Oak.Effect<Event, Env>?, Int) { (.none, 0) }
             }
             
@@ -163,6 +172,7 @@ extension TransducerTests {
                 }
                 enum Event { case start }
                 struct Env {}
+                typealias Output = (Int, Int)
                 static func update(_ state: inout State, event: Event) -> (Oak.Effect<Event, Env>?, (Int, Int)) { (.none, (0, 0)) }
             }
             let result = try await T.run(initialState: .start, proxy: T.Proxy(), env: T.Env(), out: NoCallbacks(), initialOutput: (1, 1))
@@ -180,6 +190,7 @@ extension TransducerTests {
                     var isTerminal: Bool { true }
                 }
                 enum Event { case start }
+                typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> Int { 0 }
             }
             await #expect(
@@ -202,6 +213,7 @@ extension TransducerTests {
                 }
                 enum Event { case start }
                 struct Env {}
+                typealias Output = (Int, Int)
                 static func update(_ state: inout State, event: Event) -> (Oak.Effect<Event, Env>?, (Int, Int)) { (.none, (0, 0)) }
             }
             await #expect(
@@ -224,6 +236,7 @@ extension TransducerTests {
             enum T: Transducer {
                 enum State: Terminable { case start }
                 enum Event { case start }
+                typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> Int { 0 }
             }
             
@@ -250,6 +263,7 @@ extension TransducerTests {
                 enum State: Terminable { case start }
                 enum Event { case start }
                 struct Env {}
+                typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> (Oak.Effect<Event, Env>?, Int) { (.none, 0) }
             }
 
@@ -280,6 +294,7 @@ extension TransducerTests {
                     let confirmation: Confirmation
                 }
                 typealias Effect = Oak.Effect<Event, Env>
+                typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> (Oak.Effect<Event, Env>?, Int) {
                     switch (event, state) {
                     case (.start, .start):
@@ -335,6 +350,7 @@ extension TransducerTests {
                 case start, cancel
             }
             
+            typealias Output = (Int, String)
             static func update(_ state: inout State, event: Event) -> (Int, String) {
                 switch (event, state) {
                 case (.start, .start):
@@ -442,6 +458,8 @@ extension TransducerTests {
             struct Env {}
             
             typealias Effect = Oak.Effect<Event, Env>
+
+            typealias Output = (Int, String)
 
             static func update(_ state: inout State, event: Event) -> (Effect?, (Int, String)) {
                 switch (event, state) {
@@ -572,6 +590,8 @@ extension TransducerTests {
             struct Env {}
             
             typealias Effect = Oak.Effect<Event, Env>
+
+            typealias Output = (Int, String)
 
             static func update(_ state: inout State, event: Event) -> (Effect?, (Int, String)) {
                 switch (event, state) {
