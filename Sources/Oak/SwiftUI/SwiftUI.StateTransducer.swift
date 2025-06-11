@@ -174,17 +174,23 @@ import Combine
 ///  `Transducer` and when its update function returns an output,
 ///  ensure you also declare a `typealias` for `Output` accordingly,
 ///  for example `typealias Output = Int` as shown above.
-///
+
+// @StateObject
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 @MainActor
 @propertyWrapper
 public struct StateTransducer<T: Oak.Transducer>: @preconcurrency DynamicProperty where T.State: Sendable {
-    @State private var once: OnceFSA<T>
+    
+    // An alternative implementation which does not require the Observation
+    // framework would have a `@State` property for the `State` value and
+    // use a OnceFSA which can access it through a Binding. This will also
+    // allow to make the wrapped FSA of OnceFSA be a struct - not a class.
+    // The caveat with this approach is that the initialisation of the state
+    // variable will be a side effect which will be executed every time the
+    // StateTransducer property will be constructed.
         
-    init(wrappedValue thunk: @autoclosure @escaping () -> FSA<T>) {
-        self._once = .init(wrappedValue: OnceFSA(thunk: thunk))
-    }
-
+    @State private var once: OnceFSA<T>
+    
     /// Creates a new state transducer with an initial start state whose update
     /// function has the signature `(inout State, Event) -> Output`
     ///
@@ -230,7 +236,7 @@ public struct StateTransducer<T: Oak.Transducer>: @preconcurrency DynamicPropert
     ///   - proxy: The proxy of the transducer.
     ///   - initialOutput: An optional value of the initial output (required when this is a Moore Automaton).
     public init(
-        wrappedValue initialState: T.State,
+        initialState: T.State,
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
         initialOutput: T.Output? = nil
@@ -291,7 +297,7 @@ public struct StateTransducer<T: Oak.Transducer>: @preconcurrency DynamicPropert
     ///   - env: The environment value which will be passed as an argument to effects when they will be invoked.
     ///   - initialOutput: An optional value of the initial output (required when this is a Moore Automaton).
     public init(
-        wrappedValue initialState: T.State,
+        initialState: T.State,
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
         env: T.Env,
@@ -463,7 +469,7 @@ extension StateTransducer where T.State: DefaultInitializable {
         initialOutput: T.Output? = nil
     ) where T.TransducerOutput == T.Output, T.Env == Never, T.Output: Sendable {
         self.init(
-            wrappedValue: .init(),
+            initialState: .init(),
             of: of,
             proxy: proxy,
             initialOutput: initialOutput
@@ -520,7 +526,7 @@ extension StateTransducer where T.State: DefaultInitializable {
         initialOutput: T.Output? = nil
     ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, T.Output), T.Output: Sendable {
         self.init(
-            wrappedValue: .init(),
+            initialState: .init(),
             of: of,
             proxy: proxy,
             env: env,
@@ -835,7 +841,7 @@ struct CounterView2: View {
         // SwiftUI ensures that the following initialization uses the
         // closure only once during the lifetime of the view, so
         // later changes to the view's name input have no effect.
-        _counter = StateTransducer(wrappedValue: initialState)
+        _counter = StateTransducer(initialState: initialState)
     }
     var body: some View {
         VStack {
