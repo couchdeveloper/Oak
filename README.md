@@ -75,6 +75,9 @@ enum Timers: Transducer {
     /// See also: ``Oak.Effect``
     typealias Effect = Oak.Effect<Event, Env>
     
+    typealias Output = Never
+    typealias TransducerOutput = Effect?
+
     /// A _pure_ function which implementes the transition function and the output function
     /// of a stransducer. The output is an optioanal `Effect`.
     static func update(_ state: inout State, event: Event) -> Effect? {
@@ -111,11 +114,7 @@ enum Timers: Transducer {
         case (.terminate, .terminated):
             return .none
             
-        case (.ping, .terminated):
-            return .none
-        case (.stop, .terminated):
-            return .none
-        case (.start, .terminated):
+        case (_, .terminated):
             return .none
         }
     }
@@ -151,7 +150,8 @@ import Oak
 
 extension Timers { enum Views {} }
 
-fileprivate extension Timers.State {        
+fileprivate extension Timers.State {
+    
     var isStartable: Bool {
         switch self {
         case .start:
@@ -177,10 +177,10 @@ fileprivate extension Timers.State {
         default:
             nil
         }
-    }        
+    }
+    
 }
 
-@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 extension Timers.Views {
     
     struct TimerView: View {
@@ -193,7 +193,7 @@ extension Timers.Views {
                 case .start(count: let count), .running(count: let count):
                     Text("\(count)")
                         .font(.largeTitle)
-                        .contentTransition(.numericText()) // Note: `contentTransition` is only available in iOS 16.0 or newer
+                        // .contentTransition(.numericText()) // available in iOS 16.0 or newer
                         .animation(.default, value: state.count)
                 case .terminated:
                     Text("done")
@@ -213,7 +213,56 @@ extension Timers.Views {
     }
 }
 
-@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+@available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *)
+extension Timers.Views {
+
+    /// An alternative implementation of the TimerView using the
+    /// `StateTransducer` property.
+    ///
+    /// This solution does not require to use a `TransducerView`. Instead the
+    /// state transducer property wrapper implements the FSA. A state transducer
+    /// is similar to the SwiftUI `StateObject` property wrapper. It's lifetime
+    /// is bound to the lifetime of the view and it will be intitialised once and
+    /// only once.
+    /// The implementation requires the Observation framework and thus requires
+    /// a newer os version.
+    struct TimerView2: View {
+        @StateTransducer<Timers>(env: Timers.Env()) private var timer = .start(count: 0)
+        
+        var action: Timers.Event? {
+            timer.isStartable ? .start : timer.isStopable ? .stop : nil
+        }
+        
+        var label: String {
+            timer.isStartable ? "Start" : timer.isStopable ? "Stop" : "?"
+        }
+        
+        var body: some View {
+            VStack {
+                switch timer {
+                case .start(count: let count), .running(count: let count):
+                    Text("\(count)")
+                        .font(.largeTitle)
+                        .contentTransition(.numericText())
+                        .animation(.default, value: timer.count)
+                case .terminated:
+                    Text("done")
+                }
+                if !timer.isTerminal {
+                    if let action {
+                        Button("\(label)") {
+                            try? $timer.send(action)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(Text("Timer"))
+        }
+    }
+    
+}
+
+
 extension Timers.Views {
     
     struct NavigationStackView: View {
@@ -261,6 +310,12 @@ extension Timers.Views {
         send: { print($0) }
     )
 }
+
+@available(iOS 17.0, macOS 14.0, watchOS 10.0, tvOS 17.0, *)
+#Preview("TimerView2") {
+    Timers.Views.TimerView2()
+}
+
 
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 #Preview("TransducerView with TimerView") {
