@@ -29,7 +29,7 @@ public struct Effect<Event: Sendable, Env: Sendable>: Sendable /*, ~Copyable*/ {
     public typealias Event = Event
     public typealias Env = Env
         
-    public typealias AnyProxy = any Oak.TransducerProxy<Event>
+    public typealias AnyProxy = any TransducerProxy<Event>
 
     internal typealias Proxy = Oak.Proxy<Event>
     internal typealias TaskProxy = EffectProxy<Event>

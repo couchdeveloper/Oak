@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 // Regarding @State initialization: see also: https://forums.swift.org/t/why-swiftui-state-property-can-be-initialized-inside-init-this-other-way/62772
@@ -62,7 +63,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     ///   - initialState: The start state of the transducer. Default is `init()`.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
-    ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the
+    ///   - out: A type conforming to `Subject<Output>` where the transducer sends the
     ///   output it produces. The `out` parameter is usually used to notify the parent view, for example
     ///   via a `Binding` which can be directly used for the parameter `out`.
     ///   - initialOutput: An initial value for the output which will be send by the transducer to the
@@ -119,7 +120,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         initialState: sending T.State,
         proxy: T.Proxy? = nil,
         out: Out,
-        initialOutput: Output? = nil,
+        initialOutput: sending Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.TransducerOutput == Output, T.Env == Never {
         self.content = content
@@ -140,7 +141,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         of type: T.Type,
         proxy: T.Proxy? = nil,
         out: Out,
-        initialOutput: Output? = nil,
+        initialOutput: sending Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.TransducerOutput == Output, T.Env == Never, T.State: DefaultInitializable {
         self.content = content
@@ -200,7 +201,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         proxy: T.Proxy? = nil,
         env: T.Env,
         out: Out,
-        initialOutput: Output? = nil,
+        initialOutput: sending Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, Output) {
         self.content = content
@@ -223,7 +224,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         proxy: T.Proxy? = nil,
         env: T.Env,
         out: Out,
-        initialOutput: Output? = nil,
+        initialOutput: sending Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
     ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, Output), T.State: DefaultInitializable {
         self.content = content
@@ -344,7 +345,7 @@ extension Transducer where Env == Never {
     ///   - binding: The underlying backing store for the state. Its usually a `@State` variable in the
     ///   SwiftUI view.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
-    ///   - output: A type conforming to `Oak.Subject<Output>` where the transducer sends the
+    ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
     ///   output it produces. The client uses a type where it can react on the given outputs.
     ///   - initialOutput: The output value which – when not `nil` – will be produced by the
     ///   transducer when setting its initial state. Note: an initial output value is required when implementing
@@ -360,7 +361,7 @@ extension Transducer where Env == Never {
         binding: Binding<State>,
         proxy: Proxy,
         out: some Subject<Output>,
-        initialOutput: Output? = nil
+        initialOutput: sending Output? = nil
     ) async throws -> Output where Output == TransducerOutput {
         try await run(
             storage: binding,
@@ -431,7 +432,7 @@ extension Transducer where Env: Sendable {
     ///   SwiftUI view.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
-    ///   - out: A type conforming to `Oak.Subject<Output>` where the transducer sends the
+    ///   - out: A type conforming to `Subject<Output>` where the transducer sends the
     ///   output it produces. The client uses a type where it can react on the given outputs.
     ///   - initialOutput: The output value which – when not `nil` – will be produced by the
     ///   transducer when setting its initial state. Note: an initial output value is required when implementing
@@ -550,7 +551,7 @@ extension Transducer where Env: Sendable {
 struct ProxyNotInitializedError: Error {}
 
 extension SwiftUI.Binding: Oak.Storage {
-    var value: Value {
+    public var value: Value {
         get {
             self.wrappedValue
         }
@@ -781,7 +782,7 @@ struct RepeatView: View {
                     proxy: proxy,
                 ) { state, send in
                     let _ = Self._printChanges()
-                    Text("\(state)")
+                    Text(verbatim: "\(state)")
                 }
                 .padding()
                 Button("Start again") {
@@ -826,4 +827,5 @@ struct RepeatViewInSheet: View {
     RepeatViewInSheet()
 }
 
-#endif
+#endif // DEBUG
+#endif // canImport(SwiftUI)

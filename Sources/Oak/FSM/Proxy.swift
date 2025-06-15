@@ -226,7 +226,7 @@ struct ActionProxy<Event: Sendable>: TransducerProxy {
 }
 
 
-final class EffectProxy<Event: Sendable>: Oak.TransducerProxy, Invalidable, @unchecked Sendable {
+final class EffectProxy<Event: Sendable>: TransducerProxy, Invalidable, @unchecked Sendable {
     
     private var proxy: Proxy<Event>?
     

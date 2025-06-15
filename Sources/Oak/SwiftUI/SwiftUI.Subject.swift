@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 extension Binding: Oak.Subject {
@@ -5,3 +6,4 @@ extension Binding: Oak.Subject {
         self.wrappedValue = value
     }
 }
+#endif // canImport(SwiftUI)
