@@ -1,7 +1,7 @@
+#if canImport(SwiftUI) && canImport(Combine) && canImport(Observation)
 import SwiftUI
 import Observation
 import Combine
-
 
 /// A property wrapper type that instantiates a finite state transducer whose
 /// state is observable.
@@ -174,17 +174,15 @@ import Combine
 ///  `Transducer` and when its update function returns an output,
 ///  ensure you also declare a `typealias` for `Output` accordingly,
 ///  for example `typealias Output = Int` as shown above.
-
-// @StateObject
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 @MainActor
 @propertyWrapper
-public struct StateTransducer<T: Oak.Transducer>: @preconcurrency DynamicProperty where T.State: Sendable {
+public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty where T.State: Sendable {
     
     // An alternative implementation which does not require the Observation
     // framework would have a `@State` property for the `State` value and
     // use a OnceFSA which can access it through a Binding. This will also
-    // allow to make the wrapped FSA of OnceFSA be a struct - not a class.
+    // allow to make the wrapped FSM of OnceFSM be a struct - not a class.
     // The caveat with this approach is that the initialisation of the state
     // variable will be a side effect which will be executed every time the
     // StateTransducer property will be constructed.
@@ -363,7 +361,7 @@ public struct StateTransducer<T: Oak.Transducer>: @preconcurrency DynamicPropert
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
         env: T.Env
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>? {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Output == Never {
         let thunk: () -> FSA<T> = {
             FSA<T>.init(
                 initialState: initialState,
@@ -580,7 +578,7 @@ extension StateTransducer where T.State: DefaultInitializable {
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
         env: T.Env
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>? {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Output == Never {
         self.init(
             wrappedValue: .init(),
             of: of,
@@ -595,7 +593,7 @@ extension StateTransducer where T.State: DefaultInitializable {
 
 extension Callback {
     init(binding: Binding<Value?>) {
-        fn = { value in
+        self.init { value in
             binding.wrappedValue = value
         }
     }
@@ -604,7 +602,7 @@ extension Callback {
 extension Callback {
     @MainActor
     init(subject: some Combine.Subject<Value, Never>) {
-        self.fn = { @MainActor value in
+        self.init { @MainActor value in
             subject.send(value)
         }
     }
@@ -643,7 +641,7 @@ final class OnceFSA<T: Transducer> {
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 @Observable
 @MainActor
-final class FSA<T: Oak.Transducer> {
+final class FSA<T: Transducer> {
     
     private(set) var state: T.State
     
@@ -698,7 +696,7 @@ final class FSA<T: Oak.Transducer> {
         initialState: T.State,
         proxy: T.Proxy,
         env: T.Env,
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Env: Sendable {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Env: Sendable, T.Output == Never {
         self.state = initialState
         self.proxy = proxy
         self.out = nil
@@ -812,8 +810,8 @@ struct CounterView: View {
     
     var body: some View {
         VStack {
-            Text("state: \(counter)")
-            Text("value: \(counter.value)")
+            Text(verbatim: "state: \(counter)")
+            Text(verbatim: "value: \(counter.value)")
                 .padding(10)
             HStack {
                 Button("-") {
@@ -845,7 +843,7 @@ struct CounterView2: View {
     }
     var body: some View {
         VStack {
-            Text("state: \(counter)")
+            Text(verbatim: "state: \(counter)")
         }
     }
 }
@@ -860,4 +858,5 @@ struct CounterView2: View {
     CounterView2(initialState: .counting(counter: 5))
 }
 
-#endif
+#endif // DEBUG
+#endif // canImport(SwiftUI) && canImport(Combine) && canImport(Observation)

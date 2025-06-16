@@ -1,3 +1,5 @@
+
+#if false // Not used
 public struct AsyncStreamOutput<Value: Sendable>: Subject, Sendable {
     
     enum Error: Swift.Error {
@@ -31,3 +33,4 @@ public struct AsyncStreamOutput<Value: Sendable>: Subject, Sendable {
     }
 }
 
+#endif // false // Not used

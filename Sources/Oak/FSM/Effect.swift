@@ -28,11 +28,7 @@
 public struct Effect<Event: Sendable, Env: Sendable>: Sendable /*, ~Copyable*/ {
     public typealias Event = Event
     public typealias Env = Env
-        
-    public typealias AnyProxy = any Oak.TransducerProxy<Event>
-
-    internal typealias Proxy = Oak.Proxy<Event>
-    internal typealias TaskProxy = EffectProxy<Event>
+    public typealias Proxy = Oak.Proxy<Event>
 
     private let f: @Sendable (Env, Proxy) -> [OakTask]?
 
@@ -70,8 +66,8 @@ extension Effect {
     /// When there is already an operation running with the same id, the existing
     /// operation will be cancelled.
     ///
-    /// The `id` can be used in the transition function to explicitly cancel the
-    /// operation, if needed.
+    /// The `id` can be used in the transition function in order to _explicitly_ cancel
+    /// the operation, if needed.
     ///
     /// A managed task will be automatically cancelled when the transducer terminates.
     ///
@@ -80,15 +76,36 @@ extension Effect {
     /// of any events emitted by the operation.
     ///
     /// ### Example
-    /// The below example shows how to create a timer effect:
+    ///
+    /// The below example shows how to create a simple timer effect:
     /// ```swift
-    /// 
+    /// static let timer = Effect(id: "timer") { env, proxy in
+    ///     while true {
+    ///         try await Task.sleep(nanoseconds: 1_000_000_000)
+    ///         try? proxy.send(.ping)
+    ///     }
+    /// }
     /// ```
-    /// When the operation will be cancelled in the transition function via returning
-    /// a cancellation effect, the proxy will be invalidated so that events that will be
-    /// produced by the operation will not be received by the transducer. The only
-    /// time to have a still valid proxy is in a cancellation handler of a Task, where
-    /// it would be possible to send events to the transducer.
+    ///
+    /// The operation above will be executed within a Swift Task which is managed
+    /// by the transducer.
+    ///
+    /// The timer can be cancelled within the `update` function by returning a
+    /// _cancellation_ effect, a static function `cancelTask(_:)`, which requires
+    /// the `id` of the effect as a parameter when it has been created:
+    ///```swift
+    /// static func update(
+    ///     _ state: inout State,
+    ///     event: Event
+    /// ) -> Effect? {
+    ///     ...
+    ///     case (.stopTimer, .running):
+    ///         return .cancelTask("timer")
+    ///     ...
+    ///```
+    /// The cancellation effect will cancel the Swift Task which executes the
+    /// operation. Once the Task has been cancelled, the proxy in the above
+    /// timer operation cannot send events to the transducer anymore.
     ///
     /// - Parameters:
     ///   - id: An ID that identifies this operation.
@@ -96,14 +113,13 @@ extension Effect {
     ///     as parameter.
     public init(
         id: some Hashable & Sendable,
-        operation: @escaping @isolated(any) @Sendable (Env, AnyProxy) async throws -> Void
+        operation: @escaping @isolated(any) @Sendable (Env, Proxy) async throws -> Void
     ) {
         self.f = { env, proxy in
-            let taskProxy = EffectProxy(proxy: proxy)
             let task = Task {
-                try await operation(env, taskProxy)
+                try await operation(env, proxy)
             }
-            return [.init(id: id, task: task, taskProxy: taskProxy)]
+            return [.init(id: id, task: task)]
         }
     }
     
@@ -116,36 +132,29 @@ extension Effect {
     /// dependencies or other information. It also is given the proxy - that is the receiver
     /// of any events emitted by the operation.
     ///
-    /// When the operation will be cancelled in the transition function via returning
-    /// a cancellation effect, the proxy will be invalidated so that events that will be
-    /// produced by the operation will not be received by the transducer. The only
-    /// time to have a still valid proxy is in a cancellation handler of a Task, where
-    /// it would be possible to send events to the transducer.
-    ///
     /// - Parameters:
     ///   - operation: An async function receiving the environment and the proxy
     ///     as parameter.
     public init(
-        operation: @escaping @isolated(any) @Sendable (Env, AnyProxy) async throws -> Void
+        operation: @escaping @isolated(any) @Sendable (Env, Proxy) async throws -> Void
     ) {
         self.f = { env, proxy in
-            let taskProxy = EffectProxy(proxy: proxy)
             let task = Task {
-                try await operation(env, taskProxy as AnyProxy)
+                try await operation(env, proxy)
             }
-            return [.init(task: task, taskProxy: taskProxy)]
+            return [.init(task: task)]
         }
     }
 
     /// Returns an Effect that creates a managed Task with the given ID and the
-    /// operation.
+    /// given asynchronous throwing operation.
     ///
     /// When invoked, the effect creates a `Swift.Task` executing the operation.
     /// When there is already an operation running with the same id, the existing
     /// operation will be cancelled.
     ///
-    /// The `id` can be used in the transition function to explicitly cancel the
-    /// operation, if needed.
+    /// The `id` can be used in the transition function in order to _explicitly_ cancel
+    /// the operation, if needed.
     ///
     /// A managed task will be automatically cancelled when the transducer terminates.
     ///
@@ -153,20 +162,52 @@ extension Effect {
     /// dependencies or other information. It also is given the proxy - that is the receiver
     /// of any events emitted by the operation.
     ///
-    /// When the operation will be cancelled in the transition function via returning
-    /// a cancellation effect, the proxy will be invalidated so that events that will be
-    /// produced by the operation will not be received by the transducer. The only
-    /// time to have a still valid proxy is in a cancellation handler of a Task, where
-    /// it would be possible to send events to the transducer.
+    /// ### Example
+    ///
+    /// The below example shows how to create a simple timer effect:
+    ///
+    ///```swift
+    /// static func update(
+    ///     _ state: inout State,
+    ///     event: Event
+    /// ) -> Effect? {
+    ///     ...
+    ///     case (.startTimer, .running):
+    ///         return .task(id: "timer") {
+    ///             while true {
+    ///                 try await Task.sleep(nanoseconds: 1_000_000_000)
+    ///                 try? proxy.send(.ping)
+    ///             }
+    ///         }
+    ///```
+    ///
+    /// The operation above will be executed within a Swift Task which is managed
+    /// by the transducer.
+    ///
+    /// The timer can be cancelled within the `update` function by returning a
+    /// _cancellation_ effect, a static function `cancelTask(_:)`, which requires
+    /// the `id` of the effect as a parameter when it has been created:
+    ///```swift
+    /// static func update(
+    ///     _ state: inout State,
+    ///     event: Event
+    /// ) -> Effect? {
+    ///     ...
+    ///     case (.stopTimer, .running):
+    ///         return .cancelTask("timer")
+    ///     ...
+    ///```
+    /// The cancellation effect will cancel the Swift Task which executes the
+    /// operation. Once the Task has been cancelled, the proxy in the above
+    /// timer operation cannot send events to the transducer anymore.
     ///
     /// - Parameters:
-    ///   - id: A  value conforming to `Hashable & Sendable` that identifies this operation.
+    ///   - id: An ID that identifies this operation.
     ///   - operation: An async throwing function receiving the environment and the proxy
     ///     as parameter.
-    ///  - Returns: An asynchronous effect.
     public static func task(
         _ id: some Hashable & Sendable,
-        operation: @escaping @isolated(any) @Sendable (Env, AnyProxy) async throws -> Void
+        operation: @escaping @isolated(any) @Sendable (Env, Proxy) async throws -> Void
     ) -> Effect {
         Effect(id: id, operation: operation)
     }
@@ -177,10 +218,10 @@ extension Effect {
     /// - Parameter action: The closure to run.
     /// - Returns: A synchronous effect.
     public static func action(
-        _ action: @escaping @Sendable (Env, AnyProxy) -> Void
+        _ action: @escaping @Sendable (Env, Proxy) -> Void
     ) -> Effect {
         Effect(f: { env, proxy in
-            action(env, ActionProxy(proxy: proxy))
+            action(env, proxy)
             return nil
         })
     }
@@ -302,23 +343,19 @@ extension Effect {
 struct OakTask {
     init(
         id: some Hashable & Sendable,
-        task: Task<Void, Error>,
-        taskProxy: (any Invalidable)?
+        task: Task<Void, Error>
     ) {
         self.id = TaskID(id)
         self.task = task
-        self.proxy = taskProxy
     }
     
-    init(task: Task<Void, Error>, taskProxy: (any Invalidable)?) {
+    init(task: Task<Void, Error>) {
         self.id = nil
         self.task = task
-        self.proxy = taskProxy
     }
     
     let id: TaskID?
     var task: Task<Void, Error>
-    let proxy: (any Invalidable)?
 }
 
 

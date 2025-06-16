@@ -31,7 +31,7 @@ import Oak
 /// provides it its state whose mutations can be observed by the
 /// host. A SwiftUI View is a perfect host for running a transducer.
 /// Not only can it render the state accordingly, views also provide
-/// a natural means to send events into the FSA, i.e. user intents,
+/// a natural means to send events into the FST, i.e. user intents,
 /// via UI controls.
 ///
 /// This is a very simple variant of a FST. Yet, it demonstrates one
@@ -42,7 +42,7 @@ import Oak
 /// as an event, or simply a synchronous function which may or
 /// may not cause an effect on the "outer world".
 ///
-/// See also ``Oak.Transduder``.
+/// See also ``Transduder``.
 enum Timers: Transducer {
     
     /// The state of the transducer. This is also used as  the "view state".
@@ -72,7 +72,7 @@ enum Timers: Transducer {
     /// when they get invoked and start _side effects_.
     struct Env {}
     
-    /// See also: ``Oak.Effect``
+    /// See also: ``Effect``
     typealias Effect = Oak.Effect<Event, Env>
     
     typealias Output = Never
@@ -235,7 +235,7 @@ extension Timers.Views {
     // `StateTransducer` property.
     //
     // This solution does not require to use a `TransducerView`. Instead the
-    // state transducer property wrapper implements the FSA. A state transducer
+    // state transducer property wrapper implements the FST. A state transducer
     // is similar to the SwiftUI `StateObject` property wrapper. It's lifetime
     // is bound to the lifetime of the view and it will be intitialised once and
     // only once.
