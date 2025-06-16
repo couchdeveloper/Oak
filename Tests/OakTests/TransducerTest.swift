@@ -32,6 +32,7 @@ struct TransducerTests  {
                 static func update(_ state: inout State, event: Event) -> Void { }
             }
             
+            #expect(T.Output.self == Void.self)
             #expect(T.Env.self == Never.self)
             #expect(T.TransducerOutput.self == Void.self)
             #expect(T.Proxy.self == Proxy<T.Event>.self)
@@ -46,6 +47,7 @@ struct TransducerTests  {
                 static func update(_ state: inout State, event: Event) -> Int { 0 }
             }
             
+            #expect(T.Output.self == Int.self)
             #expect(T.Env.self == Never.self)
             #expect(T.TransducerOutput.self == Int.self)
             #expect(T.Proxy.self == Proxy<T.Event>.self)
@@ -60,6 +62,7 @@ struct TransducerTests  {
                 static func update(_ state: inout State, event: Event) -> (Int, Int) { (0, 0) }
             }
             
+            #expect(T.Output.self == (Int, Int).self)
             #expect(T.Env.self == Never.self)
             #expect(T.TransducerOutput.self == (Int, Int).self)
             #expect(T.Proxy.self == Proxy<T.Event>.self)
@@ -75,6 +78,7 @@ struct TransducerTests  {
                 static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, Int) { (.none, 0) }
             }
             
+            #expect(T.Output.self == Int.self)
             #expect(T.TransducerOutput.self == (Effect<T.Event, T.Env>?, Int).self)
             #expect(T.Proxy.self == Proxy<T.Event>.self)
         }
@@ -89,9 +93,25 @@ struct TransducerTests  {
                 static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, (Int, Int)) { (.none, (0, 0)) }
             }
             
+            #expect(T.Output.self == (Int, Int).self)
             #expect(T.TransducerOutput.self == (Effect<T.Event, T.Env>?, (Int, Int)).self)
             #expect(T.Proxy.self == Proxy<T.Event>.self)
         }
+        
+        @MainActor
+        @Test func testTypeInference6() async throws {
+            enum T: Transducer {
+                enum State: Terminable { case start }
+                enum Event { case start }
+                struct Env {}
+                static func update(_ state: inout State, event: Event) -> Effect<Event, Env>? { .none }
+            }
+            
+            #expect(T.Output.self == Never.self)
+            #expect(T.TransducerOutput.self == Effect<T.Event, T.Env>?.self)
+            #expect(T.Proxy.self == Proxy<T.Event>.self)
+        }
+
     }
 }
 
@@ -177,6 +197,20 @@ extension TransducerTests {
             }
             let result = try await T.run(initialState: .start, proxy: T.Proxy(), env: T.Env(), out: NoCallbacks(), initialOutput: (1, 1))
             #expect(result == (1, 1))
+        }
+
+        @MainActor
+        @Test func testRun6() async throws {
+            enum T: Transducer {
+                enum State: Terminable {
+                    case start
+                    var isTerminal: Bool { true }
+                }
+                enum Event { case start }
+                struct Env {}
+                static func update(_ state: inout State, event: Event) -> Effect<Event, Env>? { .none }
+            }
+            #expect(try await T.run(initialState: .start, proxy: T.Proxy(), env: T.Env()) == Void())
         }
 
     }
@@ -337,28 +371,46 @@ extension TransducerTests {
         
         @MainActor
         @Test func proxySendThrowsErrorWhenEffectIsCancelled() async throws {
+            // Test if `proxy.send(event)` called in the effect's operation
+            // will throw when the Swift Task has been cancelled.
             
+            // This transducer will start a timer sending "pings" continuosly
+            // to the transducer. Once it is started, it immediately starts
+            // another timer which the same id causing the first to cancel.
+            // Since the first timer attempts to send events even when its Task
+            // has been cancelld - which it can do only once – it is expected
+            // that the send function will throw an error.
             enum T: Transducer {
-                enum State: Terminable { case start, counting }
-                enum Event { case start, startTimer, tick }
+                enum State: Terminable {
+                    case start, counting, terminated
+                    var isTerminal: Bool { if case .terminated = self { true } else { false } }
+                }
+                enum Event { case start, startTimer, stopTimer, tick }
                 struct Env {}
                 typealias Effect = Oak.Effect<Event, Env>
-                typealias Output = Int
-                static func update(_ state: inout State, event: Event) -> (Effect?, Int) {
+                static func update(_ state: inout State, event: Event) -> Effect? {
                     switch (event, state) {
                     case (.start, .start):
                         state = .counting
-                        return (singletonTimer(tag: "first"), 0)
+                        return singletonTimer(tag: "first")
                     case (.startTimer, .counting):
-                        return (singletonTimer(tag: "second"), 1)
-                    case (.tick, .start):
-                        return (.none, 2)
+                        return singletonTimer(tag: "second")
+                    case (.stopTimer, .counting):
+                        state = .terminated
+                        return .cancelTask(1)
                     case (.tick, .counting):
-                        return (.none, 2)
+                        return .none
+
+                    case (.tick, .start):
+                        return .none
                     case (.startTimer, .start):
-                        return (.none, -1)
+                        return .none
                     case (.start, .counting):
-                        return (.none, -2)
+                        return .none
+                    case (.stopTimer, .start):
+                        return .none
+                    case (_, .terminated):
+                        return .none
                     }
                 }
                 
@@ -369,16 +421,13 @@ extension TransducerTests {
                             performing: {
                                 // This is an incorrectly implemented operation,
                                 // which does not respect the cancellation state
-                                // of the current Task:
+                                // of the current Task. In this test, the operation
+                                // will call `try proxy.send(.tick)` _once_ after
+                                // the task has been cancelled and cause the
+                                // `send(_:)` function to throw `ProxyInvalidatedError`.
                                 while true {
-                                    try? await Task.sleep(nanoseconds: 100_000_000)
-                                    do {
-                                        print("timer: \(tag) sending tick")
-                                        try proxy.send(.tick) // should throw ProxyInvalidatedError when the Task is cancelled.
-                                    } catch {
-                                        print("error: \(tag): \(error)")
-                                        throw error
-                                    }
+                                    try? await Task.sleep(nanoseconds: 10_000_000)
+                                    try proxy.send(.tick) // should throw ProxyInvalidatedError when the Task is cancelled.
                                 }
                             }
                         )
@@ -390,22 +439,18 @@ extension TransducerTests {
             let proxy = T.Proxy()
             Task {
                 try proxy.send(.start)
-                try? await Task.sleep(nanoseconds: 3_500_000_000)
+                try? await Task.sleep(nanoseconds: 50_000_000)
                 try proxy.send(.startTimer)
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
-                proxy.terminate(failure: TestError())
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                try proxy.send(.stopTimer)
             }
             
             try await T.run(
                 initialState: .start,
                 proxy: proxy,
-                env: T.Env(),
-                out: NoCallbacks()
+                env: T.Env()
             )
-
-            try await Task.sleep(nanoseconds: 1000_000_000_000)
         }
-
     }
 
     struct TransducerVariantsTest {

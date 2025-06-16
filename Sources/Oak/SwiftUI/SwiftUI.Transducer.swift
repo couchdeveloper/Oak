@@ -248,7 +248,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         proxy: T.Proxy? = nil,
         env: T.Env,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>? {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Output == Never {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: initialState)
@@ -267,7 +267,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         proxy: T.Proxy? = nil,
         env: T.Env,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.State: DefaultInitializable {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.State: DefaultInitializable, T.Output == Never {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: .init())
@@ -494,7 +494,7 @@ extension Transducer where Env: Sendable {
         binding: Binding<State>,
         proxy: Proxy,
         env: Env,
-    ) async throws -> Void where TransducerOutput == Oak.Effect<Event, Env>? {
+    ) async throws -> Void where TransducerOutput == Oak.Effect<Event, Env>?, Output == Never {
         try await run(
             storage: binding,
             proxy: proxy,

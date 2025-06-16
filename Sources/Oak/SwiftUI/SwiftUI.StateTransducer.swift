@@ -361,7 +361,7 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
         env: T.Env
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>? {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Output == Never {
         let thunk: () -> FSA<T> = {
             FSA<T>.init(
                 initialState: initialState,
@@ -578,7 +578,7 @@ extension StateTransducer where T.State: DefaultInitializable {
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
         env: T.Env
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>? {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Output == Never {
         self.init(
             wrappedValue: .init(),
             of: of,
@@ -696,7 +696,7 @@ final class FSA<T: Transducer> {
         initialState: T.State,
         proxy: T.Proxy,
         env: T.Env,
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Env: Sendable {
+    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Env: Sendable, T.Output == Never {
         self.state = initialState
         self.proxy = proxy
         self.out = nil

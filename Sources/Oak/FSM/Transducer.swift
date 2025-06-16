@@ -225,7 +225,7 @@ public protocol Transducer: SendableMetatype {
     /// The type of the environment. It must be defined when the transducer defines effects in its output.
     associatedtype Env = Never
     /// The type of the output value
-    associatedtype Output: Sendable
+    associatedtype Output = Never
     
     /// A proxy is a representation of a transducer. It's used to send events into
     /// its associated transducer.
@@ -593,7 +593,7 @@ extension Transducer where Env: Sendable {
         storage: some Storage<State>,
         proxy: Proxy,
         env: Env,
-    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Event, Env>? {
+    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Event, Env>?, Output == Never {
         guard proxy.continuation.onTermination == nil else {
             throw ProxyAlreadyAssociatedError()
         }
@@ -722,6 +722,40 @@ extension Transducer where Env: Sendable {
         )
     }
 
+    /// Creates a transducer with a stricly encapsulated state whose update function has the signature
+    /// `(inout State, Event) -> Effect?`.
+    ///
+    /// The update function is isolated by the given Actor, that can be exlicitly specified, or it will be
+    /// inferred from the caller. If it's not specified, and the caller is not isolated, the compilation will fail.
+    ///
+    /// The update function can be designed to optionally return an _effect_. Effects are invoked by
+    /// the transducer which usually run within a Swift Task which is managed by the transuder. The tasks
+    /// operation can emit events which will be feed back to the transducer. The managed tasks can
+    /// be explicitly cancelled in the update function. When the transducer reaches a terminal state _all_
+    /// running tasks will be cancelled.
+    ///
+    /// - Parameters:
+    ///   - isolated: The actor where the `update` function will run on and where the state
+    ///   will be mutated.
+    ///   - initialState: The inittial state of the transducer.
+    ///   - proxy: The proxy, that will be associated to the transducer as its agent.
+    ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
+    /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
+    /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
+    /// not reach a terminal state.
+    public static func run(
+        isolated: isolated any Actor = #isolation,
+        initialState: sending State,
+        proxy: Proxy,
+        env: Env
+    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Event, Env>?, Output == Never {
+        try await run(
+            storage: LocalStorage(value: initialState),
+            proxy: proxy,
+            env: env
+        )
+    }
+
     /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
@@ -842,7 +876,7 @@ extension Transducer where Env: Sendable {
         host: Host,
         proxy: Proxy,
         env: Env
-    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Event, Env>? {
+    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Event, Env>?, Output == Never {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
