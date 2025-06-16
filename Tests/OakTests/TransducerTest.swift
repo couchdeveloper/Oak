@@ -2,7 +2,7 @@ import Testing
 import Oak
 @testable import struct Oak.TransducerDidNotProduceAnOutputError
 @testable import struct Oak.ProxyTerminationError
-
+@testable import struct Oak.ProxyInvalidatedError
 
 fileprivate final class Store<State> {
     var state: State
@@ -334,6 +334,78 @@ extension TransducerTests {
                 )
             }
         }
+        
+        @MainActor
+        @Test func proxySendThrowsErrorWhenEffectIsCancelled() async throws {
+            
+            enum T: Transducer {
+                enum State: Terminable { case start, counting }
+                enum Event { case start, startTimer, tick }
+                struct Env {}
+                typealias Effect = Oak.Effect<Event, Env>
+                typealias Output = Int
+                static func update(_ state: inout State, event: Event) -> (Effect?, Int) {
+                    switch (event, state) {
+                    case (.start, .start):
+                        state = .counting
+                        return (singletonTimer(tag: "first"), 0)
+                    case (.startTimer, .counting):
+                        return (singletonTimer(tag: "second"), 1)
+                    case (.tick, .start):
+                        return (.none, 2)
+                    case (.tick, .counting):
+                        return (.none, 2)
+                    case (.startTimer, .start):
+                        return (.none, -1)
+                    case (.start, .counting):
+                        return (.none, -2)
+                    }
+                }
+                
+                static func singletonTimer(tag: String) -> Effect {
+                    Effect(id: 1) { env, proxy in
+                        await #expect(
+                            throws: ProxyInvalidatedError.self,
+                            performing: {
+                                // This is an incorrectly implemented operation,
+                                // which does not respect the cancellation state
+                                // of the current Task:
+                                while true {
+                                    try? await Task.sleep(nanoseconds: 100_000_000)
+                                    do {
+                                        print("timer: \(tag) sending tick")
+                                        try proxy.send(.tick) // should throw ProxyInvalidatedError when the Task is cancelled.
+                                    } catch {
+                                        print("error: \(tag): \(error)")
+                                        throw error
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            struct TestError: Error {}
+            let proxy = T.Proxy()
+            Task {
+                try proxy.send(.start)
+                try? await Task.sleep(nanoseconds: 3_500_000_000)
+                try proxy.send(.startTimer)
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                proxy.terminate(failure: TestError())
+            }
+            
+            try await T.run(
+                initialState: .start,
+                proxy: proxy,
+                env: T.Env(),
+                out: NoCallbacks()
+            )
+
+            try await Task.sleep(nanoseconds: 1000_000_000_000)
+        }
+
     }
 
     struct TransducerVariantsTest {

@@ -260,7 +260,6 @@ struct ProxyAlreadyAssociatedError: Swift.Error {
     let message: String = "Proxy already associated to another transducer"
 }
 
-
 // Thrown when the transducer terminated but has not produced an output.
 struct TransducerDidNotProduceAnOutputError: Swift.Error {}
 
@@ -978,13 +977,13 @@ struct TaskID: @unchecked Sendable, Hashable {
 }
 
 internal final class Context {
-    private var tasks: Dictionary<TaskID, (task: Task<Void, Error>, proxy: (any Invalidable)?)> = [:]
+    private var tasks: Dictionary<TaskID, Task<Void, Error>> = [:]
     typealias ID = Int
     var id: ID = 0
     
     @usableFromInline
     func removeCompleted(oakTask: OakTask) {
-        if let id = oakTask.id, let value = tasks[id], oakTask.task == value.task {
+        if let id = oakTask.id, let task = tasks[id], oakTask.task == task {
             tasks.removeValue(forKey: id)
         }
     }
@@ -994,29 +993,26 @@ internal final class Context {
         let task = oakTask.task
         if let id = oakTask.id {
             if let previousTask = tasks[id] {
-                previousTask.task.cancel()
-                previousTask.proxy?.invalidate()
+                previousTask.cancel()
             }
-            tasks[id] = (task: task, proxy: oakTask.proxy)
+            tasks[id] = task
             return oakTask
         } else {
             let id = TaskID(uniqueId())
-            tasks[id] = (task: task, proxy: oakTask.proxy)
-            return OakTask(id: id, task: task, taskProxy: oakTask.proxy)
+            tasks[id] = task
+            return OakTask(id: id, task: task)
         }
     }
     
     func cancelAll() {
         tasks.values.forEach {
-            $0.task.cancel()
-            $0.proxy?.invalidate()
+            $0.cancel()
         }
     }
     
     func cancelTask(id: TaskID) {
         if let task = tasks[id] {
-            task.task.cancel()
-            task.proxy?.invalidate()
+            task.cancel()
         }
     }
     

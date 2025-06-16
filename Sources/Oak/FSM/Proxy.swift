@@ -125,18 +125,27 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
     public let id: UUID = UUID()
     
     /// Enques the event and returns immediately.
-    ///
+    /// 
     /// This resumes the transducer loop awaiting the next event and letting it compute
     /// the new state and a new output value.
-    ///
-    /// When the event buffer is full or when the transducer is terminated, an
-    /// exception will be thrown.
+    /// 
+    /// When the event buffer is full or when the transducer is terminated, or when the
+    /// current Swift Task is cancelled, an error will be thrown.
     ///
     /// - Parameter event: The event that is sent to the transducer.
+    /// 
+    /// - Throws: The function `send(_:)` will throw an error when the
+    /// underlying event buffer is full or when the transducer is terminated or
+    /// when the current Task is cancelled.
     ///
-    /// - Important: Events will be processed asynchronously. Sending too many
-    /// events in a short duration may cause the event buffer to overflow.
+    /// - Important: Events will be enqueued in an internal event buffer before
+    /// being processed asynchronously. Sending too many events at once during
+    /// one computation cycle of a transducer, for example returning multiple actions
+    /// from the `update()` function, may cause the event buffer to overflow.
     public func send(_ event: sending Event) throws {
+        if Task.isCancelled {
+            throw ProxyInvalidatedError()
+        }
         try continuation.send(.event(event))
     }
     
@@ -145,10 +154,10 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
     /// - Parameter failure: An error that describes the reason for the  termination.
     /// If `nil`, the proxy uses an internal error denoting an irregular error reason.
     ///
-    /// - Important: Terminating the transducer via the proxy
-    /// should be avoided. Instead, implement the transition logic such,
-    /// that it reaches a terminal state. Once the transducer's state reaches
-    /// a terminal state, it will be terminated orderly.
+    /// - Important: Terminating a transducer via the proxy should be
+    /// avoided, especially when called from within an operation of an effect.
+    /// Instead, the transition logic should be implemented such, that it
+    /// reaches a terminal state when it is deemed finished.
     public func terminate(failure: Swift.Error? = nil) {
         try? cancelAllTasks()
         continuation.finish(throwing: failure ?? ProxyTerminationError())
@@ -203,65 +212,6 @@ extension AsyncThrowingStream.Continuation where Element: Sendable {
     }
 }
 
-public struct ProxyInvalidatedError: Swift.Error {}
-
-struct ActionProxy<Event: Sendable>: TransducerProxy {
-    private let proxy: Proxy<Event>
-    
-    init(proxy: Proxy<Event>) {
-        self.proxy = proxy
-    }
-    
-    var id: UUID {
-        return proxy.id
-    }
-    
-    func send(_ event: sending Event) throws {
-        try self.proxy.send(event)
-    }
-    
-    var isTerminated: Bool {
-        self.proxy.isTerminated
-    }
-}
-
-
-final class EffectProxy<Event: Sendable>: TransducerProxy, Invalidable, @unchecked Sendable {
-    
-    private var proxy: Proxy<Event>?
-    
-    init(proxy: Proxy<Event>) {
-        self.proxy = proxy
-    }
-    
-    var id: UUID {
-        guard let proxy else {
-            fatalError("proxy is invalidated")
-        }
-        return proxy.id
-    }
-    
-    func send(_ event: sending Event) throws {
-        guard let proxy else {
-            throw ProxyInvalidatedError()
-        }
-        try proxy.send(event)
-    }
-    
-    /// Returns `true` if the transducer is terminated or if self is invalidated.
-    var isTerminated: Bool {
-        proxy?.isTerminated ?? true
-    }
-    
-    func cancelTask<ID>(_ id: ID) throws where ID: Hashable, ID: Sendable {
-        try proxy?.cancelTask(TaskID(id))
-    }
-    
-    func cancelAllTasks() throws {
-        try proxy?.cancelAllTasks()
-    }
-    
-    func invalidate() {
-        self.proxy = nil
-    }
-}
+/// Thrown when the Task where the proxy's `send(_:)` function will be
+/// called has been cancelled.
+struct ProxyInvalidatedError: Swift.Error {}
