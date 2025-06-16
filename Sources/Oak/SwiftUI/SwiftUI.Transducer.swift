@@ -137,6 +137,69 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         }
     }
 
+    /// Initialises a view, running a transducer which has an update function
+    /// with the signature `(inout State, Event) -> Output`.
+    ///
+    /// The initial state value is set to `State.init()`.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
+    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
+    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
+    /// ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - initialOutput: An initial value for the output which will be send by the transducer to the
+    ///   `out` parameter immediately after the transducer has been started.
+    ///   - content: A viewBuilder function that has a parameter providing the current state and a
+    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
+    ///   view calls this function whenever the state has changed in order to update the content.
+    ///
+    /// ## Example
+    /// Given a transducer, `MyUseCase`, that conforms to `Transducer`, a transducer view can be
+    /// created by passing in the _type_ of the transducer and the content view can be created in the
+    /// traling closure as shown below:
+    ///
+    ///```swift
+    /// struct ContentView: View {
+    ///     var body: some View {
+    ///         TransducerView(of: MyUseCase.self) {
+    ///             content: { state, send in
+    ///                 GreetingView(
+    ///                     greeting: state.greeting,
+    ///                     send: send
+    ///                 )
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    /// The below`GreetingView` view shows how to compose a content view
+    /// ```swift
+    /// struct GreetingView: View {
+    ///     let greeting: String
+    ///     let send: (Event) throws -> Void
+    ///
+    ///     var body: some View {
+    ///         VStack {
+    ///             Text(greeting)
+    ///         }
+    ///         Button("Submit") {
+    ///             send(.submit)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    /// Each content view should have a _state_ constant and a `send` function. The state will
+    /// change whenever the transducer produces a new state. The send function is used by the
+    /// view to send user's intents (aka events) to the transducer.
+    ///
+    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
+    /// makes sense, since there's the transducer which solely exists to perform this computation.
+    /// A view may only manages its own private state when it is invariant of the given logic defined
+    /// by the transducer.
     public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
         proxy: T.Proxy? = nil,
@@ -158,6 +221,66 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         }
     }
 
+    /// Initialises a view, running a transducer which has an update function
+    /// with the signature `(inout State, Event) -> Void`.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
+    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
+    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
+    /// ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - initialState: The start state of the transducer. Default is `init()`.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - content: A viewBuilder function that has a parameter providing the current state and a
+    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
+    ///   view calls this function whenever the state has changed in order to update the content.
+    ///
+    /// ## Example
+    /// Given a transducer, `MyUseCase`, that conforms to `Transducer`, a transducer view can be
+    /// created by passing in the _type_ of the transducer and the content view can be created in the
+    /// traling closure as shown below:
+    ///
+    ///```swift
+    /// struct ContentView: View {
+    ///     var body: some View {
+    ///         TransducerView(of: MyUseCase.self) {
+    ///             content: { state, send in
+    ///                 GreetingView(
+    ///                     greeting: state.greeting,
+    ///                     send: send
+    ///                 )
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    /// The below`GreetingView` view shows how to compose a content view
+    /// ```swift
+    /// struct GreetingView: View {
+    ///     let greeting: String
+    ///     let send: (Event) throws -> Void
+    ///
+    ///     var body: some View {
+    ///         VStack {
+    ///             Text(greeting)
+    ///         }
+    ///         Button("Submit") {
+    ///             send(.submit)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    /// Each content view should have a _state_ constant and a `send` function. The state will
+    /// change whenever the transducer produces a new state. The send function is used by the
+    /// view to send user's intents (aka events) to the transducer.
+    ///
+    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
+    /// makes sense, since there's the transducer which solely exists to perform this computation.
+    /// A view may only manages its own private state when it is invariant of the given logic defined
+    /// by the transducer.
     public init(
         of type: T.Type,
         initialState: sending T.State,
@@ -177,6 +300,68 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         }
     }
     
+    /// Initialises a view, running a transducer which has an update function
+    /// with the signature `(inout State, Event) -> Void`.
+    ///
+    /// The initial state value is set to `State.init()`.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
+    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
+    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
+    /// ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - initialState: The start state of the transducer. Default is `init()`.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - content: A viewBuilder function that has a parameter providing the current state and a
+    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
+    ///   view calls this function whenever the state has changed in order to update the content.
+    ///
+    /// ## Example
+    /// Given a transducer, `MyUseCase`, that conforms to `Transducer`, a transducer view can be
+    /// created by passing in the _type_ of the transducer and the content view can be created in the
+    /// traling closure as shown below:
+    ///
+    ///```swift
+    /// struct ContentView: View {
+    ///     var body: some View {
+    ///         TransducerView(of: MyUseCase.self) {
+    ///             content: { state, send in
+    ///                 GreetingView(
+    ///                     greeting: state.greeting,
+    ///                     send: send
+    ///                 )
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    /// The below`GreetingView` view shows how to compose a content view
+    /// ```swift
+    /// struct GreetingView: View {
+    ///     let greeting: String
+    ///     let send: (Event) throws -> Void
+    ///
+    ///     var body: some View {
+    ///         VStack {
+    ///             Text(greeting)
+    ///         }
+    ///         Button("Submit") {
+    ///             send(.submit)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    /// Each content view should have a _state_ constant and a `send` function. The state will
+    /// change whenever the transducer produces a new state. The send function is used by the
+    /// view to send user's intents (aka events) to the transducer.
+    ///
+    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
+    /// makes sense, since there's the transducer which solely exists to perform this computation.
+    /// A view may only manages its own private state when it is invariant of the given logic defined
+    /// by the transducer.
     public init(
         of type: T.Type,
         proxy: T.Proxy? = nil,
@@ -195,6 +380,37 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         }
     }
 
+    /// Initialises a view, running a transducer which has an update function
+    /// with the signature `(inout State, Event) -> (Effect?, Output)`.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
+    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
+    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
+    /// ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - initialState: The start state of the transducer. Default is `init()`.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
+    ///   - out: A type conforming to `Subject<Output>` where the transducer sends the
+    ///   output it produces. The `out` parameter is usually used to notify the parent view, for example
+    ///   via a `Binding` which can be directly used for the parameter `out`.
+    ///   - initialOutput: An initial value for the output which will be send by the transducer to the
+    ///   `out` parameter immediately after the transducer has been started.
+    ///   - content: A viewBuilder function that has a parameter providing the current state and a
+    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
+    ///   view calls this function whenever the state has changed in order to update the content.
+    ///
+    /// Each content view should have a _state_ constant and a `send` function. The state will
+    /// change whenever the transducer produces a new state. The send function is used by the
+    /// view to send user's intents (aka events) to the transducer.
+    ///
+    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
+    /// makes sense, since there's the transducer which solely exists to perform this computation.
+    /// A view may only manages its own private state when it is invariant of the given logic defined
+    /// by the transducer.
     public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
         initialState: sending T.State,
@@ -219,6 +435,38 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         }
     }
     
+    /// Initialises a view, running a transducer which has an update function
+    /// with the signature `(inout State, Event) -> (Effect?, Output)`.
+    ///
+    /// The initial state value is set to `State.init()`.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
+    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
+    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
+    /// ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
+    ///   - out: A type conforming to `Subject<Output>` where the transducer sends the
+    ///   output it produces. The `out` parameter is usually used to notify the parent view, for example
+    ///   via a `Binding` which can be directly used for the parameter `out`.
+    ///   - initialOutput: An initial value for the output which will be send by the transducer to the
+    ///   `out` parameter immediately after the transducer has been started.
+    ///   - content: A viewBuilder function that has a parameter providing the current state and a
+    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
+    ///   view calls this function whenever the state has changed in order to update the content.
+    ///
+    /// Each content view should have a _state_ constant and a `send` function. The state will
+    /// change whenever the transducer produces a new state. The send function is used by the
+    /// view to send user's intents (aka events) to the transducer.
+    ///
+    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
+    /// makes sense, since there's the transducer which solely exists to perform this computation.
+    /// A view may only manages its own private state when it is invariant of the given logic defined
+    /// by the transducer.
     public init<Output: Sendable, Out: Subject<Output>>(
         of type: T.Type,
         proxy: T.Proxy? = nil,
@@ -242,6 +490,32 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         }
     }
 
+    /// Initialises a view, running a transducer which has an update function
+    /// with the signature `(inout State, Event) -> Effect?`.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
+    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
+    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
+    /// ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - initialState: The start state of the transducer. Default is `init()`.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
+    ///   - content: A viewBuilder function that has a parameter providing the current state and a
+    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
+    ///   view calls this function whenever the state has changed in order to update the content.
+    ///
+    /// Each content view should have a _state_ constant and a `send` function. The state will
+    /// change whenever the transducer produces a new state. The send function is used by the
+    /// view to send user's intents (aka events) to the transducer.
+    ///
+    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
+    /// makes sense, since there's the transducer which solely exists to perform this computation.
+    /// A view may only manages its own private state when it is invariant of the given logic defined
+    /// by the transducer.
     public init(
         of type: T.Type,
         initialState: sending T.State,
@@ -262,6 +536,33 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         }
     }
 
+    /// Initialises a view, running a transducer which has an update function
+    /// with the signature `(inout State, Event) -> Effect?`.
+    ///
+    /// The initial state value is set to `State.init()`.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
+    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
+    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
+    /// ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
+    ///   - content: A viewBuilder function that has a parameter providing the current state and a
+    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
+    ///   view calls this function whenever the state has changed in order to update the content.
+    ///
+    /// Each content view should have a _state_ constant and a `send` function. The state will
+    /// change whenever the transducer produces a new state. The send function is used by the
+    /// view to send user's intents (aka events) to the transducer.
+    ///
+    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
+    /// makes sense, since there's the transducer which solely exists to perform this computation.
+    /// A view may only manages its own private state when it is invariant of the given logic defined
+    /// by the transducer.
     public init(
         of type: T.Type,
         proxy: T.Proxy? = nil,
