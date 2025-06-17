@@ -1,4 +1,4 @@
-// swift-tools-version: 6.1
+// swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -41,7 +41,10 @@ extension Target.Dependency {
 extension Target {
     static var oak: Target {
         .target(
-            name: ModuleName.oak
+            name: ModuleName.oak,
+            swiftSettings: [
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault")
+            ]
         )
     }
 }
@@ -50,7 +53,10 @@ extension Target {
     static var oakTests: Target {
         .testTarget(
             name: ModuleName.oakTests,
-            dependencies: [.oak]
+            dependencies: [.oak],
+            swiftSettings: [
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault")
+            ]
         )
     }
 }

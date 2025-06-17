@@ -30,25 +30,29 @@ public struct Effect<Event: Sendable, Env: Sendable>: Sendable /*, ~Copyable*/ {
     public typealias Env = Env
     public typealias Proxy = Oak.Proxy<Event>
 
-    private let f: @Sendable (Env, Proxy) -> [OakTask]?
+    private let f: @Sendable (Env, Proxy, Context, isolated any Actor) -> Void
 
-    private init(f: @escaping @Sendable (Env, Proxy) -> [OakTask]?) {
+    private init(f: @escaping @Sendable (Env, Proxy, Context, isolated any Actor) -> Void) {
         self.f = f
     }
 
     consuming func invoke(
+        isolated: isolated any Actor = #isolation,
         with env: Env,
-        proxy: Proxy
-    ) -> [OakTask]? {
-        f(env, proxy)
+        proxy: Proxy,
+        context: Oak.Context
+    ) {
+        f(env, proxy, context, isolated)
     }
 }
 
 extension Effect where Env == Void {
     consuming func invoke(
-        proxy: Proxy
-    ) -> [OakTask]? {
-        f(Void(), proxy)
+        isolated: isolated any Actor = #isolation,
+        proxy: Proxy,
+        context: Oak.Context
+    ) {
+        f(Void(), proxy, context, isolated)
     }
 }
 
@@ -115,14 +119,37 @@ extension Effect {
         id: some Hashable & Sendable,
         operation: @escaping @isolated(any) @Sendable (Env, Proxy) async throws -> Void
     ) {
-        self.f = { env, proxy in
+        self.f = { env, proxy, context, isolated in
+            let uid = context.uniqueUID()
             let task = Task {
-                try await operation(env, proxy)
+                do {
+                    try await operation(env, proxy)
+                } catch is CancellationError {
+                } catch {
+                    proxy.terminate(failure: error)
+                }
+                Self.removeCompletedTask(
+                    id: id,
+                    uid: uid,
+                    context: context,
+                    isolated: isolated
+                )
             }
-            return [.init(id: id, task: task)]
+            context.register(id: id, uid: uid, task: task)
         }
     }
     
+    // This function does exists solely to define the isolation where
+    // `context` can be mutated.
+    static func removeCompletedTask(
+        id: some Hashable & Sendable,
+        uid: Context.UID,
+        context: Context,
+        isolated: isolated (any Actor) = #isolation
+    ) {
+        context.removeCompleted(id: id, uid: uid)
+    }
+        
     /// Returns an Effect that creates a managed Task for the given operation.
     ///
     /// When invoked, the effect creates a `Swift.Task` executing the operation.
@@ -138,11 +165,23 @@ extension Effect {
     public init(
         operation: @escaping @isolated(any) @Sendable (Env, Proxy) async throws -> Void
     ) {
-        self.f = { env, proxy in
+        self.f = { env, proxy, context, isolated in
+            let id = context.uniqueUID()
             let task = Task {
-                try await operation(env, proxy)
+                do {
+                    try await operation(env, proxy)
+                } catch is CancellationError {
+                } catch {
+                    proxy.terminate(failure: error)
+                }
+                Self.removeCompletedTask(
+                    id: id,
+                    uid: 0,
+                    context: context,
+                    isolated: isolated
+                )
             }
-            return [.init(task: task)]
+            context.register(id: id, uid: 0, task: task)
         }
     }
 
@@ -220,21 +259,19 @@ extension Effect {
     public static func action(
         _ action: @escaping @Sendable (Env, Proxy) -> Void
     ) -> Effect {
-        Effect(f: { env, proxy in
+        Effect(f: { env, proxy, _, _ in
             action(env, proxy)
-            return nil
         })
     }
     
     /// Returns an `Effect` value that when invoked, sends the given event
     /// synchronously to the transucer.
     ///
-    /// - Parameter event: The event that should be sent to the transducer.
+    /// - Parameter event: The event that will be sent to the transducer.
     /// - Returns: A synchronous effect.
     public static func event(_ event: Event) -> Effect {
-        Effect { _, proxy in
+        Effect { _, proxy, _, _ in
             try? proxy.send(event) // TODO: Check how to handle the error
-            return nil
         }
     }
     
@@ -307,9 +344,8 @@ extension Effect {
     public static func cancelTask(
         _ id: some Hashable & Sendable
     ) -> Effect {
-        Effect { _, proxy in
+        Effect { _, proxy, _, _ in
             try? proxy.cancelTask(TaskID(id))
-            return nil
         }
     }
     
@@ -317,9 +353,8 @@ extension Effect {
     ///
     /// - Returns: A synchronous effect.
     public static func cancelAllTasks() -> Effect {
-        Effect { _, proxy in
+        Effect { _, proxy, _, _ in
             try? proxy.cancelAllTasks()
-            return nil
         }
     }
     
@@ -330,11 +365,10 @@ extension Effect {
     }
     
     public static func effects(_ effects: [Effect]) -> Effect {
-        Effect { env, proxy in
-            let oakTasks = effects.reduce(into: [OakTask]()) { a, effect in
-                a.append(contentsOf: (effect.invoke(with: env, proxy: proxy) ?? []))
+        Effect { env, proxy, context, isolated in
+            effects.forEach { effect in
+                effect.f(env, proxy, context, isolated)
             }
-            return oakTasks.isEmpty ? nil : oakTasks
         }
     }
 }

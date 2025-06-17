@@ -390,7 +390,7 @@ extension Transducer where Env == Never {
         proxy: Proxy
     ) async throws -> Output where Output == TransducerOutput {
         try await run(
-            initialState: initialState,
+            storage: LocalStorage(value: initialState),
             proxy: proxy,
             out: NoCallbacks<Output>()
         )
@@ -459,9 +459,7 @@ extension Transducer where Env == Never {
         proxy: Proxy
     ) async throws -> Output where Output == TransducerOutput {
         try await run(
-            isolated: isolated,
-            state: state,
-            host: host,
+            storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
             out: NoCallbacks<Output>()
         )
@@ -714,8 +712,7 @@ extension Transducer where Env: Sendable {
         env: Env
     ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
         try await run(
-            isolated: isolated,
-            initialState: initialState,
+            storage: LocalStorage(value: initialState),
             proxy: proxy,
             env: env,
             out: NoCallbacks<Output>()
@@ -836,9 +833,7 @@ extension Transducer where Env: Sendable {
         env: Env
     ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
         try await run(
-            isolated: isolated,
-            state: state,
-            host: host,
+            storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
             env: env,
             out: NoCallbacks()
@@ -959,17 +954,6 @@ extension Transducer where Env: Sendable {
         context: Context,
         env: Env
     ) {
-        func onCompletion(
-            isolated: isolated any Actor,
-            oakTask: OakTask,
-            result: Result<Void, Error>
-        ) {
-            context.removeCompleted(oakTask: oakTask)
-            if case .failure(let error) = result, !(error is CancellationError) {
-                terminate(proxy, reason: error)
-            }
-        }
-        
         // Note, that an effect invocation may synchronously run its
         // operation, that may send one or more events to the transducer
         // via its proxy. When run synchronously, it returns `nil`. That
@@ -980,18 +964,7 @@ extension Transducer where Env: Sendable {
         // implementation, the proxy uses an AsyncStream that provides
         // this buffer. The size of the buffer can be specified at the
         // time when the proxy will be created.
-        if let oakTasks = effect.invoke(with: env, proxy: proxy) {
-            oakTasks.forEach { oakTask in
-                let oakTask = context.register(oakTask)
-                Task {
-                    let result = await oakTask.task.result
-                    // This suspends on 'isolated' because onCompletion has
-                    // `isolated: isolated any Actor` parameter. Due to this,
-                    //  we can call onCompletion synchronously.
-                    onCompletion(isolated: isolated, oakTask: oakTask, result: result)
-                }
-            }
-        }
+        effect.invoke(with: env, proxy: proxy, context: context)
     }
     
     private static func terminate(_ proxy: Proxy, reason: Swift.Error) {
@@ -1011,49 +984,62 @@ struct TaskID: @unchecked Sendable, Hashable {
 }
 
 internal final class Context {
-    private var tasks: Dictionary<TaskID, Task<Void, Error>> = [:]
     typealias ID = Int
-    var id: ID = 0
+    typealias UID = Int
     
+    private var tasks: Dictionary<TaskID, (UID, Task<Void, Never>)> = [:]
+    var id: ID = 0
+    var uid: UID = 0
+
     @usableFromInline
-    func removeCompleted(oakTask: OakTask) {
-        if let id = oakTask.id, let task = tasks[id], oakTask.task == task {
+    func removeCompleted(id: some Hashable & Sendable, uid: UID) {
+        let id = TaskID(id)
+        if let entry = tasks[id], entry.0 == uid {
             tasks.removeValue(forKey: id)
         }
     }
     
     @usableFromInline
-    func register(_ oakTask: OakTask) -> OakTask {
-        let task = oakTask.task
-        if let id = oakTask.id {
-            if let previousTask = tasks[id] {
-                previousTask.cancel()
-            }
-            tasks[id] = task
-            return oakTask
-        } else {
-            let id = TaskID(uniqueId())
-            tasks[id] = task
-            return OakTask(id: id, task: task)
+    func register(id: some Hashable & Sendable, uid: UID, task: Task<Void, Never>) {
+        let id = TaskID(id)
+        if let previousTask = tasks[id] {
+            previousTask.1.cancel()
         }
+        tasks[id] = (uid, task)
     }
-    
+
+    @usableFromInline
+    func register(uid: UID, task: Task<Void, Never>) -> TaskID {
+        let id = TaskID(uniqueID())
+        if let previousTask = tasks[id] {
+            previousTask.1.cancel()
+        }
+        tasks[id] = (uid, task)
+        return id
+    }
+
     func cancelAll() {
         tasks.values.forEach {
-            $0.cancel()
+            $0.1.cancel()
         }
     }
     
     func cancelTask(id: TaskID) {
         if let task = tasks[id] {
-            task.cancel()
+            task.1.cancel()
         }
     }
     
     @usableFromInline
-    func uniqueId() -> ID {
+    func uniqueID() -> ID {
         defer { id += 1 }
         return id
+    }
+    
+    @usableFromInline
+    func uniqueUID() -> UID {
+        defer { uid += 1 }
+        return uid
     }
 }
 
