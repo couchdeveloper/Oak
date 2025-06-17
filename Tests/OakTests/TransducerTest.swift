@@ -4,17 +4,18 @@ import Oak
 @testable import struct Oak.ProxyTerminationError
 @testable import struct Oak.ProxyInvalidatedError
 
-fileprivate final class Store<State> {
+fileprivate final class Host<State> {
     var state: State
     
-    init(state: State) {
-        self.state = state
+    init(initialState: State) {
+        self.state = initialState
     }
 }
 
-
-struct TransducerTests  {
+// @Suite("TransducerTests", TimeLimitTrait.timeLimit(.minutes(1)))
+struct TransducerTests {
     
+    @Suite("Type Inference Tests", TimeLimitTrait.timeLimit(.minutes(1)))
     struct TypeInferenceTests {
         
         @MainActor
@@ -117,104 +118,291 @@ struct TransducerTests  {
 
 extension TransducerTests {
     
+    @Suite("run tests", TimeLimitTrait.timeLimit(.minutes(1)))
     struct RunTests {
         
         @MainActor
-        @Test func testRun1() async throws {
+        @Test func testRunWithInternalState1() async throws {
+            // (inout State, Event) -> Void
             enum T: Transducer {
                 enum State: Terminable {
                     case start
-                    var isTerminal: Bool { true }
+                    case finished
+                    var isTerminal: Bool { self == .finished }
                 }
                 enum Event { case start }
                 typealias Output = Void
-                static func update(_ state: inout State, event: Event) -> Void { }
+                static func update(_ state: inout State, event: Event) -> Void {
+                    switch event {
+                    case .start: state = .finished
+                    }
+                }
             }
-            let proxy = T.Proxy()
-            let result: Void = try await T.run(initialState: .start, proxy: proxy, out: NoCallbacks(), initialOutput: Void())
+            let proxy = T.Proxy(initialEvents: .start)
+            let result: Void = try await T.run(
+                initialState: .start,
+                proxy: proxy,
+                out: NoCallbacks(),
+                initialOutput: Void()
+            )
             #expect(result == ())
-        }
-     
-        @MainActor
-        @Test func testRun2() async throws {
-            enum T: Transducer {
-                enum State: Terminable {
-                    case start
-                    var isTerminal: Bool { true }
-                }
-                enum Event { case start }
-                typealias Output = Int
-                static func update(_ state: inout State, event: Event) -> Int { 0 }
-            }
-            
-            let result = try await T.run(initialState: .start, proxy: T.Proxy(), out: NoCallbacks(), initialOutput: 1)
-            #expect(result == 1)
-        }
-
-        @MainActor
-        @Test func testRun3() async throws {
-            enum T: Transducer {
-                enum State: Terminable {
-                    case start
-                    var isTerminal: Bool { true }
-                }
-                enum Event { case start }
-                typealias Output = (Int, Int)
-                static func update(_ state: inout State, event: Event) -> (Int, Int) { (0, 0) }
-            }
-            let result = try await T.run(initialState: .start, proxy: T.Proxy(), out: NoCallbacks(), initialOutput: (1, 1))
-            #expect(result == (1, 1))
+            #expect(proxy.isTerminated)
         }
         
         @MainActor
-        @Test func testRun4() async throws {
+        @Test func testRunWithInternalState2() async throws {
+            // (inout State, Event) -> Void
             enum T: Transducer {
                 enum State: Terminable {
                     case start
-                    var isTerminal: Bool { true }
+                    case finished
+                    var isTerminal: Bool { self == .finished }
                 }
                 enum Event { case start }
-                struct Env {}
-                typealias Output = Int
-                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, Int) { (.none, 0) }
+                typealias Output = Void
+                static func update(_ state: inout State, event: Event) -> Void {
+                    switch event {
+                    case .start: state = .finished
+                    }
+                }
+            }
+            let proxy = T.Proxy(initialEvents: .start)
+            let result: Void = try await T.run(
+                initialState: .start,
+                proxy: proxy
+            )
+            #expect(result == ())
+            #expect(proxy.isTerminated)
+        }
+        
+        @MainActor
+        @Test func testRunWithHost1() async throws {
+            // (inout State, Event) -> Void
+            enum T: Transducer {
+                enum State: Terminable {
+                    case start
+                    case finished
+                    var isTerminal: Bool { self == .finished }
+                }
+                enum Event { case start }
+                typealias Output = Void
+                static func update(_ state: inout State, event: Event) -> Void {
+                    switch event {
+                    case .start: state = .finished
+                    }
+                }
             }
             
-            let result = try await T.run(initialState: .start, proxy: T.Proxy(), env: T.Env(), out: NoCallbacks(), initialOutput: 1)
-            #expect(result == 1)
+            let host = Host<T.State>(initialState: .start)
+            
+            let proxy = T.Proxy(initialEvents: .start)
+            try await T.run(
+                state: \.state,
+                host: host,
+                proxy: proxy,
+                out: NoCallbacks(),
+                initialOutput: Void()
+            )
+            #expect(host.state == .finished)
+            #expect(proxy.isTerminated)
         }
-
+        
         @MainActor
-        @Test func testRun5() async throws {
+        @Test func testRunWithHost2() async throws {
+            // (inout State, Event) -> Void
             enum T: Transducer {
                 enum State: Terminable {
                     case start
-                    var isTerminal: Bool { true }
+                    case finished
+                    var isTerminal: Bool { self == .finished }
                 }
                 enum Event { case start }
-                struct Env {}
-                typealias Output = (Int, Int)
-                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, (Int, Int)) { (.none, (0, 0)) }
+                typealias Output = Void
+                static func update(_ state: inout State, event: Event) -> Void {
+                    switch event {
+                    case .start: state = .finished
+                    }
+                }
             }
-            let result = try await T.run(initialState: .start, proxy: T.Proxy(), env: T.Env(), out: NoCallbacks(), initialOutput: (1, 1))
-            #expect(result == (1, 1))
+            
+            let host = Host<T.State>(initialState: .start)
+            
+            let proxy = T.Proxy(initialEvents: .start)
+            try await T.run(
+                state: \.state,
+                host: host,
+                proxy: proxy,
+            )
+            #expect(host.state == .finished)
+            #expect(proxy.isTerminated)
         }
-
+        
         @MainActor
-        @Test func testRun6() async throws {
+        @Test func testRunWithInternalStateWithOutput1() async throws {
+            // (inout State, Event) -> Int
             enum T: Transducer {
                 enum State: Terminable {
                     case start
-                    var isTerminal: Bool { true }
+                    case finished
+                    var isTerminal: Bool { self == .finished }
                 }
                 enum Event { case start }
-                struct Env {}
-                static func update(_ state: inout State, event: Event) -> Effect<Event, Env>? { .none }
+                typealias Output = Void
+                static func update(_ state: inout State, event: Event) -> Int {
+                    switch event {
+                    case .start: state = .finished
+                        return 2
+                    }
+                }
             }
-            #expect(try await T.run(initialState: .start, proxy: T.Proxy(), env: T.Env()) == Void())
+            let proxy = T.Proxy(initialEvents: .start)
+            let result = try await T.run(
+                initialState: .start,
+                proxy: proxy,
+                out: NoCallbacks(),
+                initialOutput: 1
+            )
+            #expect(result == 2)
+            #expect(proxy.isTerminated)
         }
-
+        
+        @MainActor
+        @Test func testRunWithInternalStateWithOutput2() async throws {
+            // (inout State, Event) -> (Int, Int)
+            enum T: Transducer {
+                enum State: Terminable {
+                    case start
+                    case finished
+                    var isTerminal: Bool { self == .finished }
+                }
+                enum Event { case start }
+                typealias Output = Void
+                static func update(_ state: inout State, event: Event) -> (Int, Int) {
+                    switch event {
+                    case .start: state = .finished
+                        return (2, 2)
+                    }
+                }
+            }
+            let proxy = T.Proxy(initialEvents: .start)
+            let result = try await T.run(
+                initialState: .start,
+                proxy: proxy,
+                out: NoCallbacks(),
+                initialOutput: (1, 1)
+            )
+            #expect(result == (2, 2))
+            #expect(proxy.isTerminated)
+        }
+        
+        @MainActor
+        @Test func testRunWithInternalStateWithEffectAndOutput1() async throws {
+            // (inout State, Event) -> (Effect?, Int)
+            enum T: Transducer {
+                enum State: Terminable {
+                    case start
+                    case finished
+                    var isTerminal: Bool { self == .finished }
+                }
+                enum Event { case start, finish }
+                struct Env {}
+                typealias Output = Int
+                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, Int) {
+                    switch (event, state) {
+                    case (.start, .start):
+                        return (.event(.finish), 1)
+                    case (.finish, .start):
+                        state = .finished
+                        return (.none, 2)
+                    case (_, .finished):
+                        return (.none, -1)
+                    }
+                }
+            }
+            
+            let proxy = T.Proxy(initialEvents: .start)
+            let result = try await T.run(
+                initialState: .start,
+                proxy: proxy,
+                env: T.Env(),
+                out: NoCallbacks(),
+                initialOutput: 0
+            )
+            #expect(result == 2)
+            #expect(proxy.isTerminated)
+        }
+        
+        @MainActor
+        @Test func testRunWithInternalStateWithEffectAndOutput2() async throws {
+            // (inout State, Event) -> (Effect?, (Int,Int))
+            enum T: Transducer {
+                enum State: Terminable {
+                    case start
+                    case finished
+                    var isTerminal: Bool { self == .finished }
+                }
+                enum Event { case start, finish }
+                struct Env {}
+                typealias Output = Int
+                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, (Int, Int)) {
+                    switch (event, state) {
+                    case (.start, .start):
+                        return (Effect<Event, Env>.event(.finish), (1, 1))
+                    case (.finish, .start):
+                        state = .finished
+                        return (.none, (2, 2))
+                    case (_, .finished):
+                        return (.none, (-1, -1))
+                    }
+                }
+            }
+            let proxy = T.Proxy(initialEvents: .start)
+            let result = try await T.run(
+                initialState: .start,
+                proxy: proxy,
+                env: T.Env(),
+                out: NoCallbacks(),
+                initialOutput: (0, 0)
+            )
+            #expect(result == (2, 2))
+            #expect(proxy.isTerminated)
+        }
+        
+        @MainActor
+        @Test func testRunWithInternalStateWithEffect1() async throws {
+            // (inout State, Event) -> Effect?
+            enum T: Transducer {
+                enum State: Terminable {
+                    case start
+                    case finished
+                    var isTerminal: Bool { self == .finished }
+                }
+                enum Event { case start, finish }
+                struct Env {}
+                static func update(_ state: inout State, event: Event) -> Effect<Event, Env>? {
+                    switch (event, state) {
+                    case (.start, .start):
+                        return .event(.finish)
+                    case (.finish, .start):
+                        state = .finished
+                        return .none
+                    case (_, .finished):
+                        return .none
+                    }
+                }
+            }
+            let proxy = T.Proxy(initialEvents: .start)
+            try await T.run(
+                initialState: .start,
+                proxy: proxy,
+                env: T.Env()
+            )
+            #expect(proxy.isTerminated)
+        }
+        
     }
-
+    
+    @Suite("run failure tests", TimeLimitTrait.timeLimit(.minutes(1)))
     struct RunThrowingErrorTests {
         @MainActor
         @Test func testRunThrowsWhenTerminatedWithoutResult1() async throws {
@@ -261,9 +449,13 @@ extension TransducerTests {
                 )}
             )
         }
-
+        
     }
+}
 
+extension TransducerTests {
+    
+    @Suite("proxy termination tests", TimeLimitTrait.timeLimit(.minutes(1)))
     struct ProxyTerminationTests {
         @MainActor
         @Test func throwsErrorWhenTerminatedByProxy1() async throws {
@@ -300,7 +492,7 @@ extension TransducerTests {
                 typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, Int) { (.none, 0) }
             }
-
+            
             let proxy = T.Proxy()
             Task {
                 await #expect(
@@ -346,7 +538,7 @@ extension TransducerTests {
                     )
                 }
             }
-
+            
             let proxy = T.Proxy()
             Task {
                 try proxy.send(.start)
@@ -400,7 +592,7 @@ extension TransducerTests {
                         return .cancelTask(1)
                     case (.tick, .counting):
                         return .none
-
+                        
                     case (.tick, .start):
                         return .none
                     case (.startTimer, .start):
@@ -434,7 +626,7 @@ extension TransducerTests {
                     }
                 }
             }
-
+            
             struct TestError: Error {}
             let proxy = T.Proxy()
             Task {
@@ -452,7 +644,11 @@ extension TransducerTests {
             )
         }
     }
+}
 
+extension TransducerTests {
+
+    @Suite("transducer variants tests", TimeLimitTrait.timeLimit(.minutes(1)))
     struct TransducerVariantsTest {
         
         enum T1: Transducer {
@@ -503,10 +699,10 @@ extension TransducerTests {
             try proxy.send(.start)
             try proxy.send(.cancel)
             
-            let store = Store<T1.State>(state: .start)
+            let host = Host<T1.State>(initialState: .start)
             let result = try await T1.run(
                 state: \.state,
-                host: store,
+                host: host,
                 proxy: proxy
             )
             
@@ -536,7 +732,7 @@ extension TransducerTests {
         
         @MainActor
         @Test func testOutputRunWithExternalState() async throws {
-            let store = Store<T1.State>(state: .start)
+            let host = Host<T1.State>(initialState: .start)
             let proxy = T1.Proxy()
             var out1: [Int] = []
             var out2: [String] = []
@@ -545,7 +741,7 @@ extension TransducerTests {
             try proxy.send(.cancel)
             _ = try await T1.run(
                 state: \.state,
-                host: store,
+                host: host,
                 proxy: proxy,
                 out: Callback { @MainActor in
                     out1.append($0.0)
@@ -558,8 +754,12 @@ extension TransducerTests {
         }
         
     }
+}
 
-    struct EffectTests {
+extension TransducerTests {
+    
+    @Suite("result and output tests", TimeLimitTrait.timeLimit(.minutes(1)))
+    struct ResultAndOutputTests {
         
         enum T1: Transducer {
             enum State: Terminable {
@@ -598,16 +798,6 @@ extension TransducerTests {
         }
         
         @MainActor
-        @Test func testTypes() async throws {
-            print(type(of: T1.State.self))
-            print(type(of: T1.Event.self))
-            print(type(of: T1.TransducerOutput.self))
-            print(type(of: T1.Effect.self))
-            print(type(of: T1.Env.self))
-            print(type(of: T1.Proxy.self))
-        }
-        
-        @MainActor
         @Test func testResultRunWithInternalState() async throws {
             let proxy = T1.Proxy()
             try proxy.send(.start)
@@ -618,7 +808,7 @@ extension TransducerTests {
                 proxy: proxy,
                 env: T1.Env()
             )
-            print(result)
+            #expect(proxy.isTerminated)
             #expect(result == (2, "finished"))
         }
         
@@ -628,14 +818,15 @@ extension TransducerTests {
             try proxy.send(.start)
             try proxy.send(.cancel)
             
-            let store = Store<T1.State>(state: .start)
+            let host = Host<T1.State>(initialState: .start)
             let result = try await T1.run(
                 state: \.state,
-                host: store,
+                host: host,
                 proxy: proxy,
                 env: T1.Env()
             )
             
+            #expect(proxy.isTerminated)
             #expect(result == (2, "finished"))
         }
         
@@ -657,13 +848,14 @@ extension TransducerTests {
                 }
             )
             
+            #expect(proxy.isTerminated)
             #expect(out1 == [0, 2])
             #expect(out2 == ["running", "finished"])
         }
         
         @MainActor
         @Test func testOutputRunWithExternalState() async throws {
-            let store = Store<T1.State>(state: .start)
+            let host = Host<T1.State>(initialState: .start)
             let proxy = T1.Proxy()
             var out1: [Int] = []
             var out2: [String] = []
@@ -672,7 +864,7 @@ extension TransducerTests {
             try proxy.send(.cancel)
             _ = try await T1.run(
                 state: \.state,
-                host: store,
+                host: host,
                 proxy: proxy,
                 env: T1.Env(),
                 out: Callback { @MainActor output in
@@ -681,16 +873,17 @@ extension TransducerTests {
                 }
             )
             
+            #expect(proxy.isTerminated)
             #expect(out1 == [0, 2])
             #expect(out2 == ["running", "finished"])
         }
-        
     }
 
 }
 
 extension TransducerTests {
     
+    @Suite("Examples", TimeLimitTrait.timeLimit(.minutes(1)))
     struct Examples {
         @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
         enum T1: Transducer {
