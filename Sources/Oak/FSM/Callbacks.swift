@@ -29,5 +29,5 @@ extension Callback: Sendable where Value: Sendable {}
 public struct NoCallbacks<Value>: Subject {
     public init() {}
     /// Sending the value has no effect.
-    public func send(_ value: sending Value) throws {}
+    public func send(_ value: sending Value) async throws {}
 }
