@@ -577,7 +577,7 @@ extension TransducerTests {
                     case start, counting, terminated
                     var isTerminal: Bool { if case .terminated = self { true } else { false } }
                 }
-                enum Event { case start, startTimer, stopTimer, tick }
+                enum Event { case start, startTimer, stopTimer, terminate, tick }
                 struct Env {}
                 typealias Effect = Oak.Effect<Event, Env>
                 static func update(_ state: inout State, event: Event) -> Effect? {
@@ -588,9 +588,11 @@ extension TransducerTests {
                     case (.startTimer, .counting):
                         return singletonTimer(tag: "second")
                     case (.stopTimer, .counting):
-                        state = .terminated
                         return .cancelTask(1)
                     case (.tick, .counting):
+                        return .none
+                    case (.terminate, _):
+                        state = .terminated
                         return .none
                         
                     case (.tick, .start):
@@ -618,8 +620,8 @@ extension TransducerTests {
                                 // the task has been cancelled and cause the
                                 // `send(_:)` function to throw `ProxyInvalidatedError`.
                                 while true {
-                                    try? await Task.sleep(nanoseconds: 10_000_000)
                                     try proxy.send(.tick) // should throw ProxyInvalidatedError when the Task is cancelled.
+                                    try? await Task.sleep(nanoseconds: 1_000_000)
                                 }
                             }
                         )
@@ -631,10 +633,12 @@ extension TransducerTests {
             let proxy = T.Proxy()
             Task {
                 try proxy.send(.start)
-                try? await Task.sleep(nanoseconds: 50_000_000)
+                try? await Task.sleep(nanoseconds: 5_000_000)
                 try proxy.send(.startTimer)
-                try? await Task.sleep(nanoseconds: 100_000_000)
+                try? await Task.sleep(nanoseconds: 5_000_000)
                 try proxy.send(.stopTimer)
+                try? await Task.sleep(nanoseconds: 5_000_000)
+                try? proxy.send(.terminate)
             }
             
             try await T.run(
