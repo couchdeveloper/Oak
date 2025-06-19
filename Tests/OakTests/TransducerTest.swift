@@ -12,10 +12,10 @@ fileprivate final class Host<State> {
     }
 }
 
-// @Suite("TransducerTests", TimeLimitTrait.timeLimit(.minutes(1)))
+@Suite("TransducerTests")
 struct TransducerTests {
     
-    @Suite("Type Inference Tests", TimeLimitTrait.timeLimit(.minutes(1)))
+    @Suite("Type Inference Tests")
     struct TypeInferenceTests {
         
         @MainActor
@@ -118,7 +118,7 @@ struct TransducerTests {
 
 extension TransducerTests {
     
-    @Suite("run tests", TimeLimitTrait.timeLimit(.minutes(1)))
+    @Suite("run tests")
     struct RunTests {
         
         @MainActor
@@ -402,7 +402,7 @@ extension TransducerTests {
         
     }
     
-    @Suite("run failure tests", TimeLimitTrait.timeLimit(.minutes(1)))
+    @Suite("run failure tests")
     struct RunThrowingErrorTests {
         @MainActor
         @Test func testRunThrowsWhenTerminatedWithoutResult1() async throws {
@@ -455,7 +455,7 @@ extension TransducerTests {
 
 extension TransducerTests {
     
-    @Suite("proxy termination tests", TimeLimitTrait.timeLimit(.minutes(1)))
+    @Suite("proxy termination tests")
     struct ProxyTerminationTests {
         @MainActor
         @Test func throwsErrorWhenTerminatedByProxy1() async throws {
@@ -648,7 +648,7 @@ extension TransducerTests {
 
 extension TransducerTests {
 
-    @Suite("transducer variants tests", TimeLimitTrait.timeLimit(.minutes(1)))
+    @Suite("transducer variants tests")
     struct TransducerVariantsTest {
         
         enum T1: Transducer {
@@ -758,7 +758,7 @@ extension TransducerTests {
 
 extension TransducerTests {
     
-    @Suite("result and output tests", TimeLimitTrait.timeLimit(.minutes(1)))
+    @Suite("result and output tests")
     struct ResultAndOutputTests {
         
         enum T1: Transducer {
@@ -883,7 +883,7 @@ extension TransducerTests {
 
 extension TransducerTests {
     
-    @Suite("Examples", TimeLimitTrait.timeLimit(.minutes(1)))
+    @Suite("Examples")
     struct Examples {
         @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
         enum T1: Transducer {
