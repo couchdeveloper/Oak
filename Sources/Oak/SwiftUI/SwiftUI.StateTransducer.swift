@@ -591,7 +591,7 @@ extension StateTransducer where T.State: DefaultInitializable {
 
 // MARK: - Internal
 
-extension Callback {
+extension Callback where Value: Sendable {
     init(binding: Binding<Value?>) {
         self.init { value in
             binding.wrappedValue = value
