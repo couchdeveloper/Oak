@@ -56,17 +56,11 @@ extension Effect where Env == Void {
     }
 }
 
-@globalActor actor MyGlobalActor: GlobalActor {
-    static let shared = MyGlobalActor()
-}
-
-
 extension Effect {
     
-    /// Returns an Effect that creates a managed Task with the given ID and the
-    /// given asynchronous throwing operation.
+    /// Returns an Effect that when invoked creates a managed Task with the given ID
+    /// that executes the given asynchronous throwing operation.
     ///
-    /// When invoked, the effect creates a `Swift.Task` executing the operation.
     /// When there is already an operation running with the same id, the existing
     /// operation will be cancelled.
     ///
@@ -115,13 +109,18 @@ extension Effect {
     ///   - id: An ID that identifies this operation.
     ///   - operation: An async throwing function receiving the environment and the proxy
     ///     as parameter.
+    ///   - priority: The priority of the task. Pass `nil` to use the priority from `Task.currentPriority`.
     public init(
         id: some Hashable & Sendable,
-        operation: @escaping @isolated(any) @Sendable (Env, Proxy) async throws -> Void
+        operation: @escaping @isolated(any) @Sendable (
+            Env,
+            Proxy
+        ) async throws -> Void,
+        priority: TaskPriority? = nil
     ) {
         self.f = { env, proxy, context, isolated in
             let uid = context.uniqueUID()
-            let task = Task {
+            let task = Task.init(priority: priority) {
                 do {
                     try await operation(env, proxy)
                 } catch is CancellationError {
@@ -139,21 +138,10 @@ extension Effect {
         }
     }
     
-    // This function does exists solely to define the isolation where
-    // `context` can be mutated.
-    static func removeCompletedTask(
-        id: some Hashable & Sendable,
-        uid: Context.UID,
-        context: Context,
-        isolated: isolated (any Actor) = #isolation
-    ) {
-        context.removeCompleted(id: id, uid: uid)
-    }
-        
-    /// Returns an Effect that creates a managed Task for the given operation.
+    /// Returns an Effect that when invoked creates a managed Task that executes
+    /// the given asynchronous throwing operation.
     ///
-    /// When invoked, the effect creates a `Swift.Task` executing the operation.
-    /// A managed task will be automatically cancelled when the transducer terminates.
+    /// The managed task will be automatically cancelled when the transducer terminates.
     ///
     /// The operation receives an environment value, that can be used to obtain
     /// dependencies or other information. It also is given the proxy - that is the receiver
@@ -162,12 +150,17 @@ extension Effect {
     /// - Parameters:
     ///   - operation: An async function receiving the environment and the proxy
     ///     as parameter.
+    ///   - priority: The priority of the task. Pass `nil` to use the priority from `Task.currentPriority`.
     public init(
-        operation: @escaping @isolated(any) @Sendable (Env, Proxy) async throws -> Void
+        operation: @escaping @isolated(any) @Sendable (
+            Env,
+            Proxy
+        ) async throws -> Void,
+        priority: TaskPriority? = nil
     ) {
         self.f = { env, proxy, context, isolated in
             let id = context.uniqueUID()
-            let task = Task {
+            let task = Task(priority: priority) {
                 do {
                     try await operation(env, proxy)
                 } catch is CancellationError {
@@ -185,10 +178,9 @@ extension Effect {
         }
     }
 
-    /// Returns an Effect that creates a managed Task with the given ID and the
-    /// given asynchronous throwing operation.
+    /// Returns an Effect that when invoked creates a managed Task with the given ID
+    /// that executes the given asynchronous throwing operation.
     ///
-    /// When invoked, the effect creates a `Swift.Task` executing the operation.
     /// When there is already an operation running with the same id, the existing
     /// operation will be cancelled.
     ///
@@ -244,27 +236,85 @@ extension Effect {
     ///   - id: An ID that identifies this operation.
     ///   - operation: An async throwing function receiving the environment and the proxy
     ///     as parameter.
+    ///   - priority: The priority of the task. Pass `nil` to use the priority from `Task.currentPriority`.
     public static func task(
         _ id: some Hashable & Sendable,
-        operation: @escaping @isolated(any) @Sendable (Env, Proxy) async throws -> Void
+        operation: @escaping @isolated(any) @Sendable (
+            Env,
+            Proxy
+        ) async throws -> Void,
+        priority: TaskPriority? = nil
     ) -> Effect {
-        Effect(id: id, operation: operation)
+        Effect(id: id, operation: operation, priority: priority)
     }
     
-    /// Rerturns an effect that runs the given closure `action(:_)` _synchronously_ on
-    /// the Transducer's isolated domain.
+    /// Returns an Effect that when invoked creates a managed Task that executes
+    /// the given asynchronous throwing operation.
+    ///
+    /// When there is already an operation running with the same id, the existing
+    /// operation will be cancelled.
+    ///
+    /// A managed task will be automatically cancelled when the transducer terminates.
+    ///
+    /// The operation receives an environment value, that can be used to obtain
+    /// dependencies or other information. It also is given the proxy - that is the receiver
+    /// of any events emitted by the operation.
+    ///
+    /// ### Example
+    ///
+    /// The below example shows how to create a simple timer effect which sends
+    /// three pings and then terminates. Note, that the timer omittong an id
+    /// cannot be cancelled explicitly in the update function.
+    ///
+    ///```swift
+    /// static func update(
+    ///     _ state: inout State,
+    ///     event: Event
+    /// ) -> Effect? {
+    ///     ...
+    ///     case (.startTimer, .running):
+    ///         return .task() {
+    ///             for _ in 0..<3  {
+    ///                 try await Task.sleep(nanoseconds: 1_000_000_000)
+    ///                 try? proxy.send(.ping)
+    ///             }
+    ///         }
+    ///```
+    ///
+    /// The operation above will be executed within a Swift Task which is managed
+    /// by the transducer.
+    ///
+    /// - Parameters:
+    ///   - operation: An async throwing function receiving the environment and the proxy
+    ///     as parameter.
+    ///   - priority: The priority of the task. Pass `nil` to use the priority from `Task.currentPriority`.
+    public static func task(
+        operation: @escaping @isolated(any) @Sendable (
+            Env,
+            Proxy
+        ) async throws -> Void,
+        priority: TaskPriority? = nil
+    ) -> Effect {
+        Effect(operation: operation, priority: priority)
+    }
+
+    /// Returns an effect that when invoked executes the given closure `action(:_)`
+    /// on the Transducer's isolated domain.
     ///
     /// - Parameter action: The closure to run.
     /// - Returns: A synchronous effect.
     public static func action(
-        _ action: @escaping @Sendable (Env, Proxy) -> Void
+        _ action: @escaping @Sendable (
+            Env,
+            Proxy
+        ) -> Void
     ) -> Effect {
         Effect(f: { env, proxy, _, _ in
             action(env, proxy)
         })
     }
     
-    /// Returns an `Effect` value that when invoked, sends the given event
+    /// Returns an `Effect` that when invoked, sends the given event
     /// synchronously to the transucer.
     ///
     /// - Parameter event: The event that will be sent to the transducer.
@@ -275,7 +325,7 @@ extension Effect {
         }
     }
     
-    /// Returns an asynchronous effect that, when executed sends the specified event after the
+    /// Returns an effect that when invoked sends the specified event after the
     /// specified duration to the transducer.
     ///
     /// The `id` can be used in the transition function to explicitly cancel the
@@ -309,8 +359,8 @@ extension Effect {
         }
     }
 
-    /// Returns an asynchronous effect that, when executed after the specified duration, sends the
-    /// specified event to the transducer.
+    /// Returns an effect that when invoked sends the specified event after the
+    /// given duration to the transducer.
     ///
     /// A pending effect will be automatically cancelled when the transducer terminates.
     ///
@@ -334,7 +384,7 @@ extension Effect {
         }
     }
     
-    /// Returns a synchronous effect that when invoked, cancels the operation with the
+    /// Returns an effect that when invoked, cancels the operation with the
     /// given ID.
     ///
     /// - Parameters:
@@ -349,7 +399,7 @@ extension Effect {
         }
     }
     
-    /// Returns a synchronous effect that cancels all operations.
+    /// Returns an effect that when invoked cancels all operations.
     ///
     /// - Returns: A synchronous effect.
     public static func cancelAllTasks() -> Effect {
@@ -360,10 +410,14 @@ extension Effect {
     
     
     // TODO: fix when available: "Noncopyable type 'Effect<Event, Env>' cannot be used within a variadic type yet."
+    /// Creates an effect which when invoked invokes all the effects passed as
+    /// arguments.
     public static func effects(_ effects: Effect...) -> Effect {
         Self.effects(effects)
     }
     
+    /// Creates an effect which when invoked invokes all the effects passed as
+    /// parameters.
     public static func effects(_ effects: [Effect]) -> Effect {
         Effect { env, proxy, context, isolated in
             effects.forEach { effect in
@@ -371,6 +425,18 @@ extension Effect {
             }
         }
     }
+    
+    // This function does exists solely to define the isolation where
+    // `context` can be mutated.
+    static func removeCompletedTask(
+        id: some Hashable & Sendable,
+        uid: Context.UID,
+        context: Context,
+        isolated: isolated (any Actor) = #isolation
+    ) {
+        context.removeCompleted(id: id, uid: uid)
+    }
+
 }
 
 
