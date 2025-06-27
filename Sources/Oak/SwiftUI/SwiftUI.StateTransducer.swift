@@ -298,9 +298,9 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
         initialState: T.State,
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
-        env: T.Env,
+        env: sending T.Env,
         initialOutput: T.Output? = nil
-    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, T.Output), T.Output: Sendable {
+    ) where T.TransducerOutput == (Oak.Effect<T>?, T.Output), T.Output: Sendable {
         let thunk = {
             FSA<T>(
                 initialState: initialState,
@@ -360,8 +360,8 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
         wrappedValue initialState: T.State,
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
-        env: T.Env
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Output == Never {
+        env: sending T.Env
+    ) where T.TransducerOutput == Oak.Effect<T>?, T.Output == Never {
         let thunk: () -> FSA<T> = {
             FSA<T>.init(
                 initialState: initialState,
@@ -520,9 +520,9 @@ extension StateTransducer where T.State: DefaultInitializable {
     public init(
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
-        env: T.Env,
+        env: sending T.Env,
         initialOutput: T.Output? = nil
-    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, T.Output), T.Output: Sendable {
+    ) where T.TransducerOutput == (Oak.Effect<T>?, T.Output), T.Output: Sendable {
         self.init(
             initialState: .init(),
             of: of,
@@ -577,8 +577,8 @@ extension StateTransducer where T.State: DefaultInitializable {
     public init(
         of: T.Type = T.self,
         proxy: T.Proxy = T.Proxy(),
-        env: T.Env
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Output == Never {
+        env: sending T.Env
+    ) where T.TransducerOutput == Oak.Effect<T>?, T.Output == Never {
         self.init(
             wrappedValue: .init(),
             of: of,
@@ -648,6 +648,9 @@ final class FSA<T: Transducer> {
     @ObservationIgnored
     let proxy: T.Proxy
     @ObservationIgnored
+    private let continuation: T.Proxy.Continuation
+
+    @ObservationIgnored
     private var task: Task<Void, Error>!
     @ObservationIgnored
     let out: PassthroughSubject<T.Output, Never>?
@@ -659,6 +662,7 @@ final class FSA<T: Transducer> {
     ) where T.TransducerOutput == T.Output, T.Env == Never, T.Output: Sendable {
         self.state = initialState
         self.proxy = proxy
+        self.continuation = proxy.continuation
         self.out = PassthroughSubject()
         task = Task {
             let _ = try await T.run(
@@ -676,9 +680,10 @@ final class FSA<T: Transducer> {
         proxy: T.Proxy,
         env: T.Env,
         initialOutput: T.Output? = nil
-    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, T.Output), T.Env: Sendable, T.Output: Sendable {
+    ) where T.TransducerOutput == (Oak.Effect<T>?, T.Output), T.Output: Sendable {
         self.state = initialState
         self.proxy = proxy
+        self.continuation = proxy.continuation
         self.out = PassthroughSubject()
         task = Task {
             let _ = try await T.run(
@@ -696,11 +701,12 @@ final class FSA<T: Transducer> {
         initialState: T.State,
         proxy: T.Proxy,
         env: T.Env,
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Env: Sendable, T.Output == Never {
+    ) where T.TransducerOutput == Oak.Effect<T>?, T.Output == Never {
         self.state = initialState
         self.proxy = proxy
+        self.continuation = proxy.continuation
         self.out = nil
-        task = Task {
+        task = Task { [env] in
             try await T.run(
                 state: \.state,
                 host: self,
@@ -711,7 +717,7 @@ final class FSA<T: Transducer> {
     }
     
     deinit {
-        proxy.terminate()
+        continuation.finish(throwing: ProxyTerminationError())
     }
 }
 

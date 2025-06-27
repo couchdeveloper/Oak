@@ -29,11 +29,10 @@ struct TransducerTests {
                     }
                 }
                 enum Event { case start }
-                typealias Output = Void
                 static func update(_ state: inout State, event: Event) -> Void { }
             }
             
-            #expect(T.Output.self == Void.self)
+            #expect(T.Output.self == Never.self)
             #expect(T.Env.self == Never.self)
             #expect(T.TransducerOutput.self == Void.self)
             #expect(T.Proxy.self == Proxy<T.Event>.self)
@@ -76,11 +75,11 @@ struct TransducerTests {
                 enum Event { case start }
                 struct Env {}
                 typealias Output = Int
-                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, Int) { (.none, 0) }
+                static func update(_ state: inout State, event: Event) -> (Effect<Self>?, Int) { (.none, 0) }
             }
             
             #expect(T.Output.self == Int.self)
-            #expect(T.TransducerOutput.self == (Effect<T.Event, T.Env>?, Int).self)
+            #expect(T.TransducerOutput.self == (Effect<T>?, Int).self)
             #expect(T.Proxy.self == Proxy<T.Event>.self)
         }
         
@@ -91,11 +90,11 @@ struct TransducerTests {
                 enum Event { case start }
                 struct Env {}
                 typealias Output = (Int, Int)
-                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, (Int, Int)) { (.none, (0, 0)) }
+                static func update(_ state: inout State, event: Event) -> (Effect<Self>?, (Int, Int)) { (.none, (0, 0)) }
             }
             
             #expect(T.Output.self == (Int, Int).self)
-            #expect(T.TransducerOutput.self == (Effect<T.Event, T.Env>?, (Int, Int)).self)
+            #expect(T.TransducerOutput.self == (Effect<T>?, (Int, Int)).self)
             #expect(T.Proxy.self == Proxy<T.Event>.self)
         }
         
@@ -105,11 +104,11 @@ struct TransducerTests {
                 enum State: Terminable { case start }
                 enum Event { case start }
                 struct Env {}
-                static func update(_ state: inout State, event: Event) -> Effect<Event, Env>? { .none }
+                static func update(_ state: inout State, event: Event) -> Effect<Self>? { .none }
             }
             
             #expect(T.Output.self == Never.self)
-            #expect(T.TransducerOutput.self == Effect<T.Event, T.Env>?.self)
+            #expect(T.TransducerOutput.self == Effect<T>?.self)
             #expect(T.Proxy.self == Proxy<T.Event>.self)
         }
 
@@ -141,9 +140,7 @@ extension TransducerTests {
             let proxy = T.Proxy(initialEvents: .start)
             let result: Void = try await T.run(
                 initialState: .start,
-                proxy: proxy,
-                out: NoCallbacks(),
-                initialOutput: Void()
+                proxy: proxy
             )
             #expect(result == ())
             #expect(proxy.isTerminated)
@@ -247,7 +244,7 @@ extension TransducerTests {
                     var isTerminal: Bool { self == .finished }
                 }
                 enum Event { case start }
-                typealias Output = Void
+                typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> Int {
                     switch event {
                     case .start: state = .finished
@@ -276,7 +273,7 @@ extension TransducerTests {
                     var isTerminal: Bool { self == .finished }
                 }
                 enum Event { case start }
-                typealias Output = Void
+                typealias Output = (Int, Int)
                 static func update(_ state: inout State, event: Event) -> (Int, Int) {
                     switch event {
                     case .start: state = .finished
@@ -307,7 +304,7 @@ extension TransducerTests {
                 enum Event { case start, finish }
                 struct Env {}
                 typealias Output = Int
-                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, Int) {
+                static func update(_ state: inout State, event: Event) -> (Effect<Self>?, Int) {
                     switch (event, state) {
                     case (.start, .start):
                         return (.event(.finish), 1)
@@ -343,11 +340,11 @@ extension TransducerTests {
                 }
                 enum Event { case start, finish }
                 struct Env {}
-                typealias Output = Int
-                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, (Int, Int)) {
+                typealias Output = (Int, Int)
+                static func update(_ state: inout State, event: Event) -> (Effect<Self>?, (Int, Int)) {
                     switch (event, state) {
                     case (.start, .start):
-                        return (Effect<Event, Env>.event(.finish), (1, 1))
+                        return (Effect<Self>.event(.finish), (1, 1))
                     case (.finish, .start):
                         state = .finished
                         return (.none, (2, 2))
@@ -379,7 +376,7 @@ extension TransducerTests {
                 }
                 enum Event { case start, finish }
                 struct Env {}
-                static func update(_ state: inout State, event: Event) -> Effect<Event, Env>? {
+                static func update(_ state: inout State, event: Event) -> Effect<Self>? {
                     switch (event, state) {
                     case (.start, .start):
                         return .event(.finish)
@@ -436,7 +433,7 @@ extension TransducerTests {
                 enum Event { case start }
                 struct Env {}
                 typealias Output = (Int, Int)
-                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, (Int, Int)) { (.none, (0, 0)) }
+                static func update(_ state: inout State, event: Event) -> (Effect<Self>?, (Int, Int)) { (.none, (0, 0)) }
             }
             await #expect(
                 throws: TransducerDidNotProduceAnOutputError.self,
@@ -490,7 +487,7 @@ extension TransducerTests {
                 enum Event { case start }
                 struct Env {}
                 typealias Output = Int
-                static func update(_ state: inout State, event: Event) -> (Effect<Event, Env>?, Int) { (.none, 0) }
+                static func update(_ state: inout State, event: Event) -> (Effect<Self>?, Int) { (.none, 0) }
             }
             
             let proxy = T.Proxy()
@@ -513,29 +510,32 @@ extension TransducerTests {
         
         @MainActor
         @Test func cancelsTasksAndThrowsErrorWhenTerminatedByProxy() async throws {
+            
             enum T: Transducer {
                 enum State: Terminable { case start }
                 enum Event { case start }
                 struct Env {
                     let confirmation: Confirmation
                 }
-                typealias Effect = Oak.Effect<Event, Env>
+                typealias Effect = Oak.Effect<Self>
                 typealias Output = Int
                 static func update(_ state: inout State, event: Event) -> (Effect?, Int) {
                     switch (event, state) {
                     case (.start, .start):
-                        return (effect, 0)
+                        return (effect(), 0)
                     }
                 }
                 
-                static let effect = Effect(id: 1) { env, _ in
-                    env.confirmation()
-                    await #expect(
-                        throws: CancellationError.self,
-                        performing: {
-                            try await Task.sleep(nanoseconds: 1_000_000_000)
-                        }
-                    )
+                static func effect() -> Effect {
+                    Effect(id: 1) { env, _ in
+                        env.confirmation()
+                        await #expect(
+                            throws: CancellationError.self,
+                            performing: {
+                                try await Task.sleep(nanoseconds: 1_000_000_000)
+                            }
+                        )
+                    }
                 }
             }
             
@@ -579,7 +579,7 @@ extension TransducerTests {
                 }
                 enum Event { case start, startTimer, stopTimer, terminate, tick }
                 struct Env {}
-                typealias Effect = Oak.Effect<Event, Env>
+                typealias Effect = Oak.Effect<Self>
                 static func update(_ state: inout State, event: Event) -> Effect? {
                     switch (event, state) {
                     case (.start, .start):
@@ -778,7 +778,7 @@ extension TransducerTests {
             
             struct Env {}
             
-            typealias Effect = Oak.Effect<Event, Env>
+            typealias Effect = Oak.Effect<Self>
 
             typealias Output = (Int, String)
 
@@ -903,7 +903,7 @@ extension TransducerTests {
             
             struct Env {}
             
-            typealias Effect = Oak.Effect<Event, Env>
+            typealias Effect = Oak.Effect<Self>
 
             typealias Output = (Int, String)
 

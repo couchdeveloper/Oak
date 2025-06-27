@@ -11,10 +11,7 @@ import struct Foundation.UUID
 /// That is, when the transducer reaches a terminal state, the proxy cannot
 /// be reused for another transducer. Though, a proxy's life-time can outlive
 /// the identity of its transducer.
-///
-/// A proxy is _sendable_, means, it can be moved across arbitrary concurrent
-/// contexts.
-public protocol TransducerProxy<Event>: Sendable, Identifiable {
+public protocol TransducerProxy<Event>: Identifiable {
     associatedtype Event
 
     /// A unique identifier which is guaranteed to be unique for every proxy
@@ -42,6 +39,12 @@ protocol Invalidable {
 
 struct ProxyTerminationError: Swift.Error {}
 
+extension Proxy: Sendable where Event: Sendable {}
+
+extension Proxy.TransducerEvent: Sendable where Event: Sendable {}
+
+// extension Proxy: Sendable where Stream: Sendable {}
+
 /// A Proxy represents a transducer which can be used to send events into
 /// it or – if needed – can be used to forcibly terminate the transducer.
 ///
@@ -55,9 +58,8 @@ struct ProxyTerminationError: Swift.Error {}
 /// reused for another transducer. Though, a proxy's life-time can outlive
 /// the identity of its transducer.
 ///
-/// A proxy is _sendable_, means, it can be moved across arbitrary concurrent
-/// contexts.
-public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
+/// A proxy conforms to `Sendable` when `Event` conforms to `Sendable`.
+public struct Proxy<Event>: TransducerProxy {
     typealias Stream = AsyncThrowingStream<TransducerEvent, Swift.Error>
     typealias Continuation = Stream.Continuation
     
@@ -66,11 +68,10 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
         case cancelAllTasks
         case dumpTasks
     }
-    enum TransducerEvent: Sendable {
+    enum TransducerEvent {
         case event(Event)
         case control(Control)
-    }
-    
+    }    
     
     let input: Stream
     let continuation: Continuation
@@ -95,19 +96,20 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
     /// event buffer. If the size is not specified, the default is 16.
     /// - Parameter initialEvents: An array of events which will be send to the input
     /// of the proxy.
-    public init(eventBufferSize: Int = 16, initialEvents: [Event]) {
+    public init(eventBufferSize: Int = 16, initialEvents: sending [Event]) where Event: Sendable {
         (input, continuation) = AsyncThrowingStream.makeStream(
             of: TransducerEvent.self,
             throwing: Swift.Error.self,
             bufferingPolicy: .bufferingOldest(eventBufferSize)
         )
         do {
-            try initialEvents.forEach { try self.send($0) }
+            try self.send(events: initialEvents)
         } catch {
             fatalError("Failed to enqueue events into the proxy.")
         }
     }
 
+    // TODO: check why Event needs to be Sendable
     /// Initialise a proxy, that can be associated to a transducer by passing it as a parameter
     /// to the `run` function.
     ///
@@ -115,7 +117,7 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
     /// event buffer. If the size is not specified, the default is 16.
     /// - Parameter initialEvents: An array of events which will be send to the input
     /// of the proxy.
-    public init(eventBufferSize: Int = 16, initialEvents: Event...) {
+    public init(eventBufferSize: Int = 16, initialEvents: Event...) where Event: Sendable {
         let events: [Event] = initialEvents
         self.init(eventBufferSize: eventBufferSize, initialEvents: events)
     }
@@ -148,6 +150,16 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
         }
         try continuation.send(.event(event))
     }
+    
+    public func send(events: sending [Event]) throws where Event: Sendable { // TODO: check why Event needs to be Sendable
+        if Task.isCancelled {
+            throw ProxyInvalidatedError()
+        }
+        for event in events {
+            try continuation.send(.event(event))
+        }
+    }
+
     
     /// Forcibly terminates the transducer.
     ///
@@ -190,20 +202,20 @@ public struct Proxy<Event>: TransducerProxy, Sendable where Event: Sendable {
     // #endif
 }
 
-extension AsyncThrowingStream.Continuation where Element: Sendable {
+extension AsyncThrowingStream.Continuation {
     enum ContinuationError: Swift.Error {
-        case dropped(Element)
+        case dropped(String)
         case terminated
         case unknown
     }
     
-    func send(_ value: Element) throws {
+    func send(_ value: sending Element) throws {
         let result = self.yield(value)
         switch result {
         case .enqueued:
             break
         case .dropped(let element):
-            throw ContinuationError.dropped(element)
+            throw ContinuationError.dropped("\(element)")
         case .terminated:
             throw ContinuationError.terminated
         default:

@@ -79,7 +79,7 @@ enum Timers: Transducer {
 
     /// A _pure_ function which implementes the transition function and the output function
     /// of a stransducer. The output is an optioanal `Effect`.
-    static func update(_ state: inout State, event: Event) -> Effect? {
+    static func update(_ state: inout State, event: sending Event) -> Effect? {
         print("*** event: \(event), state: \(state)")
         switch (event, state) {
         case (.start, .start(let count)):

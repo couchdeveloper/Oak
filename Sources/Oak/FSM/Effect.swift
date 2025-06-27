@@ -25,32 +25,36 @@
 /// - TODO: `Effect` would benefit from being a noncopyable type.
 /// However, currently noncopyable types cannot be used within a
 /// variadic type.
-public struct Effect<Event: Sendable, Env: Sendable>: Sendable /*, ~Copyable*/ {
-    public typealias Event = Event
-    public typealias Env = Env
-    public typealias Proxy = Oak.Proxy<Event>
+public struct Effect<T: Transducer> /*, ~Copyable*/ {
+    public typealias Event = T.Event
+    public typealias Env = T.Env
+    public typealias Proxy = T.Proxy
 
-    private let f: @Sendable (Env, Proxy, Context, isolated any Actor) -> Void
+    private let f: (sending Env, sending Proxy, sending Context, isolated any Actor) -> Void
 
-    private init(f: @escaping @Sendable (Env, Proxy, Context, isolated any Actor) -> Void) {
+    private init(f: sending @escaping (sending Env, sending Proxy, sending Context, isolated any Actor) -> Void) {
         self.f = f
     }
+    
+    private static func make(f: sending @escaping (sending Env, sending Proxy, sending Context, isolated any Actor) -> Void) -> Effect {
+        .init(f: f)
+    }
 
-    consuming func invoke(
-        isolated: isolated any Actor = #isolation,
+    func invoke(
         with env: Env,
         proxy: Proxy,
-        context: Oak.Context
+        context: Oak.Context,
+        isolated: isolated any Actor = #isolation
     ) {
         f(env, proxy, context, isolated)
     }
 }
 
 extension Effect where Env == Void {
-    consuming func invoke(
-        isolated: isolated any Actor = #isolation,
+    func invoke(
         proxy: Proxy,
-        context: Oak.Context
+        context: Oak.Context,
+        isolated: isolated any Actor = #isolation
     ) {
         f(Void(), proxy, context, isolated)
     }
@@ -112,7 +116,7 @@ extension Effect {
     ///   - priority: The priority of the task. Pass `nil` to use the priority from `Task.currentPriority`.
     public init(
         id: some Hashable & Sendable,
-        operation: @escaping @isolated(any) @Sendable (
+        operation: sending @escaping (
             Env,
             Proxy
         ) async throws -> Void,
@@ -152,7 +156,7 @@ extension Effect {
     ///     as parameter.
     ///   - priority: The priority of the task. Pass `nil` to use the priority from `Task.currentPriority`.
     public init(
-        operation: @escaping @isolated(any) @Sendable (
+        operation: sending @escaping (
             Env,
             Proxy
         ) async throws -> Void,
@@ -160,7 +164,7 @@ extension Effect {
     ) {
         self.f = { env, proxy, context, isolated in
             let id = context.uniqueUID()
-            let task = Task(priority: priority) {
+            let task = Task(priority: priority) { [env] in
                 do {
                     try await operation(env, proxy)
                 } catch is CancellationError {
@@ -239,13 +243,13 @@ extension Effect {
     ///   - priority: The priority of the task. Pass `nil` to use the priority from `Task.currentPriority`.
     public static func task(
         _ id: some Hashable & Sendable,
-        operation: @escaping @isolated(any) @Sendable (
+        operation: sending @escaping (
             Env,
             Proxy
         ) async throws -> Void,
-        priority: TaskPriority? = nil
+        priority: TaskPriority? = nil,
     ) -> Effect {
-        Effect(id: id, operation: operation, priority: priority)
+        .init(id: id, operation: operation, priority: priority)
     }
     
     /// Returns an Effect that when invoked creates a managed Task that executes
@@ -289,13 +293,21 @@ extension Effect {
     ///     as parameter.
     ///   - priority: The priority of the task. Pass `nil` to use the priority from `Task.currentPriority`.
     public static func task(
-        operation: @escaping @isolated(any) @Sendable (
+        operation: sending @escaping (
             Env,
             Proxy
         ) async throws -> Void,
         priority: TaskPriority? = nil
     ) -> Effect {
-        Effect(operation: operation, priority: priority)
+        .init(operation: operation, priority: priority)
+    }
+
+    init(
+        _ action: sending @escaping (Env, Proxy) -> Void,
+    ) {
+        self.f = { env, proxy, _, _ in
+            action(env, proxy)
+        }
     }
 
     /// Returns an effect that when invoked executes the given closure `action(:_)`
@@ -304,27 +316,58 @@ extension Effect {
     /// - Parameter action: The closure to run.
     /// - Returns: A synchronous effect.
     public static func action(
-        _ action: @escaping @Sendable (
-            Env,
-            Proxy
-        ) -> Void
+        _ action: sending @escaping (Env, Proxy) -> Void
     ) -> Effect {
-        Effect(f: { env, proxy, _, _ in
-            action(env, proxy)
-        })
+        .init(action)
     }
     
+    init(
+        _ event: Event,
+    ) {
+        self.f = { _, proxy, _, _ in
+            try? proxy.send(event) // TODO: Check how to handle the error
+        }
+    }
+
     /// Returns an `Effect` that when invoked, sends the given event
     /// synchronously to the transucer.
     ///
     /// - Parameter event: The event that will be sent to the transducer.
     /// - Returns: A synchronous effect.
-    public static func event(_ event: Event) -> Effect {
-        Effect { _, proxy, _, _ in
-            try? proxy.send(event) // TODO: Check how to handle the error
-        }
+    public static func event(
+        _ event: sending Event
+    ) -> Effect {
+        .init(event)
     }
     
+    
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+    init<C: Clock>(
+        id: some Hashable & Sendable,
+        event: Event,
+        after duration: C.Instant.Duration,
+        tolerance: C.Instant.Duration? = nil,
+        clock: C = ContinuousClock(),
+    ) {
+        self.init(id: id) { env, proxy in
+            try await Task.sleep(for: duration, tolerance: tolerance, clock: clock)
+            try? proxy.send(event)
+        }
+    }
+
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
+    init<C: Clock>(
+        event: Event,
+        after duration: C.Instant.Duration,
+        tolerance: C.Instant.Duration? = nil,
+        clock: C = ContinuousClock(),
+    ) {
+        self.init() { env, proxy in
+            try await Task.sleep(for: duration, tolerance: tolerance, clock: clock)
+            try? proxy.send(event)
+        }
+    }
+
     /// Returns an effect that when invoked sends the specified event after the
     /// specified duration to the transducer.
     ///
@@ -353,10 +396,13 @@ extension Effect {
         tolerance: C.Instant.Duration? = nil,
         clock: C = ContinuousClock()
     ) -> Effect {
-        Effect(id: id) { env, proxy in
-            try await Task.sleep(for: duration, tolerance: tolerance, clock: clock)
-            try? proxy.send(event)
-        }
+        .init(
+            id: id,
+            event: event,
+            after: duration,
+            tolerance: tolerance,
+            clock: clock
+        )
     }
 
     /// Returns an effect that when invoked sends the specified event after the
@@ -378,12 +424,23 @@ extension Effect {
         tolerance: C.Instant.Duration? = nil,
         clock: C = ContinuousClock()
     ) -> Effect {
-        Effect { env, proxy in
-            try await Task.sleep(for: duration, tolerance: tolerance, clock: clock)
-            try? proxy.send(event)
-        }
+        .init(
+            event: event,
+            after: duration,
+            tolerance: tolerance,
+            clock: clock
+        )
     }
     
+    
+    init(
+        cancelTaskId id: some Hashable & Sendable,
+    ) {
+        self.f = { _, proxy, _, _ in
+            try? proxy.cancelTask(TaskID(id)) // TODO: Check how to handle the error
+        }
+    }
+
     /// Returns an effect that when invoked, cancels the operation with the
     /// given ID.
     ///
@@ -394,36 +451,52 @@ extension Effect {
     public static func cancelTask(
         _ id: some Hashable & Sendable
     ) -> Effect {
-        Effect { _, proxy, _, _ in
-            try? proxy.cancelTask(TaskID(id))
-        }
+        .init(cancelTaskId: id)
     }
     
+    
+    init(
+        cancelTaskAll: Int,
+    ) {
+        self.f = { _, proxy, _, _ in
+            try? proxy.cancelAllTasks() // TODO: Check how to handle the error
+        }
+    }
+
     /// Returns an effect that when invoked cancels all operations.
     ///
     /// - Returns: A synchronous effect.
     public static func cancelAllTasks() -> Effect {
-        Effect { _, proxy, _, _ in
-            try? proxy.cancelAllTasks()
-        }
+        Effect.init(cancelTaskAll: 0)
     }
     
     
-    // TODO: fix when available: "Noncopyable type 'Effect<Event, Env>' cannot be used within a variadic type yet."
-    /// Creates an effect which when invoked invokes all the effects passed as
-    /// arguments.
-    public static func effects(_ effects: Effect...) -> Effect {
-        Self.effects(effects)
-    }
-    
-    /// Creates an effect which when invoked invokes all the effects passed as
-    /// parameters.
-    public static func effects(_ effects: [Effect]) -> Effect {
-        Effect { env, proxy, context, isolated in
+    init(
+        _ effects: sending [Effect]
+    ) {
+        self.f = { env, proxy, context, isolated in
             effects.forEach { effect in
                 effect.f(env, proxy, context, isolated)
             }
         }
+    }
+
+    // TODO: fix when available: "Noncopyable type 'Effect<Event, Env>' cannot be used within a variadic type yet."
+    // TODO: Enable when variadic parameter can be a sending subtype
+    /// Creates an effect which when invoked invokes all the effects passed as
+    /// arguments.
+    // public static func effects(
+    //     _ effects: sending Effect...,
+    // ) -> Effect {
+    //     return Effect.effects(effects)
+    // }
+    
+    /// Creates an effect which when invoked invokes all the effects passed as
+    /// parameters.
+    public static func effects(
+        _ effects: sending [Effect]
+    ) -> Effect {
+        .init(effects)
     }
     
     // This function does exists solely to define the isolation where
@@ -457,5 +530,3 @@ struct OakTask {
     let id: TaskID?
     var task: Task<Void, Error>
 }
-
-

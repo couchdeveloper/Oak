@@ -33,7 +33,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     @SwiftUI.State private var state: T.State
     let proxy: T.Proxy
     let content: (T.State, @escaping (T.Event) -> Void) -> Content
-    let run: @Sendable @isolated(any) (T.Proxy, Binding<T.State>) async throws -> Void
+    let run: @MainActor @Sendable (T.Proxy, Binding<T.State>) async throws -> Void
     
     private final class AutoCancellabelTask {
         let task: Task<Void, Error>
@@ -115,14 +115,14 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     /// makes sense, since there's the transducer which solely exists to perform this computation.
     /// A view may only manages its own private state when it is invariant of the given logic defined
     /// by the transducer.
-    public init<Output: Sendable, Out: Subject<Output>>(
+    public init(
         of type: T.Type,
         initialState: sending T.State,
         proxy: T.Proxy? = nil,
-        out: Out,
-        initialOutput: sending Output? = nil,
+        out: some Subject<T.Output>,
+        initialOutput: sending T.Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == Output, T.Env == Never {
+    ) where T.Output: Sendable, T.Env == Never, T.Output == T.TransducerOutput {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: initialState)
@@ -200,13 +200,13 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     /// makes sense, since there's the transducer which solely exists to perform this computation.
     /// A view may only manages its own private state when it is invariant of the given logic defined
     /// by the transducer.
-    public init<Output: Sendable, Out: Subject<Output>>(
+    public init(
         of type: T.Type,
         proxy: T.Proxy? = nil,
-        out: Out,
-        initialOutput: sending Output? = nil,
+        out: some Subject<T.Output>,
+        initialOutput: sending T.Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == Output, T.Env == Never, T.State: DefaultInitializable {
+    ) where T.Output: Sendable, T.Env == Never, T.Output == T.TransducerOutput, T.State: DefaultInitializable {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: .init())
@@ -286,7 +286,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         initialState: sending T.State,
         proxy: T.Proxy? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == Void, T.Env == Never {
+    ) where T.TransducerOutput == Void, T.Env == Never, T.Output == Void {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: initialState)
@@ -294,8 +294,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
             binding.wrappedValue = initialState
             try await T.run(
                 binding: binding,
-                proxy: proxy,
-                out: NoCallbacks()
+                proxy: proxy
             )
         }
     }
@@ -366,7 +365,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         of type: T.Type,
         proxy: T.Proxy? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == Void, T.Env == Never, T.State: DefaultInitializable {
+    ) where T.TransducerOutput == Void, T.Env == Never, T.Output == Void, T.State: DefaultInitializable {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: .init())
@@ -411,15 +410,15 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     /// makes sense, since there's the transducer which solely exists to perform this computation.
     /// A view may only manages its own private state when it is invariant of the given logic defined
     /// by the transducer.
-    public init<Output: Sendable, Out: Subject<Output>>(
+    public init(
         of type: T.Type,
         initialState: sending T.State,
         proxy: T.Proxy? = nil,
         env: T.Env,
-        out: Out,
-        initialOutput: sending Output? = nil,
+        out: some Subject<T.Output>,
+        initialOutput: sending T.Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, Output) {
+    ) where T.TransducerOutput == (Oak.Effect<T>?, T.Output) {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: initialState)
@@ -467,14 +466,14 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     /// makes sense, since there's the transducer which solely exists to perform this computation.
     /// A view may only manages its own private state when it is invariant of the given logic defined
     /// by the transducer.
-    public init<Output: Sendable, Out: Subject<Output>>(
+    public init(
         of type: T.Type,
         proxy: T.Proxy? = nil,
         env: T.Env,
-        out: Out,
-        initialOutput: sending Output? = nil,
+        out: some Subject<T.Output>,
+        initialOutput: sending T.Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == (Oak.Effect<T.Event, T.Env>?, Output), T.State: DefaultInitializable {
+    ) where T.TransducerOutput == (Oak.Effect<T>?, T.Output), T.State: DefaultInitializable {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: .init())
@@ -520,9 +519,9 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         of type: T.Type,
         initialState: sending T.State,
         proxy: T.Proxy? = nil,
-        env: T.Env,
+        env: sending T.Env,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.Output == Never {
+    ) where T.TransducerOutput == Oak.Effect<T>?, T.Output == Never {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: initialState)
@@ -566,9 +565,9 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     public init(
         of type: T.Type,
         proxy: T.Proxy? = nil,
-        env: T.Env,
+        env: sending T.Env,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
-    ) where T.TransducerOutput == Oak.Effect<T.Event, T.Env>?, T.State: DefaultInitializable, T.Output == Never {
+    ) where T.TransducerOutput == Oak.Effect<T>?, T.State: DefaultInitializable, T.Output == Never {
         self.content = content
         self.proxy = proxy ?? Proxy()
         self._state = .init(initialValue: .init())
@@ -587,7 +586,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         // let _ = Self._printChanges()
         // #endif
         content(state, send(_:))
-        .task(id: proxy.id) {
+        .task(id: proxy.id) { @MainActor in
             if let autoCancellingTask = self.task, autoCancellingTask.id == proxy.id {
                 return
             }
@@ -598,9 +597,9 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     }
     
     static func makeTask(
-        proxy: T.Proxy,
+        proxy: sending T.Proxy,
         binding: Binding<T.State>,
-        run: @escaping @Sendable @isolated(any) (T.Proxy, Binding<T.State>) async throws -> Void
+        run: @MainActor @escaping (T.Proxy, Binding<T.State>) async throws -> Void
     ) -> Task<Void, Error> {
         return Task { @MainActor in
             do {
@@ -657,13 +656,13 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Output>(
+    public static func run(
         isolated: isolated any Actor = #isolation,
         binding: Binding<State>,
         proxy: Proxy,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil
-    ) async throws -> Output where Output == TransducerOutput {
+    ) async throws -> Output where Output == TransducerOutput, Output: Sendable {
         try await run(
             storage: binding,
             proxy: proxy,
@@ -694,21 +693,54 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Output>(
+    public static func run(
         isolated: isolated any Actor = #isolation,
         binding: Binding<State>,
         proxy: Proxy
-    ) async throws -> Output where Output == TransducerOutput {
+    ) async throws -> Output where Output == TransducerOutput, Output: Sendable {
         try await run(
-            binding: binding,
+            storage: binding,
             proxy: proxy,
-            out: NoCallbacks<Output>()
+            out: NoCallbacks(),
         )
     }
+    
+    /// Runs a transducer with an observable state whose update function has the signature
+    /// `(inout State, Event) -> Void`.
+    ///
+    /// The update function is isolated by the given Actor (a `SwiftUI.View`),
+    /// that can be explicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// caller is not isolated, the compilation will fail.
+    ///
+    /// The update function must at least run once, in order to successfully execute the transducer.
+    /// The initial state must not be a terminal state.
+    ///
+    /// - Parameters:
+    ///   - isolated: The actor where the `update` function will run on and where the state
+    ///   will be mutated.
+    ///   - binding: The underlying backing store for the state. Its usually a `@State` variable in the
+    ///   SwiftUI view.
+    ///   - proxy: The proxy, that will be associated to the transducer as its agent.
+    /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
+    /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
+    /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
+    /// not reach a terminal state.
+    public static func run(
+        isolated: isolated any Actor = #isolation,
+        binding: Binding<State>,
+        proxy: Proxy
+    ) async throws -> Void where TransducerOutput == Void, Output == Never {
+        try await run(
+            storage: binding,
+            proxy: proxy
+        )
+    }
+
 }
 
 
-extension Transducer where Env: Sendable {
+extension Transducer {
     
     /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
@@ -744,14 +776,14 @@ extension Transducer where Env: Sendable {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Out: Sendable>(
+    public static func run(
         isolated: isolated any Actor = #isolation,
         binding: Binding<State>,
         proxy: Proxy,
         env: Env,
-        out: some Subject<Out>,
-        initialOutput: Out? = nil,
-    ) async throws -> Out where TransducerOutput == (Oak.Effect<Event, Env>?, Out) {
+        out: some Subject<Output>,
+        initialOutput: Output? = nil,
+    ) async throws -> Output where TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         try await run(
             storage: binding,
             proxy: proxy,
@@ -794,8 +826,8 @@ extension Transducer where Env: Sendable {
         isolated: isolated any Actor = #isolation,
         binding: Binding<State>,
         proxy: Proxy,
-        env: Env,
-    ) async throws -> Void where TransducerOutput == Oak.Effect<Event, Env>?, Output == Never {
+        env: sending Env,
+    ) async throws -> Void where TransducerOutput == Oak.Effect<Self>?, Output == Never {
         try await run(
             storage: binding,
             proxy: proxy,
@@ -832,18 +864,17 @@ extension Transducer where Env: Sendable {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Out: Sendable>(
+    public static func run(
         isolated: isolated any Actor = #isolation,
         binding: Binding<State>,
         proxy: Proxy,
         env: Env
-    ) async throws -> Out where TransducerOutput == (Oak.Effect<Event, Env>?, Out) {
+    ) async throws -> Output where TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         try await run(
-            isolated: isolated,
-            binding: binding,
+            storage: binding,
             proxy: proxy,
             env: env,
-            out: NoCallbacks<Out>()
+            out: NoCallbacks<Output>()
         )
     }
 }

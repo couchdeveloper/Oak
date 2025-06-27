@@ -63,9 +63,9 @@
 ///
 ///     struct Env {}
 ///
-///     typealias Effect = Oak.Effect<Event, Env>
+///     typealias Effect = Oak.Effect<Self>
 ///
-///     static func update(_ state: inout State, event: Event) -> (Effect?, (Int, String)) {
+///     static func update(_ state: inout State, event: sending Event) -> (Effect?, (Int, String)) {
 ///         switch (event, state) {
 ///         case (.start, .start):
 ///             state = .running
@@ -221,7 +221,7 @@ public protocol Transducer: SendableMetatype {
     /// The type of the Input value.
     associatedtype Event: Sendable
     /// The type of the return value of the `update` function.
-    associatedtype TransducerOutput: Sendable
+    associatedtype TransducerOutput
     /// The type of the environment. It must be defined when the transducer defines effects in its output.
     associatedtype Env = Never
     /// The type of the output value
@@ -232,7 +232,7 @@ public protocol Transducer: SendableMetatype {
     typealias Proxy = Oak.Proxy<Event>
     
     /// The combined _transition_ and _output_ function of the FSM. This function will be isolated on the caller's actor.
-    static func update(_ state: inout State, event: Event) -> TransducerOutput
+    static func update(_ state: inout State, event: sending Event) -> TransducerOutput
 }
 
 /// A conforming type that can be in a _terminal mode_.
@@ -289,13 +289,13 @@ extension Transducer where Env == Never {
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
-    package static func run<Output>(
+    package static func run(
         isolated: isolated any Actor = #isolation,
         storage: some Storage<State>,
         proxy: Proxy,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil
-    ) async throws -> Output where Output == TransducerOutput {
+    ) async throws -> Output where Output == TransducerOutput, Env == Never {
         guard proxy.continuation.onTermination == nil else {
             throw ProxyAlreadyAssociatedError()
         }
@@ -333,6 +333,58 @@ extension Transducer where Env == Never {
         }
         return result
     }
+    
+    /// Creates a transducer whose update function has the signature
+    /// `(inout State, Event) -> Void`.
+    ///
+    /// The update function are isolated by the given Actor, that
+    /// can be explicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// caller is not isolated, the compilation will fail.
+    ///
+    /// The update function must at least run once, in order to successfully execute the transducer.
+    /// The initial state must not be a terminal state.
+    ///
+    /// - Parameters:
+    ///   - isolated: The actor where the `update` function will run on and where the state
+    ///   will be mutated.
+    ///   - storage: The underlying backing store for the state. Its type must conform to `Storage<State>`.
+    ///   - proxy: The proxy, that will be associated to the transducer as its agent.
+    /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
+    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
+    /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
+    /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
+    /// not reach a terminal state.
+    package static func run(
+        isolated: isolated any Actor = #isolation,
+        storage: some Storage<State>,
+        proxy: Proxy,
+    ) async throws -> Void where TransducerOutput == Void, Env == Never {
+        guard proxy.continuation.onTermination == nil else {
+            throw ProxyAlreadyAssociatedError()
+        }
+        proxy.continuation.onTermination = { _ in }
+        if !storage.value.isTerminal {
+            loop: for try await transducerEvent in proxy.input {
+                if case .event(let event) = transducerEvent {
+                    compute(state: &storage.value, event: event, proxy: proxy)
+                    if storage.value.isTerminal {
+                        proxy.continuation.finish()
+                        break loop
+                    }
+                }
+            }
+        } else {
+            proxy.continuation.finish()
+        }
+        var ignoreCount = 0
+        for try await event in proxy.input {
+            ignoreCount += 1
+            logger.warning("Ignored an event (\(ignoreCount)) (aka '\(String("\(event)"))') because the transducer '\(Self.self)' is in a terminal state.")
+        }
+        try Task.checkCancellation() // we do throw on a Task cancellation, even in the case the FST is finished and we have a result!
+    }
+
+
 
     /// Creates a transducer with a strictly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> Output`.
@@ -353,18 +405,44 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Output>(
+    public static func run(
         isolated: isolated any Actor = #isolation,
         initialState: sending State,
         proxy: Proxy,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil
-    ) async throws -> Output where Output == TransducerOutput {
+    ) async throws -> Output where Output == TransducerOutput, Env == Never {
         try await run(
             storage: LocalStorage(value: initialState),
             proxy: proxy,
             out: out,
             initialOutput: initialOutput
+        )
+    }
+    
+    /// Creates a transducer with a strictly encapsulated state whose update function has the signature
+    /// `(inout State, Event) -> Void`.
+    ///
+    /// The update function is isolated by the given Actor, that
+    /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
+    /// caller is not isolated, the compilation will fail.
+    ///
+    /// - Parameters:
+    ///   - isolated: The actor where the `update` function will run on and where the state
+    ///   will be mutated.
+    ///   - initialState: The inittial state of the transducer.
+    ///   - proxy: The proxy, that will be associated to the transducer as its agent.
+    /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
+    /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
+    /// not reach a terminal state.
+    public static func run(
+        isolated: isolated any Actor = #isolation,
+        initialState: sending State,
+        proxy: Proxy
+    ) async throws -> Void where Output == Never, TransducerOutput == Void, Env == Never {
+        try await run(
+            storage: LocalStorage(value: initialState),
+            proxy: proxy
         )
     }
     
@@ -384,11 +462,11 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Output>(
+    public static func run(
         isolated: isolated any Actor = #isolation,
         initialState: sending State,
         proxy: Proxy
-    ) async throws -> Output where Output == TransducerOutput {
+    ) async throws -> Output where Output == TransducerOutput, Env == Never {
         try await run(
             storage: LocalStorage(value: initialState),
             proxy: proxy,
@@ -417,14 +495,14 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Host, Output>(
+    public static func run<Host>(
         isolated: isolated any Actor = #isolation,
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil
-    ) async throws -> Output where Output == TransducerOutput {
+    ) async throws -> Output where Output == TransducerOutput, Env == Never {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
@@ -452,12 +530,12 @@ extension Transducer where Env == Never {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Host, Output>(
+    public static func run<Host>(
         isolated: isolated any Actor = #isolation,
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy
-    ) async throws -> Output where Output == TransducerOutput {
+    ) async throws -> Output where Output == TransducerOutput, Env == Never {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
@@ -467,8 +545,8 @@ extension Transducer where Env == Never {
 
 }
 
-extension Transducer where Env: Sendable {
-
+extension Transducer where TransducerOutput == (Oak.Effect<Self>?, Output) {
+    
     /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
@@ -495,14 +573,14 @@ extension Transducer where Env: Sendable {
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
-    package static func run<Output: Sendable>(
+    package static func run(
         isolated: isolated any Actor = #isolation,
         storage: some Storage<State>,
         proxy: Proxy,
         env: Env,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil,
-    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         // TODO: there's a potential race condition when accessing `onTermination` in case the proxy will be used for multiple transducers at the same time. This is illegal according the documentation, though.
         guard proxy.continuation.onTermination == nil else {
             throw ProxyAlreadyAssociatedError()
@@ -562,6 +640,9 @@ extension Transducer where Env: Sendable {
         }
         return result
     }
+}
+
+extension Transducer where TransducerOutput == Oak.Effect<Self>? {
     
     /// Creates a transducer whose update function has the signature
     /// `(inout State, Event) -> Effect?`.
@@ -591,7 +672,7 @@ extension Transducer where Env: Sendable {
         storage: some Storage<State>,
         proxy: Proxy,
         env: Env,
-    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Event, Env>?, Output == Never {
+    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Self>?, Output == Never {
         guard proxy.continuation.onTermination == nil else {
             throw ProxyAlreadyAssociatedError()
         }
@@ -636,7 +717,9 @@ extension Transducer where Env: Sendable {
         }
         try Task.checkCancellation() // we do throw on a Task cancellation, even in the case the FST is finished!
     }
+}
 
+extension Transducer where TransducerOutput == (Oak.Effect<Self>?, Output) {
     
     /// Creates a transducer with a stricly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
@@ -664,14 +747,14 @@ extension Transducer where Env: Sendable {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Output: Sendable>(
+    public static func run(
         isolated: isolated any Actor = #isolation,
         initialState: sending State,
         proxy: Proxy,
         env: Env,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil,
-    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         try await run(
             storage: LocalStorage(value: initialState),
             proxy: proxy,
@@ -705,12 +788,12 @@ extension Transducer where Env: Sendable {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Output: Sendable>(
+    public static func run(
         isolated: isolated any Actor = #isolation,
         initialState: sending State,
         proxy: Proxy,
         env: Env
-    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         try await run(
             storage: LocalStorage(value: initialState),
             proxy: proxy,
@@ -718,7 +801,10 @@ extension Transducer where Env: Sendable {
             out: NoCallbacks<Output>()
         )
     }
+}
 
+extension Transducer where TransducerOutput == Oak.Effect<Self>? {
+    
     /// Creates a transducer with a stricly encapsulated state whose update function has the signature
     /// `(inout State, Event) -> Effect?`.
     ///
@@ -745,13 +831,15 @@ extension Transducer where Env: Sendable {
         initialState: sending State,
         proxy: Proxy,
         env: Env
-    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Event, Env>?, Output == Never {
+    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Self>?, Output == Never {
         try await run(
             storage: LocalStorage(value: initialState),
             proxy: proxy,
             env: env
         )
     }
+}
+    extension Transducer {
 
     /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
@@ -781,7 +869,7 @@ extension Transducer where Env: Sendable {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Output: Sendable, Host>(
+    public static func run<Host>(
         isolated: isolated any Actor = #isolation,
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
@@ -789,7 +877,7 @@ extension Transducer where Env: Sendable {
         env: Env,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil
-    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
@@ -825,13 +913,13 @@ extension Transducer where Env: Sendable {
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
     /// not reach a terminal state.
     @discardableResult
-    public static func run<Output: Sendable, Host>(
+    public static func run<Host>(
         isolated: isolated any Actor = #isolation,
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy,
         env: Env
-    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
+    ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
@@ -871,7 +959,7 @@ extension Transducer where Env: Sendable {
         host: Host,
         proxy: Proxy,
         env: Env
-    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Event, Env>?, Output == Never {
+    ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Self>?, Output == Never {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
@@ -897,15 +985,15 @@ extension Transducer where Env == Never {
     }
 }
 
-extension Transducer where Env: Sendable {
-    internal static func compute<Output>(
+extension Transducer {
+    internal static func compute(
         isolated: isolated any Actor = #isolation,
         state: inout State,
         event: Event,
         proxy: Proxy,
         context: Context,
         env: Env
-    ) -> Output where Self.TransducerOutput == (Oak.Effect<Event, Env>?, Output) {
+    ) -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output) {
         guard !state.isTerminal else {
             fatalError("Could not process event \(event) because the transducer (\(proxy.id.uuidString)) is already terminated.")
         }
@@ -922,7 +1010,7 @@ extension Transducer where Env: Sendable {
     }
 }
 
-extension Transducer where TransducerOutput == Oak.Effect<Event, Env>?, Env: Sendable {
+extension Transducer where TransducerOutput == Oak.Effect<Self>? {
     internal static func compute(
         isolated: isolated any Actor = #isolation,
         state: inout State,
@@ -946,10 +1034,10 @@ extension Transducer where TransducerOutput == Oak.Effect<Event, Env>?, Env: Sen
     }
 }
 
-extension Transducer where Env: Sendable {
+extension Transducer {
     internal static func executeEffect(
         isolated: isolated any Actor = #isolation,
-        _ effect: Oak.Effect<Event, Env>,
+        _ effect: Oak.Effect<Self>,
         proxy: Proxy,
         context: Context,
         env: Env
