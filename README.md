@@ -1,3 +1,6 @@
+This Version requires the Swift 6.2 compiler 
+
+
 # Oak
 
 Oak brings the power of finite state machines (FSM) to your projects. 
