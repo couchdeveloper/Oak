@@ -18,6 +18,7 @@ public struct Callback<Value>: Subject {
     
     /// Send a value to `Self` which calls its callback clouser with the argument `value`.
     /// - Parameter value: The value which is used as the argument to the callback closure.
+    nonisolated(nonsending)
     public func send(_ value: sending Value) async throws {
         try await fn(value)
     }
@@ -29,5 +30,6 @@ extension Callback: Sendable where Value: Sendable {}
 public struct NoCallbacks<Value>: Subject {
     public init() {}
     /// Sending the value has no effect.
+    nonisolated(nonsending)
     public func send(_ value: sending Value) async throws {}
 }

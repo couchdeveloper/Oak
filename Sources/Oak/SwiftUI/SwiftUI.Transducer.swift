@@ -414,7 +414,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
         of type: T.Type,
         initialState: sending T.State,
         proxy: T.Proxy? = nil,
-        env: T.Env,
+        env: sending T.Env,
         out: some Subject<T.Output>,
         initialOutput: sending T.Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
@@ -469,7 +469,7 @@ public struct TransducerView<T: Transducer, Content: View>: View where T.State: 
     public init(
         of type: T.Type,
         proxy: T.Proxy? = nil,
-        env: T.Env,
+        env: sending T.Env,
         out: some Subject<T.Output>,
         initialOutput: sending T.Output? = nil,
         @ViewBuilder content: @escaping (_ state: T.State, _ send: @escaping (T.Event) -> Void) -> Content
@@ -780,7 +780,7 @@ extension Transducer {
         isolated: isolated any Actor = #isolation,
         binding: Binding<State>,
         proxy: Proxy,
-        env: Env,
+        env: sending Env,
         out: some Subject<Output>,
         initialOutput: Output? = nil,
     ) async throws -> Output where TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
@@ -868,7 +868,7 @@ extension Transducer {
         isolated: isolated any Actor = #isolation,
         binding: Binding<State>,
         proxy: Proxy,
-        env: Env
+        env: sending Env
     ) async throws -> Output where TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         try await run(
             storage: binding,

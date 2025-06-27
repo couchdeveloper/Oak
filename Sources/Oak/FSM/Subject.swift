@@ -5,5 +5,6 @@ public protocol Subject<Value>: Sendable {
     associatedtype Value: Sendable
     
     /// Sends the value `value` to `Self`.
+    nonisolated(nonsending)
     func send(_ value: sending Value) async throws
 }

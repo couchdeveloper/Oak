@@ -11,7 +11,7 @@ import struct Foundation.UUID
 /// That is, when the transducer reaches a terminal state, the proxy cannot
 /// be reused for another transducer. Though, a proxy's life-time can outlive
 /// the identity of its transducer.
-public protocol TransducerProxy<Event>: Identifiable {
+public protocol TransducerProxy<Event>: Identifiable, Sendable {
     associatedtype Event
 
     /// A unique identifier which is guaranteed to be unique for every proxy

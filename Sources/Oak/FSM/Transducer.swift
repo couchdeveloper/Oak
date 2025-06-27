@@ -577,7 +577,7 @@ extension Transducer where TransducerOutput == (Oak.Effect<Self>?, Output) {
         isolated: isolated any Actor = #isolation,
         storage: some Storage<State>,
         proxy: Proxy,
-        env: Env,
+        env: sending Env,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil,
     ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
@@ -671,7 +671,7 @@ extension Transducer where TransducerOutput == Oak.Effect<Self>? {
         isolated: isolated any Actor = #isolation,
         storage: some Storage<State>,
         proxy: Proxy,
-        env: Env,
+        env: sending Env,
     ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Self>?, Output == Never {
         guard proxy.continuation.onTermination == nil else {
             throw ProxyAlreadyAssociatedError()
@@ -751,7 +751,7 @@ extension Transducer where TransducerOutput == (Oak.Effect<Self>?, Output) {
         isolated: isolated any Actor = #isolation,
         initialState: sending State,
         proxy: Proxy,
-        env: Env,
+        env: sending Env,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil,
     ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
@@ -792,7 +792,7 @@ extension Transducer where TransducerOutput == (Oak.Effect<Self>?, Output) {
         isolated: isolated any Actor = #isolation,
         initialState: sending State,
         proxy: Proxy,
-        env: Env
+        env: sending Env
     ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         try await run(
             storage: LocalStorage(value: initialState),
@@ -830,7 +830,7 @@ extension Transducer where TransducerOutput == Oak.Effect<Self>? {
         isolated: isolated any Actor = #isolation,
         initialState: sending State,
         proxy: Proxy,
-        env: Env
+        env: sending Env
     ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Self>?, Output == Never {
         try await run(
             storage: LocalStorage(value: initialState),
@@ -874,7 +874,7 @@ extension Transducer where TransducerOutput == Oak.Effect<Self>? {
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy,
-        env: Env,
+        env: sending Env,
         out: some Subject<Output>,
         initialOutput: sending Output? = nil
     ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
@@ -918,7 +918,7 @@ extension Transducer where TransducerOutput == Oak.Effect<Self>? {
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy,
-        env: Env
+        env: sending Env
     ) async throws -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output), Output: Sendable {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
@@ -958,7 +958,7 @@ extension Transducer where TransducerOutput == Oak.Effect<Self>? {
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy,
-        env: Env
+        env: sending Env
     ) async throws -> Void where Self.TransducerOutput == Oak.Effect<Self>?, Output == Never {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
@@ -992,7 +992,7 @@ extension Transducer {
         event: Event,
         proxy: Proxy,
         context: Context,
-        env: Env
+        env: sending Env
     ) -> Output where Self.TransducerOutput == (Oak.Effect<Self>?, Output) {
         guard !state.isTerminal else {
             fatalError("Could not process event \(event) because the transducer (\(proxy.id.uuidString)) is already terminated.")
@@ -1017,7 +1017,7 @@ extension Transducer where TransducerOutput == Oak.Effect<Self>? {
         event: Event,
         proxy: Proxy,
         context: Context,
-        env: Env
+        env: sending Env
     ) -> Void {
         guard !state.isTerminal else {
             fatalError("Could not process event \(event) because the transducer (\(proxy.id.uuidString)) is already terminated.")
@@ -1037,10 +1037,10 @@ extension Transducer where TransducerOutput == Oak.Effect<Self>? {
 extension Transducer {
     internal static func executeEffect(
         isolated: isolated any Actor = #isolation,
-        _ effect: Oak.Effect<Self>,
+        _ effect: sending Oak.Effect<Self>,
         proxy: Proxy,
         context: Context,
-        env: Env
+        env: sending Env
     ) {
         // Note, that an effect invocation may synchronously run its
         // operation, that may send one or more events to the transducer

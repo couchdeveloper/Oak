@@ -41,9 +41,9 @@ public struct Effect<T: Transducer> /*, ~Copyable*/ {
     }
 
     func invoke(
-        with env: Env,
-        proxy: Proxy,
-        context: Oak.Context,
+        with env: sending Env,
+        proxy: sending Proxy,
+        context: sending Oak.Context,
         isolated: isolated any Actor = #isolation
     ) {
         f(env, proxy, context, isolated)
@@ -52,8 +52,8 @@ public struct Effect<T: Transducer> /*, ~Copyable*/ {
 
 extension Effect where Env == Void {
     func invoke(
-        proxy: Proxy,
-        context: Oak.Context,
+        proxy: sending Proxy,
+        context: sending Oak.Context,
         isolated: isolated any Actor = #isolation
     ) {
         f(Void(), proxy, context, isolated)
