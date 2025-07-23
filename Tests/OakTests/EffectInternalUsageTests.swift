@@ -2,7 +2,7 @@ import Testing
 import Foundation
 
 #if DEBUG
-@testable import FSM
+@testable import Oak
 
 /// EffectInternalUsageTests
 ///
@@ -53,7 +53,7 @@ struct EffectInternalUsageTests {
                 }
             }
             
-            typealias Proxy = FSM.Proxy<Event>
+            typealias Proxy = Oak.Proxy<Event>
         }
         
         let env = T.Env()
@@ -242,7 +242,7 @@ struct InternalContextTests {
                 }
             }
             
-            typealias Proxy = FSM.Proxy<Event>
+            typealias Proxy = Oak.Proxy<Event>
         }
         
         let proxy = T.Proxy()
@@ -306,7 +306,7 @@ struct InternalContextTests {
                 }
             }
             
-            typealias Proxy = FSM.Proxy<Event>
+            typealias Proxy = Oak.Proxy<Event>
         }
         
         let proxy = T.Proxy()
@@ -368,7 +368,7 @@ struct InternalContextTests {
                 }
             }
             
-            typealias Proxy = FSM.Proxy<Event>
+            typealias Proxy = Oak.Proxy<Event>
         }
         
         let proxy = T.Proxy()
@@ -445,7 +445,7 @@ struct InternalContextTests {
                 }
             }
             
-            typealias Proxy = FSM.Proxy<Event>
+            typealias Proxy = Oak.Proxy<Event>
         }
         
         let proxy = T.Proxy()

@@ -4,7 +4,7 @@ import struct Foundation.UUID
 /// `AsyncProxy` is a proxy that sends events into the system using
 /// an  async non-throwing function.
 ///
-/// When explicitly defining the Proxy type `FSM.AsyncProxy<Event>`
+/// When explicitly defining the Proxy type `Oak.AsyncProxy<Event>`
 /// in the `EventTransducer`, we are using an `AsyncProxy` for sending
 /// events into the system. This event delivery mechansism uses an async
 /// function to deliver the event that suspends until after the event

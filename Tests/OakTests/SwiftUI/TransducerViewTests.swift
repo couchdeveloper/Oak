@@ -2,7 +2,7 @@
 import Testing
 import SwiftUI
 import UIKit
-@testable import FSM
+@testable import Oak
 
 
 /**
@@ -441,7 +441,7 @@ struct TransducerViewTests {
         await waitUntilViewAppeared(window: window)
         
         // Note:
-        // When using the default Proxy type, aka `FSM.Proxy<Event>` as it is
+        // When using the default Proxy type, aka `Oak.Proxy<Event>` as it is
         // defined in the protocol `BaseTransducer`, the proxy will
         // asynchronously send events to the system by using an event buffer.
         // Now, Input is a local type of proxy and it is based on the same
@@ -487,7 +487,7 @@ struct TransducerViewTests {
                 return .receivedEvent("")
             }
             
-            typealias Proxy = FSM.AsyncProxy<Event>
+            typealias Proxy = Oak.AsyncProxy<Event>
         }
         
         var receivedEvents: [String] = []
@@ -517,7 +517,7 @@ struct TransducerViewTests {
         await waitUntilViewAppeared(window: window)
 
         // Note:
-        // When explicitly defining the Proxy type `FSM.AsyncProxy<Event>`
+        // When explicitly defining the Proxy type `Oak.AsyncProxy<Event>`
         // in the `EventTransducer`, we are using an `AsyncProxy` for sending
         // events into the system. This event delivery mechansism uses an async
         // function to deliver the event that suspends until after the event
