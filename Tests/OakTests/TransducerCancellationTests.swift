@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-import FSM
+import Oak
 
 /// This test suite verifies that transducers can be cancelled correctly.
 /// 

@@ -85,7 +85,7 @@ public protocol EffectTransducer: BaseTransducer {
     associatedtype TransducerOutput
     
     /// The concrete type of the effect which performs side effects.
-    typealias Effect = FSM.Effect<Self>
+    typealias Effect = Oak.Effect<Self>
     
     /// A pure function that combines the _transition_ and the _output_ function
     /// of the finite state machine (FSM) into a single function.

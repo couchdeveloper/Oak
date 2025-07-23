@@ -1,9 +1,3 @@
-//
-//  Expectation.swift
-//  FSM
-//
-//  Created by Andreas Grosam on 23.07.25.
-//
 import os
 
 @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)

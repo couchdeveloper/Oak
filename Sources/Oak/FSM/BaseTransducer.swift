@@ -55,7 +55,7 @@ public protocol BaseTransducer<Event> {
     /// transducer. The internal processing of the event is usually 
     /// extremely fast, but if a transducer sends output to the subject,
     /// subscribers may block the processing of the event.
-    associatedtype Proxy: TransducerProxy<Event> = FSM.Proxy<Event>
+    associatedtype Proxy: TransducerProxy<Event> = Oak.Proxy<Event>
 
     /// This function needs to be defined and return a non-nil Output value 
     /// to ensure correct behaviour of Moore type transducers.

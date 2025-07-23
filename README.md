@@ -1,10 +1,10 @@
-# FSM - Swift Finite State Machine Library
+# OAK - Swift Finite State Machine Library
 
 A type-safe, asynchronous finite state machine implementation for Swift, with powerful effect handling and SwiftUI integration.
 
 ## Overview
 
-FSM provides a robust implementation of finite state machines (FSM), also known as finite state transducers (FST) for Swift applications. It enables you to model complex state transitions and side effects in a type-safe, testable, and maintainable way.
+OAK provides a robust implementation of finite state machines (FSM), also known as finite state transducers (FST) for Swift applications. It enables you to model complex state transitions and side effects in a type-safe, testable, and maintainable way.
 
 ```swift
 // Simple, non-terminating counter state machine with async effects
@@ -113,18 +113,18 @@ This supports a **"View only architecture"** where traditional artifacts like Mo
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/username/FSM.git", from: "1.0.0")
+    .package(url: "https://github.com/username/Oak.git", from: "1.0.0")
 ]
 ```
 
 ## Quick Start
 
-FSM uses **transducers** - finite state machines that process events and produce outputs. Here's how to create one in just a few steps:
+OAK uses **transducers** - finite state machines that process events and produce outputs. Here's how to create one in just a few steps:
 
 ### 1. Define Your Transducer
 
 ```swift
-import FSM
+import Oak
 
 enum SimpleCounter: EffectTransducer {
     struct State: NonTerminal {
@@ -507,11 +507,11 @@ enum CounterTransducer: EffectTransducer {
 
 ## Design Philosophy
 
-FSM makes state management explicit, predictable, and ergonomic while embracing Swift's modern concurrency features.
+Oak makes state management explicit, predictable, and ergonomic while embracing Swift's modern concurrency features.
 
 ## License
 
-MIT License - See LICENSE file for details
+Appache License (v2) - See LICENSE file for details
 
 ## Contributing
 
