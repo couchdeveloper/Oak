@@ -1,6 +1,6 @@
 import OSLog
 
 let logger = Logger(
-    subsystem: "Oak",
+    subsystem: "OAK",
     category: "Transducer"
 )

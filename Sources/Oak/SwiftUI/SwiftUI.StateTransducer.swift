@@ -3,6 +3,7 @@ import SwiftUI
 import Observation
 import Combine
 
+#if false // StateTransducer
 /// A property wrapper type that instantiates a finite state transducer whose
 /// state is observable.
 ///
@@ -401,7 +402,7 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
     /// exception will be thrown.
     ///
     /// - Parameter event: The event that is sent to the transducer.
-    public func send(_ input: T.Event) throws {
+    public func send(_ input: sending T.Event) throws {
         try once.proxy.send(input)
     }
 
@@ -409,11 +410,6 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
     public var projectedValue: Self {
         return self
     }
-}
-
-@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
-extension StateTransducer {
-
 }
 
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
@@ -865,4 +861,8 @@ struct CounterView2: View {
 }
 
 #endif // DEBUG
+
+#endif
+
 #endif // canImport(SwiftUI) && canImport(Combine) && canImport(Observation)
+
