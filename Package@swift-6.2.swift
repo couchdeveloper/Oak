@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "Oak",
+    name: "FSM",
     platforms: [
         .iOS(.v15),
         .macOS(.v12),
@@ -13,50 +13,33 @@ let package = Package(
         .tvOS(.v12),
     ],
     products: [
+        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "Oak",
-            targets: [ModuleName.oak]
+            name: "FSM",
+            targets: ["FSM"]
         ),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
+    ],
     targets: [
-        .oak,
-        .oakTests,
+        // Targets are the basic building blocks of a package, defining a module or a test suite.
+        // Targets can depend on other targets in this package and products from dependencies.
+        .target(
+            name: "FSM",
+            dependencies: [
+                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
+            ],
+            swiftSettings: [
+            ]
+        ),
+        .testTarget(
+            name: "FSMTests",
+            dependencies: [
+                "FSM",
+            ],
+            swiftSettings: [
+            ]
+        ),
     ]
 )
-
-enum ModuleName {
-    static let oak = "Oak"
-    static let oakTests = "OakTests"
-}
-
-extension Target.Dependency {
-    static var oak: Target.Dependency {
-        .target(
-            name: ModuleName.oak
-        )
-    }
-}
-
-extension Target {
-    static var oak: Target {
-        .target(
-            name: ModuleName.oak,
-            swiftSettings: [
-                .enableUpcomingFeature("NonisolatedNonsendingByDefault")
-            ]
-        )
-    }
-}
-
-extension Target {
-    static var oakTests: Target {
-        .testTarget(
-            name: ModuleName.oakTests,
-            dependencies: [.oak],
-            swiftSettings: [
-                .enableUpcomingFeature("NonisolatedNonsendingByDefault")
-            ]
-        )
-    }
-}

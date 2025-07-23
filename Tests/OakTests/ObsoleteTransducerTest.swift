@@ -1,3 +1,4 @@
+#if false
 import Testing
 import Oak
 @testable import struct Oak.TransducerDidNotProduceAnOutputError
@@ -887,8 +888,128 @@ extension TransducerTests {
 
 extension TransducerTests {
     
-    @Suite("Examples")
-    struct Examples {
+    protocol Shutdownable {
+        func shutdown() async throws
+    }
+    
+    @Suite("Event with Playload")
+    struct EventWithPayload {
+        
+        enum T1<Context: Sendable & Shutdownable & DefaultInitializable >: Transducer {
+            enum State: Terminable {
+                case start
+                case initialising
+                case idle(context: Context)
+                case shuttingDown(context: Context)
+                case finished
+                var isTerminal: Bool {
+                    if case .finished = self { true } else { false }
+                }
+            }
+            enum Event {
+                case start
+                case context(Context)
+                case shutdown
+                case didShutdown
+            }
+            struct Env {}
+            typealias Effect = Oak.Effect<Self>
+            
+            static func update(_ state: inout State, event: Event) -> Effect? {
+                switch (state, event) {
+                case (.start, .start):
+                    state = .initialising
+                    return makeContext()
+                    
+                case (.initialising, .context(let context)):
+                    state = .idle(context: context)
+                    return nil
+                    
+                case (.idle(let context), .shutdown):
+                    state = .shuttingDown(context: context)
+                    return shutdownContext(context: context)
+                    
+                case (.shuttingDown, .didShutdown):
+                    state = .finished
+                    return nil
+                    
+                case (.finished, _):
+                    return nil
+                    
+                case (_, _):
+                    print("unhandled event \(event) at state \(state)")
+                    return nil
+                }
+            }
+            
+            static func makeContext() -> Effect {
+                .action { env, proxy in
+                    let context = Context()
+                    try? proxy.send(.context(context))
+                }
+            }
+            
+            static func shutdownContext(context: Context) -> Effect {
+                .task { env, proxy in
+                    print("where I'm running on?")
+                    try await context.shutdown()
+                    try proxy.send(.didShutdown)
+                }
+            }
+
+        }
+        
+        @Test
+        func testEventWithPayload() async throws {
+            class NonSendableContext: Shutdownable & DefaultInitializable {
+                required init() {
+                    MainActor.shared.preconditionIsolated()
+                }
+                
+                func shutdown() async throws {
+                    try await Task.sleep(nanoseconds: 1_000_000)
+                }
+            }
+            
+            final class SendableContext: Sendable & Shutdownable & DefaultInitializable {
+                init() {
+                    MainActor.shared.preconditionIsolated()
+                }
+                
+                func shutdown() async throws {
+                    try await Task.sleep(nanoseconds: 1_000_000)
+                }
+            }
+
+            
+            typealias Example = T1<SendableContext>
+            let proxy = Example.Proxy()
+            try proxy.send(.start)
+            
+            Task {
+                try await Task.sleep(nanoseconds: 1_000_000)
+                try proxy.send(.shutdown)
+            }
+
+            let task = Task { @MainActor in
+                try await Example.run(
+                    initialState: .start,
+                    proxy: proxy,
+                    env: Example.Env()
+                )
+            }
+            try await task.value
+        }
+    }
+    
+    func example() {
+        
+    }
+}
+extension TransducerTests {
+    
+    @Suite("Timer Example")
+    struct TimerExample {
         @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
         enum T1: Transducer {
             enum State: Terminable {
@@ -956,3 +1077,5 @@ extension TransducerTests {
         }
     }
 }
+#endif
+
