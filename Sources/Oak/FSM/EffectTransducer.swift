@@ -165,6 +165,8 @@ extension EffectTransducer {
         } catch TransducerError.cancelled {
             // We reach here, when the transducer has been forcibly terminated
             // via the proxy, i.e. by calling `proxy.cancel()`.
+            // Eagerly cancel all tasks, if any:
+            context.cancellAllTasks()
             throw TransducerError.cancelled
         } catch {
             // We reach here, when the transducer logic failed due to some
@@ -175,14 +177,23 @@ extension EffectTransducer {
             // Caution: we do not reach here, when the current task has been
             // cancelled and has forcibly terminated the transducer.
             logger.info("Transducer '\(Self.self)' failed with error: \(error)")
+            // Eagerly cancel all tasks, if any:
+            context.cancellAllTasks()
             throw error
         }
-        // If the current task has been cancelled, we do still reach here. In
+        // The FSM reached terminal state, or the current task has been
+        // cancelled. Iff there should be running effects, we eagerly cancel
+        // them all:
+        context.cancellAllTasks()
+
+        // Iff the current task has been cancelled, we do still reach here. In
         // this case, the transducer may have been interupted being in a non-
-        // terminal state and the event buffer may still contain unprocessed
+        // terminal state and the event buffer may still containing unprocessed
         // events. We do explicitly throw a `CancellationError` to indicate
         // this fact:
         try Task.checkCancellation()
+
+        
 
 #if DEBUG
         // Here, the event buffer may still have events in it, but the transducer
@@ -252,6 +263,8 @@ extension EffectTransducer {
         } catch TransducerError.cancelled {
             // We reach here, when the transducer has been forcibly terminated
             // via the proxy, i.e. by calling `proxy.cancel()`.
+            // Eagerly cancel all tasks, if any:
+            context.cancellAllTasks()
             throw TransducerError.cancelled
         } catch {
             // We reach here, when the transducer logic failed due to some
@@ -262,11 +275,18 @@ extension EffectTransducer {
             // Caution: we do not reach here, when the current task has been
             // cancelled and has forcibly terminated the transducer.
             logger.info("Transducer '\(Self.self)' failed with error: \(error)")
+            // Eagerly cancel all tasks, if any:
+            context.cancellAllTasks()
             throw error
         }
-        // If the current task has been cancelled, we do still reach here. In
+        // The FSM reached terminal state, or the current task has been
+        // cancelled. Iff there should be running effects, we eagerly cancel
+        // them all:
+        context.cancellAllTasks()
+
+        // Iff the current task has been cancelled, we do still reach here. In
         // this case, the transducer may have been interupted being in a non-
-        // terminal state and the event buffer may still contain unprocessed
+        // terminal state and the event buffer may still containing unprocessed
         // events. We do explicitly throw a `CancellationError` to indicate
         // this fact:
         try Task.checkCancellation()

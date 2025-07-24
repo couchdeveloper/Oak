@@ -53,6 +53,13 @@ final class Context {
         }
     }
     
+    func cancellAllTasks() {
+        for (_, task) in tasks.values {
+            task.cancel()
+        }
+        tasks.removeAll()
+    }
+    
     func terminate(_ error: Swift.Error) {
         terminateProxy(error)
     }

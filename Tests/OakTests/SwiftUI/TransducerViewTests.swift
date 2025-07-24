@@ -2,7 +2,7 @@
 import Testing
 import SwiftUI
 import UIKit
-@testable import Oak
+import Oak
 
 
 /**
@@ -417,7 +417,7 @@ struct TransducerViewTests {
         
         let proxy = EventTransducer.Proxy(bufferSize: expectedCount + 2)
         var capturedInput: EventTransducer.Proxy.Input?
-        let expectation = Expectation(minFulfillCount: 10)
+        let expectation = Expectation(minFulfillCount: expectedCount)
         
         
         let view = TransducerView(
