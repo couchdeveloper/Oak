@@ -90,7 +90,61 @@ public struct Effect<T: EffectTransducer> {
             try await action(env)
         }
     }
-    
+
+    /// Executes the closure `action` on the specified global actor provided by
+    /// the caller.
+    ///
+    /// An action returns an event that will be _synchronously_ processed by the
+    /// transducer.
+    ///
+    /// Processing of the events send via the Input will be suspendend until after
+    /// all events returned from actions have been processed.
+    ///
+    /// > Caution: An event returned from an action will allways be processed
+    ///   in the update function, regardless whether the state became terminal.
+    ///   The logic needs to account for this case.
+    ///
+    /// The global actor usually matches the global actor where the environment `Env`
+    /// is isolated on, so that `action` can access the environment on the specified
+    /// global actor.
+    ///
+    /// `action(_:_:)` is an async throwing function. The processing of events will be
+    /// suspended until the action function returns. Throwing an error will terminate
+    /// the transducer and causing the`run` function to throw this error.
+    ///
+    /// Accesses to the environment parameter is safe if `Env` conforms to
+    /// `Sendable` or if `Env` is isolated to the same global actor.
+    ///
+    /// > Note:
+    ///   The use of `@isolated(any)` in the parameter list ensures that the closure
+    ///   is executed with the specified actor isolation, which is important for thread safety
+    ///   when accessing actor-isolated environments (`Env`).
+    ///
+    /// ## Example:
+    /// Given an Environment `Env` isolated to global actor `@MainActor`:
+    /// ```swift
+    /// @MainActor class Env { ... }
+    /// ```
+    /// An Action Effect, created in the `updated` function of the transducer, can safely
+    /// access the environment value when specifiying the same global actor for the action
+    /// closure:
+    /// ```swift
+    /// let effect = T.Effect(action: { @MainActor env in
+    ///     let delegate = env.createDelegate()
+    ///     return .delegate(delegate)
+    /// })
+    /// ```
+    public init(
+        action: @Sendable @escaping @isolated(any) (
+            Env,
+        ) async throws -> sending Event
+    ) where Env: Sendable {
+        self.f = { env, input, context, systemActor in
+            let event = try await action(env)
+            return [event]
+        }
+    }
+
     /// Executes the closure `action` on the "systemActor", i.e. the actor specified where
     /// the function `run` is executing.
     ///

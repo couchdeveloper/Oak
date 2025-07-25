@@ -82,6 +82,7 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
         case terminated
         case droppedEvent(String)
         case sendFailed(String)
+        case deinitialised
     }
     
     public typealias Stream = AsyncThrowingStream<Event, Swift.Error>
@@ -123,6 +124,23 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
             try Proxy.send(continuation: self.continuation, event: event)
         }
     }
+    
+    public final class AutoCancellation: Sendable, Equatable {
+        public static func == (lhs: AutoCancellation, rhs: AutoCancellation) -> Bool {
+            lhs.id == rhs.id
+        }
+
+        let continuation: Continuation
+        let id: Proxy.ID
+        
+        init(proxy: Proxy) {
+            continuation = proxy.continuation
+            id = proxy.id
+        }
+        deinit {
+            continuation.finish(throwing: Error.deinitialised)
+        }
+    }
 
     /// Initializes a new `Proxy` instance with a specified event buffer size.
     /// 
@@ -132,16 +150,29 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
     ///
     /// - Parameter bufferSize: The maximum number of events that can be buffered
     /// before dropping the oldest ones. The default value is 8.
-    /// 
+    /// - Parameter initialEvent: An optional event which gets enqueued before the
+    /// proxy will be associated to the transducer. Sending an inital event is useful in situations
+    /// where the transducer should immediately transition to a state.
+    ///
     /// > Note: Being able to buffer eight events is a reasonable default for most use cases,
     ///   but you can adjust this value based on your application's requirements.
     ///   A larger buffer size may increase memory usage, while a smaller buffer size may 
     ///   increase the risk of an event being dropped, which terminates the transducer with 
     ///   an error.
-    public init(bufferSize: Int = 8) {
+    ///
+    public init(bufferSize: Int = 8, initialEvent: sending Event? = nil) {
         (stream, continuation) = Stream.makeStream(
             bufferingPolicy: .bufferingOldest(bufferSize)
         )
+        if let initialEvent {
+            do {
+                try Self.send(continuation: continuation, event: initialEvent)
+            } catch {
+                // This can only happen, when the buffer size is less than one,
+                // which is a programmer error.
+                fatalError("Could not initialize proxy with initial event: \(error.localizedDescription)")
+            }
+        }
     }
         
     /// Sends the specified event to the transducer.
@@ -158,30 +189,38 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
         try Self.send(continuation: continuation, event: event)
     }
 
-    // public func send(events: (() -> sending Event)...) throws {
-    //     for event in events {
-    //         try self.send(event())
-    //     }
-    // }
-    
     /// Creates an `Input` instance that can be used to send events to the transducer
     /// and returns it.
     public var input: Input {
         .init(continuation: self.continuation)
     }
 
+    public var autoCancellation: AutoCancellation {
+        AutoCancellation(proxy: self)
+    }
+    
     /// Terminates the proxy, preventing any further events from being sent and causing
-    /// the `run` function to return with a `CancellationError`.
+    /// the `run` function to throw an error.
+    ///
+    /// - Parameter error: An optional error which can be specified by the caller
+    /// which the `run` function will throw. If not provided, the `run`will throw
+    /// a `TransducerError.cancelled` error.
     ///
     /// This method should only be called when the transducer needs to be shut
     /// down in an ungraceful way. Usually, the transducer will terminate itself
     /// gracefully by processing all events and reaching a terminal state.
-    public func cancel() {
-        continuation.finish(throwing: TransducerError.cancelled)
+    ///
+    /// After termination, no further events can be sent to the transducer.
+    /// - Note: This method is  idempotent; calling it multiple times will have
+    /// no effect.
+    /// - Important: After termination, the transducer may still process events that
+    /// were sent before termination, but no new events can be sent.
+    public func cancel(with error: Swift.Error? = nil) {
+        continuation.finish(throwing: error ?? TransducerError.cancelled)
     }
     
-    public func finish(error: Swift.Error? = nil) {
-        continuation.finish(throwing: error)
+    public func finish() {
+        continuation.finish()
     }
     
     private static func send(
