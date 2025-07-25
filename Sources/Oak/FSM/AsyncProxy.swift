@@ -20,6 +20,7 @@ public struct AsyncProxy<Event: Sendable>: TransducerProxy {
     
     enum Error: Swift.Error {
         case terminated
+        case deinitialised
     }
     
     public let stream: AsyncThrowingChannel<Event, Swift.Error>
@@ -32,6 +33,24 @@ public struct AsyncProxy<Event: Sendable>: TransducerProxy {
         }
     }
     
+    public final class AutoCancellation: Sendable, Equatable {
+        public static func == (lhs: AutoCancellation, rhs: AutoCancellation) -> Bool {
+            lhs.id == rhs.id
+        }
+
+        let stream: Stream
+        let id: AsyncProxy.ID
+
+        init(proxy: AsyncProxy) {
+            stream = proxy.stream
+            id = proxy.id
+        }
+        
+        deinit {
+            stream.fail(AsyncProxy<Event>.Error.deinitialised)
+        }
+    }
+
     public init() {
         self.stream = .init()
     }
@@ -50,16 +69,16 @@ public struct AsyncProxy<Event: Sendable>: TransducerProxy {
         .init(channel: self.stream)
     }
     
-    public func cancel() {
-        stream.fail(Error.terminated)
+    public var autoCancellation: AutoCancellation {
+        .init(proxy: self)
     }
     
-    public func finish(error: Swift.Error? = nil) {
-        if let error = error {
-            stream.fail(error)
-        } else {
-            stream.finish()
-        }   
+    public func cancel(with error: Swift.Error? = nil) {
+        stream.fail(error ?? TransducerError.cancelled)
+    }
+    
+    public func finish() {
+        stream.finish()
     }
 
 }

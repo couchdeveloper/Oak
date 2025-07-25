@@ -125,7 +125,7 @@ extension EffectTransducer {
             }
         }
         let context = Context(terminateProxy: { error in
-            proxy.finish(error: error)
+            proxy.cancel(with: error)
         })
         var result: Output? = nil
         var events: [Event] = []
@@ -228,7 +228,7 @@ extension EffectTransducer {
             return 
         }
         let context = Context(terminateProxy: { error in
-            proxy.finish(error: error)
+            proxy.cancel(with: error)
         })
         var events: [Event] = []
         events.reserveCapacity(4)

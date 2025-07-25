@@ -3,25 +3,48 @@ import struct Foundation.UUID
 /// A `TransducerProxy` represent the transducer interface
 /// in a finite state machine which includes the input interface
 /// and the ability to terminate the transducer.
-public protocol TransducerProxy<Event>: TransducerProxyInternal, Identifiable {
+public protocol TransducerProxy<Event>: TransducerProxyInternal, Identifiable, Equatable {
     associatedtype Event
     associatedtype Input
+    associatedtype AutoCancellation: Equatable
 
     /// The input interface for the transducer.
     /// This is used to send events to the transducer.
     var input: Input { get }
 
-    /// Terminates the transducer.
-    /// 
-    /// This method is intended for non-graceful shutdown scenarios of the transducer.
-    /// 
+    /// An object which cancels the proxy when deinitialised.
+    var autoCancellation: AutoCancellation { get }
+        
+    /// Terminates the proxy, preventing any further events from being sent and causing
+    /// the `run` function to throw an error.
+    ///
+    /// - Parameter error: An optional error which can be specified by the caller
+    /// which the `run` function will throw. If not provided, the `run`should throw
+    /// a `TransducerError.cancelled` error.
+    ///
+    /// This method should only be called when the transducer needs to be shut
+    /// down in an ungraceful way. Usually, the transducer will terminate itself
+    /// gracefully by processing all events and reaching a terminal state.
+    ///
     /// After termination, no further events can be sent to the transducer.
-    /// - Note: This method is idempotent; calling it multiple times has no effect.
-    /// - Important: After termination, the transducer may still process events that were sent before
-    /// termination, but no new events can be sent.
-    func cancel()
+    /// - Note: This method should be idempotent; calling it multiple times should
+    /// have no effect.
+    func cancel(with error: Swift.Error?)
     
     var id: UUID { get }
+}
+
+extension TransducerProxy {
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+
+extension TransducerProxy {
+    public func cancel() {
+        cancel(with: TransducerError.cancelled)
+    }
 }
 
 /// Defines the internal API for a Proxy used by a transducer.
@@ -67,35 +90,15 @@ public protocol TransducerProxyInternal<Event> {
     
     /// Finishes the internal stream.
     ///
-    /// - Parameter error: An optional error parameter
-    /// indicating the failure reason why the stream has been
-    /// finished. Parameter error should be `nil` only when
-    /// the transducer finished nornally, i.e. when it reached a
-    /// terminal state.
-    ///
+    /// This function will be called by the internal transducer logic
+    /// when the state transitioned to a terminal state.
     /// Once called, the proxy and input values returned from
     /// this proxy should fail when sending events into them.
     ///
     /// > Warning:  Do not call this function. This function should
     /// be used by the internal transducer logic only. Accessing it
     /// from outside is considered a programmer error.
-    func finish(error: Swift.Error?)
-}
-
-extension TransducerProxyInternal {
-    
-    /// Finishes the internal stream when the transducer
-    /// reached a terminal state.
-    ///
-    /// Once called, the proxy and input values returned from
-    /// this proxy should fail when sending events into them.
-    ///
-    /// > Warning:  Do not call this function. This function should
-    /// be used by the internal transducer logic only. Accessing it
-    /// from outside is considered a programmer error.
-    public func finish() {
-        finish(error: nil)
-    }
+    func finish()
 }
 
 extension TransducerProxyInternal {

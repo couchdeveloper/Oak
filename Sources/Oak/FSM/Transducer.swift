@@ -115,8 +115,6 @@ public protocol Transducer: BaseTransducer {
     
     associatedtype Event
     associatedtype State
-    associatedtype Proxy
-    
     associatedtype Output
     
     /// A pure function that combines the _transition_ and the _output_ function

@@ -30,18 +30,20 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     @SwiftUI.State private var state: State
     @SwiftUI.State private var isInitial = true
 
-    let proxyCancellable: ProxyCancellable
+    let proxy: Proxy
+    let proxyCancellable: Proxy.AutoCancellation
     let content: (State, Proxy.Input) -> Content
-    let runTransducer: (Binding<State>, Proxy) -> Void
+    let runTransducer: @MainActor (Binding<State>, Proxy) -> Void
     
     private init(
         initialState: State,
         proxy: Proxy,
         content: @escaping (State, Proxy.Input ) -> Content,
-        runTransducer: @escaping (Binding<State>, Proxy) -> Void
+        runTransducer: @MainActor @escaping (Binding<State>, Proxy) -> Void
     ) {
         self._state = .init(wrappedValue: initialState)
-        self.proxyCancellable = .init(proxy)
+        self.proxy = proxy
+        self.proxyCancellable = proxy.autoCancellation
         self.content = content
         self.runTransducer = runTransducer
     }
@@ -114,25 +116,24 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
         of type: T.Type = T.self,
         initialState: State,
         proxy: Proxy,
-        @ViewBuilder content: @escaping (
+        @ViewBuilder content: @MainActor @escaping (
             State,
             Proxy.Input
         ) -> Content
     ) where T.State == State, T.Proxy == Proxy {
-        let runTransducer = { (state: Binding<State>, proxy: Proxy) in
-            _ = Task {
-                do {
-                    let _ = try await T.run(binding: state, proxy: proxy)
-                } catch {
-                    logger.error("Transducer (\(proxy.id) failed: \(error)")
-                }
-            }
-        }
         self.init(
             initialState: initialState,
             proxy: proxy,
             content: content,
-            runTransducer: runTransducer
+            runTransducer: { (state: Binding<State>, proxy: Proxy) in
+                _ = Task {
+                    do {
+                        let _ = try await T.run(binding: state, proxy: proxy)
+                    } catch {
+                        logger.error("Transducer (\(proxy.id) failed: \(error)")
+                    }
+                }
+            }
         )
     }
 
@@ -208,29 +209,28 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
         initialState: State,
         proxy: Proxy,
         output: some Subject<T.Output>,
-        @ViewBuilder content: @escaping (
+        @ViewBuilder content: @MainActor @escaping (
             State,
             Proxy.Input
         ) -> Content
     ) where T.State == State, T.Proxy == Proxy {
-        let runTransducer = { state, proxy in
-            _ = Task {
-                do {
-                    _ = try await T.run(
-                        binding: state,
-                        proxy: proxy,
-                        output: output,
-                    )
-                } catch {
-                    logger.error("Transducer (\(proxy.id) failed: \(error)")
-                }
-            }
-        }
         self.init(
             initialState: initialState,
             proxy: proxy,
             content: content,
-            runTransducer: runTransducer
+            runTransducer: { state, proxy in
+                _ = Task {
+                    do {
+                        _ = try await T.run(
+                            binding: state,
+                            proxy: proxy,
+                            output: output,
+                        )
+                    } catch {
+                        logger.error("Transducer (\(proxy.id) failed: \(error)")
+                    }
+                }
+            }
         )
     }
 
@@ -273,30 +273,29 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
         proxy: Proxy,
         env: T.Env,
         output: some Subject<T.Output>,
-        @ViewBuilder content: @escaping (
+        @ViewBuilder content: @MainActor @escaping (
             State,
             Proxy.Input
         ) -> Content
     ) where T.State == State, T.Proxy == Proxy, T.TransducerOutput == (T.Effect?, T.Output) {
-        let runTransducer = { state, proxy in
-            _ = Task {
-                do {
-                    _ = try await T.run(
-                        binding: state,
-                        proxy: proxy,
-                        env: env,
-                        output: output
-                    )
-                } catch {
-                    logger.error("Transducer (\(proxy.id) failed: \(error)")
-                }
-            }
-        }
         self.init(
             initialState: initialState,
             proxy: proxy,
             content: content,
-            runTransducer: runTransducer
+            runTransducer: { state, proxy in
+                _ = Task {
+                    do {
+                        _ = try await T.run(
+                            binding: state,
+                            proxy: proxy,
+                            env: env,
+                            output: output
+                        )
+                    } catch {
+                        logger.error("Transducer (\(proxy.id) failed: \(error)")
+                    }
+                }
+            }
         )
     }
 
@@ -335,65 +334,45 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
         initialState: State,
         proxy: Proxy,
         env: T.Env,
-        @ViewBuilder content: @escaping (
+        @ViewBuilder content: @MainActor @escaping (
             State,
             Proxy.Input
         ) -> Content
     ) where T.State == State, T.Proxy == Proxy, T.TransducerOutput == T.Effect?, T.Output == Void {
-        let runTransducer = { state, proxy in
-            _ = Task {
-                do {
-                    _ = try await T.run(
-                        binding: state,
-                        proxy: proxy,
-                        env: env
-                    )
-                } catch {
-                    logger.error("Transducer (\(proxy.id) failed: \(error)")
-                }
-            }
-        }
         self.init(
             initialState: initialState,
             proxy: proxy,
             content: content,
-            runTransducer: runTransducer
+            runTransducer: { @MainActor state, proxy in
+                _ = Task {
+                    do {
+                        _ = try await T.run(
+                            binding: state,
+                            proxy: proxy,
+                            env: env
+                        )
+                    } catch {
+                        logger.error("Transducer (\(proxy.id) failed: \(error)")
+                    }
+                }
+            }
         )
     }
 
     public var body: some View {
         VStack {
-            content(state, proxyCancellable.proxy.input)
+            content(state, proxy.input)
         }
-        .onChange(of: proxyCancellable) { newProxyCancellable in
-            self.proxyCancellable.proxy.cancel()
-            runTransducer($state, newProxyCancellable.proxy)
-        }
+        .onChange(of: proxy, perform: { [proxy] newProxy in
+            proxy.cancel()
+            runTransducer($state, newProxy)
+        })
         .task {
-            let proxy = self.proxyCancellable.proxy
+            let proxy = self.proxy
             if isInitial {
                 isInitial = false
                 runTransducer($state, proxy)
             }
-        }
-    }
-}
-
-
-extension TransducerView {
-    final class ProxyCancellable: Equatable {
-        static func == (lhs: ProxyCancellable, rhs: ProxyCancellable) -> Bool {
-            lhs === rhs
-        }
-        
-        let proxy: Proxy
-        
-        init(_ proxy: Proxy) {
-            self.proxy = proxy
-        }
-        
-        deinit {
-            proxy.cancel()
         }
     }
 }
