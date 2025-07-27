@@ -38,6 +38,16 @@ let package = Package(
             dependencies: [
                 "Oak",
             ],
+            path: "Tests/OakTests",
+            swiftSettings: [
+            ]
+        ),
+        .testTarget(
+            name: "OakBenchmarks",
+            dependencies: [
+                "Oak",
+            ],
+            path: "Tests/OakBenchmarks",
             swiftSettings: [
             ]
         ),
