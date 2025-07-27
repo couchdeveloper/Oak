@@ -876,7 +876,7 @@ struct TransducerViewTestsFallback {
     
     @Test
     func swiftUINotAvailable() async throws {
-        #expect(Bool(false), "TransducerView tests require SwiftUI and UIKit. Run from Xcode with UIWindow environment to execute full TransducerView test suite. This skip is expected when testing from command line.")
+        #expect(Bool(false), "TransducerView tests require SwiftUI and UIKit. Run from Xcode with a run destination which has UIKit to execute full TransducerView test suite. This skip is expected when testing from command line.")
     }
 }
 

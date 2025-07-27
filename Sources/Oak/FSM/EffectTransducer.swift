@@ -132,9 +132,9 @@ extension EffectTransducer {
         events.reserveCapacity(4)
         do {
             loop: for try await event in stream {
-                events.append(event)
                 var outputValue: Output?
-                while let event = events.popLast() {
+                var nextEvent: Event? = event
+                while let event = nextEvent {
                     let effect: Effect?
                     (effect, outputValue) = Self.update(&storage.value, event: event)
                     try await output.send(outputValue!, isolated: systemActor)
@@ -145,8 +145,17 @@ extension EffectTransducer {
                             env: env,
                             context: context
                         )
-                        events.append(contentsOf: moreEvents)
+                        switch moreEvents.count {
+                        case 0:
+                            break
+                        case 1:
+                            nextEvent = moreEvents[0]
+                            continue
+                        default:
+                            events.append(contentsOf: moreEvents)
+                        }
                     }
+                    nextEvent = events.popLast()
                 }
                 if storage.value.isTerminal {
                     result = outputValue!
@@ -234,8 +243,8 @@ extension EffectTransducer {
         events.reserveCapacity(4)
         do {
             loop: for try await event in stream {
-                events.append(event)
-                while let event = events.popLast() {
+                var nextEvent: Event? = event
+                while let event = nextEvent {
                     let effect = Self.update(&storage.value, event: event)
                     if let effect {
                         let moreEvents = try await execute(
@@ -244,8 +253,17 @@ extension EffectTransducer {
                             env: env,
                             context: context
                         )
-                        events.append(contentsOf: moreEvents)
+                        switch moreEvents.count {
+                        case 0:
+                            break
+                        case 1:
+                            nextEvent = moreEvents[0]
+                            continue
+                        default:
+                            events.append(contentsOf: moreEvents)
+                        }
                     }
+                    nextEvent = events.popLast()
                 }
                 if storage.value.isTerminal {
                     proxy.finish()

@@ -21,6 +21,11 @@ public struct Effect<T: EffectTransducer> {
     
     private let f: (Env, Input, Context, isolated any Actor) async throws -> [Event]
     
+    /// Initialises the effect.
+    /// - Parameter f: An async throwing function, that might cause side effects.
+    ///
+    /// For best performance, in very demanding scenarios, the given function should avoid to close over
+    /// state. That is, the closure should not capture values.
     internal init(
         f: @escaping (Env, Input, Context, isolated any Actor) async throws -> [Event],
     ) {
@@ -39,13 +44,17 @@ public struct Effect<T: EffectTransducer> {
     /// Executes the closure `action` on the specified global actor provided by
     /// the caller.
     /// 
-    /// An action may return events provided in an array which gets processed
+    /// The action may return events provided in an array which gets processed
     /// by the system. These events will be procesed _synchronously_ and in
     /// order. The next processed event is alway the first event in the array
     /// from the current action.
     ///
     /// Processing of the events send via the Input will be suspendend until after
     /// all events returned from actions have been processed.
+    ///
+    /// > Tip: For best performance, the action should avoid to close over state. That is,
+    /// the closure should not capture values. Instead, you might want to access values
+    /// provided in the `env` parameter.
     ///
     /// > Caution: An event returned from an action will allways be processed
     ///   in the update function, regardless whether the state became terminal.
@@ -94,11 +103,15 @@ public struct Effect<T: EffectTransducer> {
     /// Executes the closure `action` on the specified global actor provided by
     /// the caller.
     ///
-    /// An action returns an event that will be _synchronously_ processed by the
+    /// The action returns an event that will be _synchronously_ processed by the
     /// transducer.
     ///
     /// Processing of the events send via the Input will be suspendend until after
     /// all events returned from actions have been processed.
+    ///
+    /// > Tip: For best performance, the action should avoid to close over state. That is,
+    /// the closure should not capture values. Instead, you might want to access values
+    /// provided in the `env` parameter.
     ///
     /// > Caution: An event returned from an action will allways be processed
     ///   in the update function, regardless whether the state became terminal.
@@ -148,13 +161,17 @@ public struct Effect<T: EffectTransducer> {
     /// Executes the closure `action` on the "systemActor", i.e. the actor specified where
     /// the function `run` is executing.
     ///
-    /// An action may return events provided in an array which gets processed
+    /// The action may return events provided in an array which gets processed
     /// by the system. These events will be procesed _synchronously_ and in
     /// order. The next processed event is alway the first event in the array
     /// from the current action.
     ///
     /// Processing of the events send via the Input will be suspendend until after
     /// all events returned from actions have been processed.
+    ///
+    /// > Tip: For best performance, the action should avoid to close over state. That is,
+    /// the closure should not capture values. Instead, you might want to access values
+    /// provided in the `env` parameter.
     ///
     /// > Caution: An event returned from an action will allways be processed
     ///   in the update function, regardless whether the state became terminal.
@@ -182,7 +199,48 @@ public struct Effect<T: EffectTransducer> {
             try await action(env, systemActor)
         }
     }
-        
+
+    /// Executes the closure `action` on the "systemActor", i.e. the actor specified where
+    /// the function `run` is executing.
+    ///
+    /// The action returns an event that will be _synchronously_ processed by the
+    /// transducer.
+    ///
+    /// Processing of the events send via the Input will be suspendend until after
+    /// all events returned from actions have been processed.
+    ///
+    /// > Tip: For best performance, the action should avoid to close over state. That is,
+    /// the closure should not capture values. Instead, you might want to access values
+    /// provided in the `env` parameter.
+    ///
+    /// > Caution: An event returned from an action will allways be processed
+    ///   in the update function, regardless whether the state became terminal.
+    ///   The logic needs to account for this case.
+    ///
+    /// The closure is always executed on the system actor, regardless of any global actor
+    /// isolation on `Env`.
+    ///
+    /// - Parameter action: An async throwing function that performs the actual work. It
+    /// can be used to send events back to the transducer, invoke side effects or access the
+    /// environment value. The closure receives
+    ///     - the environment (`Env`) containing any required dependencies and configuration data,
+    ///     - the input (`Input`) for sending events to the transducer, and
+    ///     - an isolated actor reference for thread-safe operations.
+    ///
+    /// When the action function throws an error, it will terminate the transducer and causing
+    /// the`run` function to rethrow it.
+    public init(
+        isolatedAction action: @Sendable @escaping (
+            Env,
+            isolated any Actor
+        ) async throws -> sending Event
+    ) {
+        self.f = { env, input, context, systemActor in
+            let event = try await action(env, systemActor)
+            return [event]
+        }
+    }
+
     /// Creates an effect that executes an asynchronous operation executing within an
     /// unstructured Task managed by the transducer.
     ///
