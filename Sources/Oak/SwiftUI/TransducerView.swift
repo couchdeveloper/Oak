@@ -112,6 +112,9 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     /// makes sense, since there's the transducer which solely exists to perform this computation.
     /// A view may only manages its own private state when it is invariant of the given logic defined
     /// by the transducer.
+    ///
+    /// > Tip: When the proxy value changes, the view will re-run the transducer with the given
+    /// initial value.
     public init<T: Transducer>(
         of type: T.Type = T.self,
         initialState: State,
@@ -126,6 +129,7 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
             proxy: proxy,
             content: content,
             runTransducer: { (state: Binding<State>, proxy: Proxy) in
+                state.wrappedValue = initialState
                 _ = Task {
                     do {
                         let _ = try await T.run(binding: state, proxy: proxy)
@@ -204,6 +208,9 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     /// makes sense, since there's the transducer which solely exists to perform this computation.
     /// A view may only manages its own private state when it is invariant of the given logic defined
     /// by the transducer.
+    ///
+    /// > Tip: When the proxy value changes, the view will re-run the transducer with the given
+    /// initial value.
     public init<T: Transducer>(
         of type: T.Type = T.self,
         initialState: State,
@@ -219,6 +226,7 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
             proxy: proxy,
             content: content,
             runTransducer: { state, proxy in
+                state.wrappedValue = initialState
                 _ = Task {
                     do {
                         _ = try await T.run(
@@ -267,6 +275,9 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     /// makes sense, since there's the transducer which solely exists to perform this computation.
     /// A view may only manages its own private state when it is invariant of the given logic defined
     /// by the transducer.
+    ///
+    /// > Tip: When the proxy value changes, the view will re-run the transducer with the given
+    /// initial value.
     public init<T: EffectTransducer>(
         of type: T.Type = T.self,
         initialState: State,
@@ -283,6 +294,7 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
             proxy: proxy,
             content: content,
             runTransducer: { state, proxy in
+                state.wrappedValue = initialState
                 _ = Task {
                     do {
                         _ = try await T.run(
@@ -315,7 +327,8 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ///   - initialState: The start state of the transducer. Default is `init()`.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
-    ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
+    ///   - env: An environment value. The environment value will be passed as an argument to
+    ///   an `Effect`s' `invoke` function.
     ///   - content: A viewBuilder function that has a parameter providing the current state and a
     ///   closure with which the view can send events ("user intents") to the transducer. The transducer
     ///   view calls the `content` viewBuilder function whenever the state has changed so that the
@@ -329,6 +342,9 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     /// makes sense, since there's the transducer which solely exists to perform this computation.
     /// A view may only manages its own private state when it is invariant of the given logic defined
     /// by the transducer.
+    ///
+    /// > Tip: When the proxy value changes, the view will re-run the transducer with the given
+    /// initial value.
     public init<T: EffectTransducer>(
         of type: T.Type = T.self,
         initialState: State,
@@ -344,6 +360,7 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
             proxy: proxy,
             content: content,
             runTransducer: { @MainActor state, proxy in
+                state.wrappedValue = initialState
                 _ = Task {
                     do {
                         _ = try await T.run(
