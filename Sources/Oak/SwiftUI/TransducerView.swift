@@ -64,6 +64,8 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ///   - initialState: The start state of the transducer. Default is `init()`.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
+    ///   - completion: A closure which will be called once when the transducer completed
+    ///   successfully returning the success value of the run function.
     ///   - content: A viewBuilder function that has a parameter providing the current state and a
     ///   closure with which the view can send events ("user intents") to the transducer. The transducer
     ///   view calls the `content` viewBuilder function whenever the state has changed so that the
@@ -118,7 +120,8 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     public init<T: Transducer>(
         of type: T.Type = T.self,
         initialState: State,
-        proxy: Proxy,
+        proxy: Proxy? = nil,
+        completion: ((T.Output) -> Void)? = nil,
         @ViewBuilder content: @MainActor @escaping (
             State,
             Proxy.Input
@@ -126,13 +129,14 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ) where T.State == State, T.Proxy == Proxy {
         self.init(
             initialState: initialState,
-            proxy: proxy,
+            proxy: proxy ?? Proxy(),
             content: content,
             runTransducer: { (state: Binding<State>, proxy: Proxy) in
                 state.wrappedValue = initialState
                 _ = Task {
                     do {
-                        let _ = try await T.run(binding: state, proxy: proxy)
+                        let output = try await T.run(binding: state, proxy: proxy)
+                        completion?(output)
                     } catch {
                         logger.error("Transducer (\(proxy.id) failed: \(error)")
                     }
@@ -160,6 +164,8 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ///   - out: A type conforming to `Subject<Output>` where the transducer sends the
     ///   output it produces. The `out` parameter is usually used to notify the parent view, for example
     ///   via a `Binding` which can be directly used for the parameter `out`.
+    ///   - completion: A closure which will be called once when the transducer completed
+    ///   successfully returning the success value of the run function.
     ///   - content: A viewBuilder function that has a parameter providing the current state and a
     ///   closure with which the view can send events ("user intents") to the transducer. The transducer
     ///   view calls the `content` viewBuilder function whenever the state has changed so that the
@@ -214,8 +220,9 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     public init<T: Transducer>(
         of type: T.Type = T.self,
         initialState: State,
-        proxy: Proxy,
+        proxy: Proxy? = nil,
         output: some Subject<T.Output>,
+        completion: ((T.Output) -> Void)? = nil,
         @ViewBuilder content: @MainActor @escaping (
             State,
             Proxy.Input
@@ -223,17 +230,18 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ) where T.State == State, T.Proxy == Proxy {
         self.init(
             initialState: initialState,
-            proxy: proxy,
+            proxy: proxy ?? Proxy(),
             content: content,
             runTransducer: { state, proxy in
                 state.wrappedValue = initialState
                 _ = Task {
                     do {
-                        _ = try await T.run(
+                        let output = try await T.run(
                             binding: state,
                             proxy: proxy,
                             output: output,
                         )
+                        completion?(output)
                     } catch {
                         logger.error("Transducer (\(proxy.id) failed: \(error)")
                     }
@@ -262,6 +270,8 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ///   - out: A type conforming to `Subject<Output>` where the transducer sends the
     ///   output it produces. The `out` parameter is usually used to notify the parent view, for example
     ///   via a `Binding` which can be directly used for the parameter `out`.
+    ///   - completion: A closure which will be called once when the transducer completed
+    ///   successfully returning the success value of the run function.
     ///   - content: A viewBuilder function that has a parameter providing the current state and a
     ///   closure with which the view can send events ("user intents") to the transducer. The transducer
     ///   view calls the `content` viewBuilder function whenever the state has changed so that the
@@ -281,9 +291,10 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     public init<T: EffectTransducer>(
         of type: T.Type = T.self,
         initialState: State,
-        proxy: Proxy,
+        proxy: Proxy? = nil,
         env: T.Env,
         output: some Subject<T.Output>,
+        completion: ((T.Output) -> Void)? = nil,
         @ViewBuilder content: @MainActor @escaping (
             State,
             Proxy.Input
@@ -291,18 +302,19 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ) where T.State == State, T.Proxy == Proxy, T.TransducerOutput == (T.Effect?, T.Output) {
         self.init(
             initialState: initialState,
-            proxy: proxy,
+            proxy: proxy ?? Proxy(),
             content: content,
             runTransducer: { state, proxy in
                 state.wrappedValue = initialState
                 _ = Task {
                     do {
-                        _ = try await T.run(
+                        let output = try await T.run(
                             binding: state,
                             proxy: proxy,
                             env: env,
                             output: output
                         )
+                        completion?(output)
                     } catch {
                         logger.error("Transducer (\(proxy.id) failed: \(error)")
                     }
@@ -348,7 +360,7 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     public init<T: EffectTransducer>(
         of type: T.Type = T.self,
         initialState: State,
-        proxy: Proxy,
+        proxy: Proxy? = nil,
         env: T.Env,
         @ViewBuilder content: @MainActor @escaping (
             State,
@@ -357,7 +369,7 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ) where T.State == State, T.Proxy == Proxy, T.TransducerOutput == T.Effect?, T.Output == Void {
         self.init(
             initialState: initialState,
-            proxy: proxy,
+            proxy: proxy ?? Proxy(),
             content: content,
             runTransducer: { @MainActor state, proxy in
                 state.wrappedValue = initialState
@@ -433,8 +445,7 @@ fileprivate enum A: Transducer {
     
     TransducerView(
         of: A.self,
-        initialState: .init(),
-        proxy: A.Proxy()
+        initialState: .init()
     ) { state, input in
         VStack {
             Button("+") {

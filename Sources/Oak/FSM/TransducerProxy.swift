@@ -7,6 +7,9 @@ public protocol TransducerProxy<Event>: TransducerProxyInternal, Identifiable, E
     associatedtype Event
     associatedtype Input
     associatedtype AutoCancellation: Equatable
+    
+    /// A proxy is default-constructible.
+    init()
 
     /// The input interface for the transducer.
     /// This is used to send events to the transducer.
