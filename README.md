@@ -99,7 +99,42 @@ enum CounterTransducer: EffectTransducer {
 - **Composability**: Pipe transducer outputs into other transducer inputs.
 - **Effect composition**: Combine multiple effects sequentially or in parallel.
 - **Supports back pressure:** In compositions, a connected output awaits readiness of the consumer.
+- **Completion callbacks**: Handle transducer completion with type-safe callbacks.
+- **Optional proxy parameters**: Simplified API with automatic proxy creation.
 
+### TransducerView Enhancements
+
+#### Optional Proxy Parameters
+`TransducerView` now supports optional proxy parameters. When no proxy is provided, it automatically creates a default proxy:
+
+```swift
+// Simplified - no explicit proxy needed
+TransducerView(of: MyTransducer.self, initialState: .initial) { state, input in
+    // UI content
+}
+
+// Still supported - explicit proxy
+TransducerView(of: MyTransducer.self, initialState: .initial, proxy: MyProxy()) { state, input in
+    // UI content
+}
+```
+
+#### Completion Callbacks
+Handle transducer completion with type-safe callbacks that are called when the transducer successfully completes:
+
+```swift
+TransducerView(
+    of: MyTransducer.self,
+    initialState: .initial,
+    completion: { output in
+        print("Transducer completed with output: \(output)")
+    }
+) { state, input in
+    // UI content
+}
+```
+
+> **Note**: Completion callbacks are only invoked on successful completion. They are not called if the transducer encounters an error or is cancelled.
 
 ### TransducerView Architecture
 
@@ -180,7 +215,6 @@ struct ContentView: View {
         TransducerView(
             of: SimpleCounter.self,
             initialState: SimpleCounter.initialState,
-            proxy: .init(),
             env: SimpleCounter.Env()
         ) { state, input in
             VStack {
@@ -192,6 +226,8 @@ struct ContentView: View {
     }
 }
 ```
+
+> **Note**: The `proxy` parameter is optional. If omitted, `TransducerView` creates a default proxy automatically.
 
 Ready for more? Check out the [Core Concepts](#core-concepts) section below!
 
@@ -387,8 +423,7 @@ extension CounterExample.Views {
             TransducerView(
                 of: Counter.self,
                 initialState: Counter.initialState,
-                proxy: .init(),
-                env: env,
+                env: env
             ) { state, input in
                 ZStack {
                     VStack {

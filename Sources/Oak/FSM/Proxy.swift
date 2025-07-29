@@ -174,6 +174,23 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
             }
         }
     }
+    
+    /// Creates a proxy with default settings.
+    ///
+    /// This initializer provides a convenient way to create a proxy with sensible defaults:
+    /// - Buffer size: 8 events
+    /// - No initial event
+    ///
+    /// This is particularly useful when working with `TransducerView` where the proxy
+    /// parameter is optional, allowing for simplified usage patterns.
+    ///
+    /// ## Example
+    /// ```swift
+    /// let proxy = MyTransducer.Proxy() // Uses default buffer size of 8
+    /// ```
+    public init() {
+        self.init(bufferSize: 8, initialEvent: nil)
+    }
         
     /// Sends the specified event to the transducer.
     /// 
