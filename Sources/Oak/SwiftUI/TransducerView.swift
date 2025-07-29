@@ -341,6 +341,8 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to
     ///   an `Effect`s' `invoke` function.
+    ///   - completion: A closure which will be called once when the transducer completed
+    ///   successfully.
     ///   - content: A viewBuilder function that has a parameter providing the current state and a
     ///   closure with which the view can send events ("user intents") to the transducer. The transducer
     ///   view calls the `content` viewBuilder function whenever the state has changed so that the
@@ -362,6 +364,7 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
         initialState: State,
         proxy: Proxy? = nil,
         env: T.Env,
+        completion: (() -> Void)? = nil,
         @ViewBuilder content: @MainActor @escaping (
             State,
             Proxy.Input
@@ -380,6 +383,7 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
                             proxy: proxy,
                             env: env
                         )
+                        completion?()
                     } catch {
                         logger.error("Transducer (\(proxy.id) failed: \(error)")
                     }
