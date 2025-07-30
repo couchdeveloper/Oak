@@ -45,11 +45,25 @@ public final class ObservableTransducer<State, Proxy>: @MainActor TransducerActo
     ) {
         self.proxy = proxy
         self.state = initialState
-        self.task = runTransducer(
+        let transducerTask = runTransducer(
             .init(host: self, keyPath: \.state),
             proxy,
             MainActor.shared
         )
+        self.task = transducerTask
+        
+        // Handle task completion to set task to nil when it finishes naturally
+        Task { [weak self] in
+            do {
+                _ = try await transducerTask.value
+            } catch {
+                // Task was cancelled or failed, which is expected in many cases
+            }
+            // Set task to nil when completed (successfully or with error)
+            await MainActor.run { [weak self] in
+                self?.task = nil
+            }
+        }
     }
     
     public var isRunning: Bool {
@@ -71,19 +85,3 @@ public final class ObservableTransducer<State, Proxy>: @MainActor TransducerActo
 
 #else
 #endif
-
-struct TaskHolder: ~Copyable {
-    var task: Task<Void, Error>?
-    
-    init(_ task: Task<Void, Error>) {
-        self.task = task
-    }
-    
-    func cancel() {
-        task?.cancel()
-    }
-    
-    deinit {
-        task?.cancel()
-    }
-}

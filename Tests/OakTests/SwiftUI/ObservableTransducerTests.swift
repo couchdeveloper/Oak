@@ -205,10 +205,10 @@ extension ObservableTransducerTests.ObservableTransducerCancellationWithProxyTes
         observableTransducer.proxy.cancel()
         
         // Give a brief moment for cancellation to process
-        try await Task.sleep(nanoseconds: 5_000_000) // 5ms
+        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
         
-        // Note: We don't check isRunning here since ObservableTransducer
-        // keeps tasks alive even after cancellation for state preservation
+        // Ensure the transducer is not running after cancellation
+        #expect(observableTransducer.isRunning == false)
         
         // Read the state - it should reflect the last processed event
         // Note: The exact state depends on timing, but it should be valid
@@ -343,11 +343,11 @@ extension ObservableTransducerTests.ObservableTransducerCompletionTests {
         // Wait for completion
         try await expectation.await(timeout: .seconds(1))
         
-        // Give a brief moment for completion processing to finish
-        try await Task.sleep(nanoseconds: 5_000_000) // 5ms
+        // Give a brief moment for completion processing to finish and task cleanup
+        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
         
-        // Note: We don't check isRunning here since ObservableTransducer
-        // keeps tasks alive even after completion for state preservation
+        // Ensure the transducer is not running after completion
+        #expect(observableTransducer.isRunning == false)
         
         // Read the state and assert it matches expectation
         #expect(observableTransducer.state == .finished(2))
