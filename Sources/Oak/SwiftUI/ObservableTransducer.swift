@@ -51,18 +51,11 @@ public final class ObservableTransducer<State, Proxy>: @MainActor TransducerActo
             MainActor.shared
         )
         self.task = transducerTask
-        
-        // Handle task completion to set task to nil when it finishes naturally
         Task { [weak self] in
             do {
                 _ = try await transducerTask.value
-            } catch {
-                // Task was cancelled or failed, which is expected in many cases
-            }
-            // Set task to nil when completed (successfully or with error)
-            await MainActor.run { [weak self] in
-                self?.task = nil
-            }
+            } catch {}
+            self?.task = nil
         }
     }
     
