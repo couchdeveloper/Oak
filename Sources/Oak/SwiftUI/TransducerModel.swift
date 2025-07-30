@@ -6,12 +6,13 @@ import Observation
 /// outside of SwiftUI views.
 ///
 /// `TransducerModel` provides an Observable interface to transducer state while
-/// managing the underlying transducer lifecycle. Unlike `TransducerView`, this
-/// model can be used independently of view hierarchies and provides manual
-/// control over transducer startup and termination.
+/// managing the underlying transducer lifecycle.
 ///
-/// The model uses a separate state holder pattern to avoid reference cycles
-/// when the transducer's long-running task captures the model.
+/// A TransducerModel lifecycle is bound to the lifecycle of the transducer. Then the Model
+/// gets deinitialised before the transducer is terminal, the transducer will be forcibly
+/// cancelled(). When the transdcuer becomes terminal the TransducerModel cannot
+/// process events anymore, and sending events will throw a error.
+/// The transducer cannot be restarted.
 ///
 /// ## Usage Example
 /// 

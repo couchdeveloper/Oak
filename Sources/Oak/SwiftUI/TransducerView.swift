@@ -161,9 +161,9 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ///   - initialState: The start state of the transducer. Default is `init()`.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
-    ///   - out: A type conforming to `Subject<Output>` where the transducer sends the
-    ///   output it produces. The `out` parameter is usually used to notify the parent view, for example
-    ///   via a `Binding` which can be directly used for the parameter `out`.
+    ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
+    ///   output it produces. The `output` parameter is usually used to notify the parent view, for example
+    ///   via a `Binding` which can be directly used for the parameter `output`.
     ///   - completion: A closure which will be called once when the transducer completed
     ///   successfully returning the success value of the run function.
     ///   - content: A viewBuilder function that has a parameter providing the current state and a
@@ -267,9 +267,9 @@ public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
-    ///   - out: A type conforming to `Subject<Output>` where the transducer sends the
-    ///   output it produces. The `out` parameter is usually used to notify the parent view, for example
-    ///   via a `Binding` which can be directly used for the parameter `out`.
+    ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
+    ///   output it produces. The `output` parameter is usually used to notify the parent view, for example
+    ///   via a `Binding` which can be directly used for the parameter `output`.
     ///   - completion: A closure which will be called once when the transducer completed
     ///   successfully returning the success value of the run function.
     ///   - content: A viewBuilder function that has a parameter providing the current state and a

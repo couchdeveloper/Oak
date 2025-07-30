@@ -139,6 +139,7 @@ extension Transducer {
         systemActor: isolated any Actor = #isolation
     ) async throws -> Output where Proxy.Event == Event {
         try proxy.checkInUse()
+        try Task.checkCancellation()
         let stream = proxy.stream
         let initialOutputValueOrNil = initialOutput(initialState: storage.value) 
         if let initialOutputValue = initialOutputValueOrNil {
