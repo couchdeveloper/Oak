@@ -4,10 +4,13 @@ import Observation
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 @Observable
 @MainActor
-public final class ObservableTransducer<State, Proxy>: @MainActor TransducerActor where Proxy: TransducerProxy {
+public final class ObservableTransducer<Transducer>: @MainActor TransducerActor where Transducer: BaseTransducer {
+    public typealias State = Transducer.State
+    public typealias Event = Transducer.Event
+    public typealias Output = Transducer.Output
+    public typealias Proxy = Transducer.Proxy
+    public typealias Input = Transducer.Proxy.Input
     
-    public typealias Input = Proxy.Input
-        
     struct TransducerCancelledError: Error {}
     
     public typealias Storage = UnownedReferenceKeyPathStorage<ObservableTransducer, State>
@@ -18,9 +21,8 @@ public final class ObservableTransducer<State, Proxy>: @MainActor TransducerActo
     public let proxy: Proxy
     
     @ObservationIgnored
-    private var task: Task<Void, any Error>?
+    private var task: Task<Void, Never>?
     
-
     /// Returns a transducer actor.
     ///
     /// > Caution: Do not call this initialiser directly. It's called internally by the other initialiser
@@ -41,7 +43,7 @@ public final class ObservableTransducer<State, Proxy>: @MainActor TransducerActo
             UnownedReferenceKeyPathStorage<ObservableTransducer, State>,
             Proxy,
             isolated any Actor
-        ) -> Task<Void, any Error>
+        ) -> Task<Void, Never>
     ) {
         self.proxy = proxy
         self.state = initialState
@@ -52,9 +54,7 @@ public final class ObservableTransducer<State, Proxy>: @MainActor TransducerActo
         )
         self.task = transducerTask
         Task { [weak self] in
-            do {
-                _ = try await transducerTask.value
-            } catch {}
+            _ = await transducerTask.value
             self?.task = nil
         }
     }
@@ -71,9 +71,15 @@ public final class ObservableTransducer<State, Proxy>: @MainActor TransducerActo
         task = nil
     }
     
+    // TODO: in future, for Swift 6.2+ use isolated deinit.
     deinit {
         task?.cancel()
     }
+}
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+extension ObservableTransducer where Transducer: EffectTransducer {
+    public typealias Env = Transducer.Env
 }
 
 #else

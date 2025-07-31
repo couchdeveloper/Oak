@@ -49,12 +49,16 @@ import Foundation
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
         @Test func createVoidTransducer() async throws {
-            let observableTransducer = ObservableTransducer(
-                of: VoidTransducer.self,
+            typealias T = VoidTransducer
+            let observableTransducer = ObservableTransducer<T>(
                 initialState: .start,
                 proxy: .init(),
-                completion: nil
+                completion: nil,
+                failure: nil
             )
+            
+            #expect(T.Output.self == Void.self)
+            #expect(ObservableTransducer<T>.Output.self == Void.self)
             #expect(observableTransducer.isRunning == true)
             #expect(observableTransducer.state == .start)
         }
@@ -62,10 +66,12 @@ import Foundation
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
         @Test func createVoidTransducer2() async throws {
-            let observableTransducer = ObservableTransducer(
-                of: VoidTransducer.self,
+            typealias T = VoidTransducer
+            let observableTransducer = ObservableTransducer<T>(
                 initialState: .start,
             )
+            #expect(T.Output.self == Void.self)
+            #expect(ObservableTransducer<T>.Output.self == Void.self)
             #expect(observableTransducer.isRunning == true)
             #expect(observableTransducer.state == .start)
         }
@@ -73,13 +79,16 @@ import Foundation
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
         @Test func createOutputTransducer() async throws {
-            let observableTransducer = ObservableTransducer(
-                of: OutputTransducer.self,
+            typealias T = OutputTransducer
+            let observableTransducer = ObservableTransducer<T>(
                 initialState: .start,
                 proxy: .init(),
                 output: Callback({ output in }),
-                completion: { output, isolated in }
+                completion: { output, isolated in },
+                failure: { error, isolated in }
             )
+            #expect(T.Output.self == Int.self)
+            #expect(ObservableTransducer<T>.Output.self == Int.self)
             #expect(observableTransducer.isRunning == true)
             #expect(observableTransducer.state == .start)
         }
@@ -87,10 +96,12 @@ import Foundation
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
         @Test func createOutputTransducer2() async throws {
-            let observableTransducer = ObservableTransducer(
-                of: OutputTransducer.self,
+            typealias T = OutputTransducer
+            let observableTransducer = ObservableTransducer<T>(
                 initialState: .start,
             )
+            #expect(T.Output.self == Int.self)
+            #expect(ObservableTransducer<T>.Output.self == Int.self)
             #expect(observableTransducer.isRunning == true)
             #expect(observableTransducer.state == .start)
         }
@@ -98,13 +109,18 @@ import Foundation
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
         @Test func createEffectTransducer() async throws {
-            let observableTransducer = ObservableTransducer.init(
-                of: EffectTransducer.self,
+            typealias T = EffectTransducer
+            let observableTransducer = ObservableTransducer<T>(
                 initialState: .start,
                 proxy: .init(),
                 env: Void(),
-                completion: { isolated in }
+                completion: { isolated in },
+                failure: { error, isolated in }
             )
+            #expect(T.Output.self == Void.self)
+            #expect(T.Env.self == Void.self)
+            #expect(ObservableTransducer<T>.Output.self == Void.self)
+            #expect(ObservableTransducer<T>.Env.self == Void.self)
             #expect(observableTransducer.isRunning == true)
             #expect(observableTransducer.state == .start)
         }
@@ -112,11 +128,15 @@ import Foundation
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
         @Test func createEffectTransducer2() async throws {
-            let observableTransducer = ObservableTransducer.init(
-                of: EffectTransducer.self,
+            typealias T = EffectTransducer
+            let observableTransducer = ObservableTransducer<T>(
                 initialState: .start,
                 env: Void(),
             )
+            #expect(T.Output.self == Void.self)
+            #expect(T.Env.self == Void.self)
+            #expect(ObservableTransducer<T>.Output.self == Void.self)
+            #expect(ObservableTransducer<T>.Env.self == Void.self)
             #expect(observableTransducer.isRunning == true)
             #expect(observableTransducer.state == .start)
         }
@@ -124,14 +144,19 @@ import Foundation
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
         @Test func createEffectOutputTransducer() async throws {
-            let observableTransducer = ObservableTransducer(
-                of: EffectOutputTransducer.self,
+            typealias T = EffectOutputTransducer
+            let observableTransducer = ObservableTransducer<EffectOutputTransducer>(
                 initialState: .start,
                 proxy: .init(),
                 env: Void(),
                 output: Callback { output in },
-                completion: { output, isolated in }
+                completion: { output, isolated in },
+                failure: { error, isolated in }
             )
+            #expect(T.Output.self == Int.self)
+            #expect(T.Env.self == Void.self)
+            #expect(ObservableTransducer<T>.Output.self == Int.self)
+            #expect(ObservableTransducer<T>.Env.self == Void.self)
             #expect(observableTransducer.isRunning == true)
             #expect(observableTransducer.state == .start)
         }
@@ -139,48 +164,70 @@ import Foundation
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
         @Test func createEffectOutputTransducer2() async throws {
-            let observableTransducer = ObservableTransducer.init(
-                of: EffectOutputTransducer.self,
+            typealias T = EffectOutputTransducer
+            let observableTransducer = ObservableTransducer<EffectOutputTransducer>(
                 initialState: .start,
                 env: Void(),
                 output: NoCallback(),
             )
+            #expect(T.Output.self == Int.self)
+            #expect(T.Env.self == Void.self)
+            #expect(ObservableTransducer<T>.Output.self == Int.self)
+            #expect(ObservableTransducer<T>.Env.self == Void.self)
             #expect(observableTransducer.isRunning == true)
             #expect(observableTransducer.state == .start)
         }
     }
     
     @Suite struct CancellationWithProxyTests {
-        
-        // Define a simple transducer for testing cancellation
-        enum CancellableTransducer: Transducer {
-            enum State: NonTerminal, Equatable {
-                case start
-                case running(Int)
-            }
-            enum Event {
-                case increment
-            }
-            static func update(_ state: inout State, event: Event) -> Int {
-                switch (state, event) {
-                case (.start, .increment):
-                    state = .running(1)
-                    return 1
-                case (.running(let count), .increment):
-                    let newCount = count + 1
-                    state = .running(newCount)
-                    return newCount
-                }
-            }
-        }
+        // There are only a few tests since most of the behaviour is
+        // inherited from the transducer which has its own tests.
         
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
         @Test func testCancellationWithProxy() async throws {
+            // Define a simple transducer for testing cancellation
+            // via the proxy.
+            //
+            // Caution: we cannot cancel a transducer via a proxy
+            // when the transducer is suspended in an output function,
+            // since the async loop is not processing the cancellation
+            // request. Here, we have no suspended output function,
+            // and the transducer should receive and process the
+            // cancel request.
+            enum T: Transducer {
+                enum State: NonTerminal, Equatable {
+                    case start
+                    case running(Int)
+                }
+                enum Event {
+                    case increment
+                }
+                static func update(_ state: inout State, event: Event) -> Int {
+                    switch (state, event) {
+                    case (.start, .increment):
+                        state = .running(1)
+                        return 1
+                    case (.running(let count), .increment):
+                        let newCount = count + 1
+                        state = .running(newCount)
+                        return newCount
+                    }
+                }
+            }
+
+            let expectFailure = Expectation()
+            
             // Create an ObservableTransducer with the cancellable transducer
-            let observableTransducer = ObservableTransducer(
-                of: CancellableTransducer.self,
-                initialState: .start
+            let observableTransducer = ObservableTransducer<T>(
+                initialState: .start,
+                completion: { _, _ in
+                    Issue.record("Transducer should not call the completion handler")
+                },
+                failure: { error, _ in
+                    #expect(error is TransducerError)  // Proxy cancelled.
+                    expectFailure.fulfill()
+                }
             )
             
             // Ensure the transducer is running
@@ -189,17 +236,14 @@ import Foundation
             
             // Send an event to change state
             try observableTransducer.proxy.send(.increment)
-            
-            // Give some time for processing (in a real test we'd use synchronization)
-            try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+            try await Task.sleep(nanoseconds: 1_000_000) // 1ms
             
             // Use the proxy to cancel the running transducer
             observableTransducer.proxy.cancel()
-            
-            // Give a brief moment for cancellation to process
-            try await Task.sleep(nanoseconds: 100_000_000) // 100ms
-            
+            try await expectFailure.await(nanoseconds: 1_000_000_000)
+
             // Ensure the transducer is not running after cancellation
+            try await Task.sleep(nanoseconds: 1_000_000) // 1ms
             #expect(observableTransducer.isRunning == false)
             
             // Read the state - it should reflect the last processed event
@@ -212,37 +256,141 @@ import Foundation
     }
     
     @Suite struct CancellationWhenActorDeinitialisesTests {
+        // This requires more and more thoughtful tests. When
+        // the host is "dying" under the feet of a transducer,
+        // bad things can happen. For example a suspended run
+        // function may resume after the host has been deallocated.
+        // When the transducer's implementation does not account
+        // for this, an access to the state variable can happen.
+        // However, the storage is already deallocated. When an
+        // `UnownedReferenceKeyPathStorage` is used, it will crash.
+        // When a `WeakReferenceKeyPathStorage` is used, it will
+        // cause a fatal error.
         
-        // Define a simple transducer for testing deinitialization
-        enum DeinitialisationTransducer: Transducer {
-            enum State: NonTerminal, Equatable {
-                case start
-                case active
-            }
-            enum Event {
-                case activate
-            }
-            static func update(_ state: inout State, event: Event) {
-                switch (state, event) {
-                case (.start, .activate):
-                    state = .active
-                case (.active, .activate):
-                    break // Stay active
+        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+        @MainActor
+        @Test func testNonTerminalTransducerShouldCancel() async throws {
+            
+            // Define a simple transducer for testing deinitialization.
+            //
+            // This transducer enters the mode `active` and never
+            // terminates. It has no effects, and no outputs.
+            enum NonTerminalTransducer: Transducer {
+                enum State: NonTerminal { case start,active }
+                enum Event { case activate }
+                static func update(_ state: inout State, event: Event) {
+                    switch (state, event) {
+                    case (.start, .activate):
+                        state = .active
+                    case (.active, .activate):
+                        break // Stay active
+                    }
                 }
             }
+            typealias T = NonTerminalTransducer
+
+            weak var weakTransducer: ObservableTransducer<T>?
+            
+            let expectFailure = Expectation()
+            
+            Task {
+                do {
+                    // Create an ObservableTransducer and assign it to weak variable
+                    let observableTransducer = ObservableTransducer<T>(
+                        initialState: .start,
+                        completion: { value, isolated in
+                            Issue.record("Transducer should not call the completion handler")
+                        },
+                        failure: { error, _ in
+                            #expect(error is CancellationError)
+                            expectFailure.fulfill()
+                        }
+                    )
+                    weakTransducer = observableTransducer
+                    
+                    // Ensure the transducer is running and weak reference exists
+                    #expect(observableTransducer.isRunning == true)
+                    #expect(weakTransducer != nil)
+                    #expect(observableTransducer.state == .start)
+                    
+                    // Send an event to activate the transducer
+                    try? observableTransducer.proxy.send(.activate)
+                    try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+                }
+                // observableTransducer strong reference goes out of scope here
+            }
+
+            try await expectFailure.await(timeout: .seconds(10))
+            // The weak variable should become nil (actor deallocated)
+            #expect(weakTransducer == nil)
         }
 
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
-        @Test func testCancellationWhenActorDeinitializes() async throws {
-            weak var weakTransducer: ObservableTransducer<DeinitialisationTransducer.State, DeinitialisationTransducer.Proxy>?
+        @Test func testTransducerSuspendedInOutputShouldCancel() async throws {
             
-            await MainActor.run {
+            // Define a simple transducer for testing deinitialization.
+            //
+            // This transducer is suspended while waiting for an
+            // output to be send through the subject. Note, while
+            // suspended in output, the transducer cannot receive
+            // events. Cancelling the tranducer's task will cause
+            // the send function of the subject to throw a
+            // `CancellationError`, which also causes the async
+            // loop to throw. Any catch handler should not attempt
+            // to access the state in any case. Otherwise a crash
+            // might happen, because the host does not exist anymore.
+            enum SuspendedInOutputTransducer: Oak.Transducer {
+                enum State: NonTerminal { case start, active }
+                enum Event { case activate, tick }
+                typealias Output = Int
+                static func update(_ state: inout State, event: Event) -> Int {
+                    switch (state, event) {
+                    case (.start, .activate):
+                        return 1
+                    case (.active, .activate):
+                        return 0
+                    case (_, .tick):
+                        return 0 // we never reach here
+                    }
+                }
+            }
+            
+            typealias T = SuspendedInOutputTransducer
+            
+            weak var weakTransducer: ObservableTransducer<T>?
+            
+            let expectOutputThrows = Expectation()
+            let expectFailure = Expectation()
+
+            Task {
+                let expectCallOutput = Expectation()
                 do {
                     // Create an ObservableTransducer and assign it to weak variable
-                    let observableTransducer = ObservableTransducer(
-                        of: DeinitialisationTransducer.self,
-                        initialState: .start
+                    let observableTransducer = ObservableTransducer<T>.init(
+                        initialState: .start,
+                        output: Callback { output in
+                            switch output {
+                            case 1:
+                                expectCallOutput.fulfill()
+                                let error = await #expect(throws: CancellationError.self) {
+                                    try await Task.sleep(nanoseconds: 100_000_000_000)
+                                }
+                                if let error {
+                                    expectOutputThrows.fulfill()
+                                    throw error
+                                }
+                            default:
+                                break
+                            }
+                        },
+                        completion: { value, isolated in
+                            Issue.record("Transducer should not call the completion handler")
+                        },
+                        failure: { error, _ in
+                            #expect(error is CancellationError)
+                            expectFailure.fulfill()
+                        }
                     )
                     
                     weakTransducer = observableTransducer
@@ -254,12 +402,97 @@ import Foundation
                     
                     // Send an event to activate the transducer
                     try? observableTransducer.proxy.send(.activate)
+                    try await expectCallOutput.await(timeout: .seconds(1))
+                    _ = observableTransducer
                 }
                 // observableTransducer strong reference goes out of scope here
             }
-            
+            try await expectFailure.await(timeout: .seconds(100000))
+            try await expectOutputThrows.await(timeout: .seconds(100000))
             // Give time for deallocation
-            try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            try await Task.sleep(nanoseconds: 1_000_000) // 1ms
+            
+            // The weak variable should become nil (actor deallocated)
+            #expect(weakTransducer == nil)
+        }
+
+        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+        @MainActor
+        @Test func testTransducerSuspendedInActionShouldCancel() async throws {
+            
+            // Define a simple transducer for testing deinitialization.
+            //
+            // This transducer calls an action which suspends
+            // indefinitely. Note, while suspended in an action,
+            // the transducer cannot receive events. Cancelling
+            // the transducer's task will cause the async action
+            // function to throw a `CancellationError`, which also
+            // causes the async loop to throw. Any catch handler
+            // should not attempt to access the state in any case.
+            // Otherwise a crash might happen, because the host
+            // does not exist anymore.
+            
+            enum SuspendedInActionTransducer: EffectTransducer {
+                enum State: NonTerminal { case start, active }
+                enum Event { case activate, tick }
+                struct Env {  let expectActionCalled = Expectation() }
+                static func update(_ state: inout State, event: Event) -> Self.Effect? {
+                    switch (state, event) {
+                    case (.start, .activate):
+                        return Effect { env, isolated in
+                            env.expectActionCalled.fulfill()
+                            try await Task.sleep(for: .seconds(100))
+                            return .tick
+                        }
+                    case (.active, .activate):
+                        return nil
+                    case (_, .tick):
+                        return nil // we never reach here
+                    }
+                }
+            }
+            
+            typealias T = SuspendedInActionTransducer
+            
+            weak var weakTransducer: ObservableTransducer<T>?
+            
+            let expectFailure = Expectation()
+            let env = T.Env()
+
+            Task {
+                let expectCallOutput = Expectation()
+                do {
+                    // Create an ObservableTransducer and assign it to weak variable
+                    let observableTransducer = ObservableTransducer<T>.init(
+                        initialState: .start,
+                        env: env,
+                        completion: { isolated in
+                            Issue.record("Transducer should not call the completion handler")
+                        },
+                        failure: { error, _ in
+                            #expect(error is CancellationError)
+                            expectFailure.fulfill()
+                        }
+                    )
+                    
+                    weakTransducer = observableTransducer
+                    
+                    // Ensure the transducer is running and weak reference exists
+                    #expect(observableTransducer.isRunning == true)
+                    #expect(weakTransducer != nil)
+                    #expect(observableTransducer.state == .start)
+                    
+                    // Send an event to activate the transducer
+                    try? observableTransducer.proxy.send(.activate)
+                    try await expectCallOutput.await(timeout: .seconds(1))
+                    _ = observableTransducer
+                }
+                // observableTransducer strong reference goes out of scope here
+            }
+            try await expectFailure.await(timeout: .seconds(10))
+            try await env.expectActionCalled.await(timeout: .seconds(10))
+            // Give time for deallocation
+            try await Task.sleep(nanoseconds: 1_000_000) // 1ms
             
             // The weak variable should become nil (actor deallocated)
             #expect(weakTransducer == nil)
@@ -312,8 +545,7 @@ import Foundation
             let completionActor = CompletionActor()
             
             // Create an ObservableTransducer with completion callback
-            let observableTransducer = ObservableTransducer(
-                of: TerminatingTransducer.self,
+            let observableTransducer = ObservableTransducer<TerminatingTransducer>(
                 initialState: .start,
                 completion: { output, _ in
                     Task { @MainActor in
@@ -396,8 +628,7 @@ import Foundation
             let stateActor = StateActor()
             
             // Create an ObservableTransducer
-            let observableTransducer = ObservableTransducer(
-                of: StateObservationTransducer.self,
+            let observableTransducer = ObservableTransducer<StateObservationTransducer>(
                 initialState: .start
             )
             
@@ -486,8 +717,7 @@ import Foundation
             }
             
             // Create an ObservableTransducer with output callback
-            let observableTransducer = ObservableTransducer(
-                of: OutputObservationTransducer.self,
+            let observableTransducer = ObservableTransducer<OutputObservationTransducer>(
                 initialState: .start,
                 output: outputCallback
             )

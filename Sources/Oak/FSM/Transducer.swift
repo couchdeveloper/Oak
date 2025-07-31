@@ -115,7 +115,7 @@ public protocol Transducer: BaseTransducer {
     
     associatedtype Event
     associatedtype State
-    associatedtype Output
+    associatedtype Output = Void
     
     /// A pure function that combines the _transition_ and the _output_ function
     /// of the finite state machine (FSM) into a single function.

@@ -34,7 +34,7 @@ public protocol BaseTransducer<Event> {
     ///   in cases where `Output`` is not `Void`. Otherwise, the `TransducerOutput`
     ///   is simply `Effect?`.
     /// 
-    associatedtype Output = Void
+    associatedtype Output
 
     /// The type of the transducer proxy.
     ///

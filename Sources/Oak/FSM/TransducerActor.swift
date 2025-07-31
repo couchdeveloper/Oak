@@ -1,10 +1,14 @@
 
-public protocol TransducerActor<State, Proxy> {
-    associatedtype State
-    associatedtype Proxy: TransducerProxy
-    associatedtype Storage: Oak.Storage<State>
+public protocol TransducerActor<Transducer> {
+    associatedtype Transducer: BaseTransducer
 
+    typealias State = Transducer.State
+    typealias Event = Transducer.Event
+    typealias Output = Transducer.Output
+    typealias Proxy = Transducer.Proxy
     typealias Input = Proxy.Input
+
+    associatedtype Storage: Oak.Storage<State>
     
     var proxy: Proxy { get }
     
@@ -24,7 +28,7 @@ public protocol TransducerActor<State, Proxy> {
     init(
         initialState: State,
         proxy: Proxy,
-        runTransducer: (Storage, Proxy, isolated (any Actor)) -> Task<Void, Error>
+        runTransducer: (Storage, Proxy, isolated (any Actor)) -> Task<Void, Never>
     )
     
     /// Cancels the transducer.
@@ -54,27 +58,33 @@ extension TransducerActor {
     ///   creates one.
     ///  - completion: A closure which will be called once when the transducer completed
     ///   successfully returning the success value of the run function.
+    ///  - failure: A closure which will be called once when the transducer completed
+    ///   with a failure returning the failure value of the run function.
     ///
-    public init<T: Transducer>(
-        of type: T.Type = T.self,
+    public init(
         initialState: State,
         proxy: Proxy? = nil,
-        completion: (@Sendable (T.Output, isolated (any Actor)) -> Void)? = nil
-    ) where T.State == State, T.Proxy == Proxy {
+        completion: (@Sendable (Output, isolated (any Actor)) -> Void)? = nil,
+        failure: (@Sendable (any Error, isolated (any Actor)) -> Void)? = nil
+    ) where Transducer: Oak.Transducer {
         self.init(
             initialState: initialState,
             proxy: proxy ?? Proxy(),
             runTransducer: { (state: Storage, proxy: Proxy, isolated) in
                 // state.value = initialState
-                return Task<Void, Error> {
+                return Task {
                     _ = isolated
-                    let output = try await T.run(
-                        storage: state,
-                        proxy: proxy,
-                        output: NoCallback(),
-                        systemActor: isolated
-                    )
-                    completion?(output, isolated)
+                    do {
+                        let output = try await Transducer.run(
+                            storage: state,
+                            proxy: proxy,
+                            output: NoCallback(),
+                            systemActor: isolated
+                        )
+                        completion?(output, isolated)
+                    } catch {
+                        failure?(error, isolated)
+                    }
                 }
             }
         )
@@ -97,14 +107,16 @@ extension TransducerActor {
     ///   output it produces.
     ///  - completion: A closure which will be called once when the transducer completed
     ///   successfully returning the success value of the run function.
+    ///  - failure: A closure which will be called once when the transducer completed
+    ///   with a failure returning the failure value of the run function.
     ///
-    public init<T: Transducer>(
-        of type: T.Type = T.self,
+    public init(
         initialState: sending State,
         proxy: Proxy? = nil,
-        output: sending some Subject<T.Output>,
-        completion: (@Sendable (T.Output, isolated any Actor) -> Void)? = nil,
-    ) where T.State == State, T.Proxy == Proxy {
+        output: sending some Subject<Output>,
+        completion: (@Sendable (Output, isolated any Actor) -> Void)? = nil,
+        failure: (@Sendable (any Error, isolated (any Actor)) -> Void)? = nil
+    ) where Transducer: Oak.Transducer {
         self.init(
             initialState: initialState,
             proxy: proxy ?? Proxy(),
@@ -112,13 +124,17 @@ extension TransducerActor {
                 // state.value = initialState
                 return Task {
                     _ = isolated
-                    let output = try await T.run(
-                        storage: state,
-                        proxy: proxy,
-                        output: output,
-                        systemActor: isolated
-                    )
-                    completion?(output, isolated)
+                    do {
+                        let output = try await Transducer.run(
+                            storage: state,
+                            proxy: proxy,
+                            output: output,
+                            systemActor: isolated
+                        )
+                        completion?(output, isolated)
+                    } catch {
+                        failure?(error, isolated)
+                    }
                 }
             }
         )
@@ -147,15 +163,17 @@ extension TransducerActor {
     ///   output it produces.
     ///  - completion: A closure which will be called once when the transducer completed
     ///   successfully returning the success value of the run function.
+    ///  - failure: A closure which will be called once when the transducer completed
+    ///   with a failure returning the failure value of the run function.
     ///
-    public init<T: EffectTransducer>(
-        of type: T.Type = T.self,
+    public init(
         initialState: State,
         proxy: Proxy? = nil,
-        env: T.Env,
-        output: sending some Subject<T.Output>,
-        completion: (@Sendable (T.Output, isolated any Actor) -> Void)? = nil,
-    ) where T.State == State, T.Proxy == Proxy, T.TransducerOutput == (T.Effect?, T.Output) {
+        env: Transducer.Env,
+        output: sending some Subject<Output>,
+        completion: (@Sendable (Output, isolated any Actor) -> Void)? = nil,
+        failure: (@Sendable (any Error, isolated (any Actor)) -> Void)? = nil
+    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output) {
         nonisolated(unsafe) let env = env // TODO: have to silence compiler error: Sending 'env' risks causing data races
         // IMHO, the compiler's error is not justified: `env` will only ever be
         // mutated from `isolated`. And yes, it is allowed to mutated it, outside
@@ -172,14 +190,18 @@ extension TransducerActor {
                 // state.value = initialState
                 return Task {
                     _ = isolated
-                    let output = try await T.run(
-                        storage: state,
-                        proxy: proxy,
-                        env: env,
-                        output: output,
-                        systemActor: isolated
-                    )
-                    completion?(output, isolated)
+                    do {
+                        let output = try await Transducer.run(
+                            storage: state,
+                            proxy: proxy,
+                            env: env,
+                            output: output,
+                            systemActor: isolated
+                        )
+                        completion?(output, isolated)
+                    } catch {
+                        failure?(error, isolated)
+                    }
                 }
             }
         )
@@ -202,14 +224,16 @@ extension TransducerActor {
     ///   `Effect`s' `invoke` function.
     ///  - completion: A closure which will be called once when the transducer completed
     ///   successfully returning the success value of the run function.
+    ///  - failure: A closure which will be called once when the transducer completed
+    ///   with a failure returning the failure value of the run function.
     ///
-    public init<T: EffectTransducer>(
-        of type: T.Type = T.self,
+    public init(
         initialState: State,
         proxy: Proxy? = nil,
-        env: T.Env,
+        env: Transducer.Env,
         completion: (@Sendable (isolated any Actor) -> Void)? = nil,
-    ) where T.State == State, T.Proxy == Proxy, T.TransducerOutput == T.Effect?, T.Output == Void {
+        failure: (@Sendable (any Error, isolated (any Actor)) -> Void)? = nil
+    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?, Output == Void {
         nonisolated(unsafe) let env = env // TODO: have to silence compiler error: Sending 'env' risks causing data races
         // IMHO, the compiler's error is not justified: `env` will only ever be
         // mutated from `isolated`. And yes, it is allowed to mutated it, outside
@@ -225,14 +249,18 @@ extension TransducerActor {
             runTransducer: { state, proxy, isolated in
                 // state.value = initialState
                 return Task {
-                    _ = isolated
-                    _ = try await T.run(
-                        storage: state,
-                        proxy: proxy,
-                        env: env,
-                        systemActor: isolated
-                    )
-                    completion?(isolated)
+                    do {
+                        _ = isolated
+                        _ = try await Transducer.run(
+                            storage: state,
+                            proxy: proxy,
+                            env: env,
+                            systemActor: isolated
+                        )
+                        completion?(isolated)
+                    } catch {
+                        failure?(error, isolated)
+                    }
                 }
             }
         )
