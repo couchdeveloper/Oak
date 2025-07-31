@@ -1,17 +1,7 @@
-package protocol Storage<Value> {
+public protocol Storage<Value> {
     associatedtype Value
     
     var value: Value { get nonmutating set }
-    
-    func lock()
-    func unlock()
-}
-
-package extension Storage {
-    // Default is no-op
-    func lock() {}
-    // Default is no-op
-    func unlock() {}
 }
 
 internal struct LocalStorage<Value>: Storage {

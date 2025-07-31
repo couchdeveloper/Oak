@@ -73,11 +73,11 @@
 /// produce output.
 public protocol EffectTransducer: BaseTransducer {
     
-    associatedtype Output
+    associatedtype Output = Void
 
     /// The type of the environment in which the transducer operates and which
     /// provides the necessary context for executing effects.
-    associatedtype Env
+    associatedtype Env = Void
     
     /// The _Output_ of the FSM, which may include an optional
     /// effect and a value type, `Output`. Typically, it it is either
@@ -111,6 +111,7 @@ extension EffectTransducer {
         systemActor: isolated any Actor = #isolation
     ) async throws -> Output where TransducerOutput == (Effect?, Output) {
         try proxy.checkInUse()
+        try Task.checkCancellation()
         let stream = proxy.stream
         let input = proxy.input
         let initialOutputValueOrNil = initialOutput(initialState: storage.value) 
@@ -231,6 +232,7 @@ extension EffectTransducer {
         systemActor: isolated any Actor = #isolation
     ) async throws where TransducerOutput == Effect?, Output == Void {
         try proxy.checkInUse()
+        try Task.checkCancellation()
         let stream = proxy.stream
         let input = proxy.input
         if storage.value.isTerminal {
