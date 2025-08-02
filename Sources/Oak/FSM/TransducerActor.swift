@@ -1,10 +1,73 @@
-public protocol Completable<Value, Failure> {
-    associatedtype Value
-    associatedtype Failure: Error
-
-    func completed(with: Result<Value, Failure>)
-}
-
+/// A protocol that defines an actor-based wrapper for transducers, providing observable state and isolation.
+///
+/// ## Overview
+///
+/// A `TransducerActor` provides the state for the transducer and the isolation context in which it runs.
+/// While transducer functions can be called directly without an actor (in which case they "strictly encapsulate" 
+/// the state), the main purpose of having a `TransducerActor` is to provide _observable_ state that can be 
+/// integrated with UI frameworks and reactive systems.
+///
+/// The protocol is designed to work seamlessly with SwiftUI views and types conforming to the `Observable` 
+/// protocol from the Observation framework, enabling reactive updates when the transducer's state changes.
+///
+/// ## Key Characteristics
+///
+/// - **Observable State**: Unlike standalone transducers that encapsulate state internally, a `TransducerActor` 
+///   exposes state in a way that external observers (like UI components) can react to changes.
+/// - **Isolation Context**: Provides the isolation boundary for safe concurrent access to the transducer's state.
+/// - **Framework Integration**: Enables integration with SwiftUI and other reactive frameworks through observable patterns.
+/// - **Life-cycle Management**: The transducer's lifetime is bound to the actor's lifetime, ensuring proper 
+///   resource management and cleanup.
+/// - **Task-based Execution**: When using a `TransducerActor`, the transducer runs in its own `Task`, providing 
+///   concurrent execution without blocking the actor or UI.
+/// - **Weak Reference Pattern**: The transducer does not keep a strong reference to the `TransducerActor` while 
+///   running. If the actor deinitializes while the transducer is still running, the transducer will be forcibly 
+///   cancelled, preventing memory leaks and ensuring clean resource cleanup.
+///
+/// ## Provided Implementations
+///
+/// The Oak library provides two generic implementations of this protocol:
+///
+/// - **`TransducerView`**: A SwiftUI view that conforms to `TransducerActor`, enabling declarative UI 
+///   that automatically updates when the transducer's state changes.
+/// - **`ObservableTransducer`**: A generic type conforming to the `Observable` protocol from the 
+///   Observation framework, providing reactive state management outside of SwiftUI contexts.
+///
+/// ## Usage Patterns
+///
+/// ### SwiftUI Integration
+/// ```swift
+/// struct MyView: View {
+///     var body: some View {
+///         TransducerView(of: MyUseCase.self, initialState: .initial) { state, input in
+///             // UI that automatically updates when state changes
+///             Text(state.message)
+///             Button("Action") { try input.send(.userAction) }
+///         }
+///     }
+/// }
+/// ```
+///
+/// ### Observable Integration
+/// ```swift
+/// @Observable
+/// final class MyModel: ObservableTransducer<MyUseCase> {
+///     init() {
+///         super.init(of: MyUseCase.self, initialState: .initial)
+///     }
+/// }
+/// ```
+///
+/// ## State Management Philosophy
+///
+/// The distinction between standalone transducers and `TransducerActor` implementations reflects different 
+/// architectural needs:
+///
+/// - **Standalone Transducers**: Provide strict encapsulation, ideal for business logic that doesn't need 
+///   external observation.
+/// - **TransducerActor**: Provides controlled observation of state changes, essential for reactive UI patterns 
+///   and external system integration.
+///
 public protocol TransducerActor<Transducer> {
     typealias State = Transducer.State
     typealias Event = Transducer.Event
@@ -25,10 +88,8 @@ public protocol TransducerActor<Transducer> {
     /// overloads.
     ///
     /// - Parameters:
-    ///   - isolated: The isolation from the caller.
     ///   - initialState: The start state of the transducer.
-    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
-    ///   creates one.
+    ///   - proxy: A proxy which will be associated to the transducer.
     ///   - runTransducer: A closure which will be immediately called when the actor will be initialised.
     ///   It starts the transducer which runs in a Swift Task.
     ///   - content: A closure which takes the current state and the input as parameters and
@@ -73,18 +134,14 @@ extension TransducerActor {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - isolated: The isolation from the caller.
-    ///   - type: The type of the transducer.
     ///   - initialState: The start state of the transducer.
-    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
-    ///   creates one.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - failure: A closure which will be called once when the transducer completed
-    ///   with a failure returning the failure value of the run function.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
+    ///   actor creates one.
+    ///   - completion: An optional completion handler which will be called once when the transducer 
+    ///   completes, either successfully with the final output value or with a failure error.
     ///   - content: A closure which takes the current state and the input as parameters and
-    ///  returns a content. The content closure can be used to drive other components that
-    ///  provide an interface and controls.
+    ///   returns a content. The content closure can be used to drive other components that
+    ///   provide an interface and controls.
     ///
     /// ## Examples
     ///

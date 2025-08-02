@@ -97,7 +97,7 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
     /// 
     /// It is designed to be used within effects or other asynchronous contexts
     /// where you need to send events back to the transducer.
-    public struct Input: TransducerInput {
+    public struct Input: BufferedTransducerInput {
         
         internal init(continuation: Continuation) {
             self.continuation = continuation

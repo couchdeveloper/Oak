@@ -1,12 +1,12 @@
 import AsyncAlgorithms
 import struct Foundation.UUID
 
-/// `AsyncProxy` is a proxy that sends events into the system using
-/// an  async non-throwing function.
+/// `SyncSuspendingProxy` is a proxy that sends events into the system using
+/// an async non-throwing function.
 ///
-/// When explicitly defining the Proxy type `Oak.AsyncProxy<Event>`
-/// in the `EventTransducer`, we are using an `AsyncProxy` for sending
-/// events into the system. This event delivery mechansism uses an async
+/// When explicitly defining the Proxy type `Oak.SyncSuspendingProxy<Event>`
+/// in the `EventTransducer`, we are using a `SyncSuspendingProxy` for sending
+/// events into the system. This event delivery mechanism uses an async
 /// function to deliver the event that suspends until after the event
 /// has been processed. This also includes being suspended until the
 /// delivery of an output value (through a Subject) has been completed.
@@ -15,7 +15,7 @@ import struct Foundation.UUID
 /// The processing speed of the transducer will be dynamically adjusted
 /// so that it is synchronised with its event producers and its output
 /// consumers through utilising suspension.
-public struct AsyncProxy<Event: Sendable>: TransducerProxy {
+public struct SyncSuspendingProxy<Event: Sendable>: TransducerProxy {
     public let id: UUID = UUID()
     
     enum Error: Swift.Error {
@@ -25,7 +25,7 @@ public struct AsyncProxy<Event: Sendable>: TransducerProxy {
     
     public let stream: AsyncThrowingChannel<Event, Swift.Error>
             
-    public struct Input: AsyncTransducerInput {
+    public struct Input: SyncSuspendingTransducerInput {
         let channel: AsyncThrowingChannel<Event, Swift.Error>
         
         public func send(_ event: Event) async {
@@ -39,15 +39,15 @@ public struct AsyncProxy<Event: Sendable>: TransducerProxy {
         }
 
         let stream: Stream
-        let id: AsyncProxy.ID
+        let id: SyncSuspendingProxy.ID
 
-        init(proxy: AsyncProxy) {
+        init(proxy: SyncSuspendingProxy) {
             stream = proxy.stream
             id = proxy.id
         }
         
         deinit {
-            stream.fail(AsyncProxy<Event>.Error.deinitialised)
+            stream.fail(SyncSuspendingProxy<Event>.Error.deinitialised)
         }
     }
 
