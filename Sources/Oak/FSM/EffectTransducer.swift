@@ -219,7 +219,8 @@ extension EffectTransducer {
         guard let result = result else {
             throw TransducerError.noOutputProduced
         }
-        return result
+        nonisolated(unsafe) let res = result
+        return res
     }
 }
 

@@ -18,6 +18,7 @@ import Foundation
  */
 
 @Suite struct ObservableTransducerTests {
+    
     @Suite struct BasicInitializationTests {
         // MARK: - Test Types
         
@@ -54,7 +55,6 @@ import Foundation
                 initialState: .start,
                 proxy: .init(),
                 completion: nil,
-                failure: nil
             )
             
             #expect(T.Output.self == Void.self)
@@ -78,14 +78,30 @@ import Foundation
         
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         @MainActor
+        @Test func createVoidTransducer3() async throws {
+            typealias T = VoidTransducer
+            let observableTransducer = ObservableTransducer(
+                of: T.self,
+                initialState: .start,
+                completion: .init({ result in }),
+            )
+            #expect(T.Output.self == Void.self)
+            #expect(ObservableTransducer<T>.Output.self == Void.self)
+            #expect(observableTransducer.isRunning == true)
+            #expect(observableTransducer.state == .start)
+        }
+
+        
+        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+        @MainActor
         @Test func createOutputTransducer() async throws {
             typealias T = OutputTransducer
-            let observableTransducer = ObservableTransducer<T>(
+            let observableTransducer = ObservableTransducer(
+                of: T.self,
                 initialState: .start,
                 proxy: .init(),
                 output: Callback({ output in }),
-                completion: { output, isolated in },
-                failure: { error, isolated in }
+                completion: nil,
             )
             #expect(T.Output.self == Int.self)
             #expect(ObservableTransducer<T>.Output.self == Int.self)
@@ -98,7 +114,9 @@ import Foundation
         @Test func createOutputTransducer2() async throws {
             typealias T = OutputTransducer
             let observableTransducer = ObservableTransducer<T>(
+                of: T.self,
                 initialState: .start,
+                output: NoCallback(),
             )
             #expect(T.Output.self == Int.self)
             #expect(ObservableTransducer<T>.Output.self == Int.self)
@@ -110,12 +128,12 @@ import Foundation
         @MainActor
         @Test func createEffectTransducer() async throws {
             typealias T = EffectTransducer
-            let observableTransducer = ObservableTransducer<T>(
+            let observableTransducer = ObservableTransducer(
+                of: T.self,
                 initialState: .start,
                 proxy: .init(),
                 env: Void(),
-                completion: { isolated in },
-                failure: { error, isolated in }
+                completion: nil
             )
             #expect(T.Output.self == Void.self)
             #expect(T.Env.self == Void.self)
@@ -145,13 +163,15 @@ import Foundation
         @MainActor
         @Test func createEffectOutputTransducer() async throws {
             typealias T = EffectOutputTransducer
-            let observableTransducer = ObservableTransducer<EffectOutputTransducer>(
+            typealias Completion = ObservableTransducer<T>.Completion
+            let observableTransducer = ObservableTransducer(
+                of: EffectOutputTransducer.self,
                 initialState: .start,
                 proxy: .init(),
                 env: Void(),
                 output: Callback { output in },
-                completion: { output, isolated in },
-                failure: { error, isolated in }
+                completion: .init() { result in
+                }
             )
             #expect(T.Output.self == Int.self)
             #expect(T.Env.self == Void.self)
@@ -176,6 +196,161 @@ import Foundation
             #expect(ObservableTransducer<T>.Env.self == Void.self)
             #expect(observableTransducer.isRunning == true)
             #expect(observableTransducer.state == .start)
+        }
+    }
+    
+    @Suite struct TerminalCompletionTests {
+        // MARK: - Test Types
+        
+        enum VoidTransducer: Transducer {
+            enum State: Terminable { case start, finished
+                var isTerminal: Bool { self == .finished }
+            }
+            enum Event { case start }
+            static func update(_ state: inout State, event: Event) {
+                state = .finished
+            }
+        }
+        
+        enum OutputTransducer: Transducer {
+            enum State: Terminable { case start, finished
+                var isTerminal: Bool { self == .finished }
+            }
+            enum Event { case start }
+            static func update(_ state: inout State, event: Event) -> Int {
+                state = .finished
+                return 1
+            }
+        }
+        
+        enum EffectTransducer: Oak.EffectTransducer {
+            enum State: Terminable { case start, finished
+                var isTerminal: Bool { self == .finished }
+            }
+            enum Event { case start }
+            static func update(_ state: inout State, event: Event) -> Self.Effect? {
+                state = .finished
+                return nil
+            }
+        }
+        
+        enum EffectOutputTransducer: Oak.EffectTransducer {
+            enum State: Terminable { case start, finished
+                var isTerminal: Bool { self == .finished }
+            }
+            enum Event { case start }
+            typealias Output = Int
+            static func update(_ state: inout State, event: Event) -> (Self.Effect?, Output) {
+                state = .finished
+                return (nil, 1)
+            }
+        }
+        
+        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+        @MainActor
+        @Test func testCompletionCalledWithVoidTransducer() async throws {
+            let expectCompletionCalled = Expectation()
+            typealias T = VoidTransducer
+            typealias Completion = ObservableTransducer<T>.Completion
+            let observableTransducer = ObservableTransducer(
+                of: T.self,
+                initialState: .start,
+                proxy:  Proxy(initialEvent: .start), // !! we need to start
+                completion: Completion { result in
+                    MainActor.shared.assertIsolated()
+                    switch result {
+                    case .success:
+                        break
+                    case .failure(let error):
+                        Issue.record("Unexpected error: \(error)")
+                    }
+                    expectCompletionCalled.fulfill()
+                },
+            )
+            try await expectCompletionCalled.await(timeout: .seconds(10))
+            #expect(observableTransducer.isRunning == false)
+            #expect(observableTransducer.state == .finished)
+        }
+        
+        
+        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+        @MainActor
+        @Test func testCompletionCalledWithOutputTransducer() async throws {
+            let expectCompletionCalled = Expectation()
+            typealias T = OutputTransducer
+            let observableTransducer = ObservableTransducer(
+                of: T.self,
+                initialState: .start,
+                proxy:  Proxy(initialEvent: .start), // !! we need to start
+                output: Callback({ output in }),
+                completion: .init { result in
+                    MainActor.shared.assertIsolated()
+                    switch result {
+                    case .success:
+                        break
+                    case .failure(let error):
+                        Issue.record("Unexpected error: \(error)")
+                    }
+                    expectCompletionCalled.fulfill()
+                },
+            )
+            try await expectCompletionCalled.await(timeout: .seconds(10))
+            #expect(observableTransducer.isRunning == false)
+            #expect(observableTransducer.state == .finished)
+        }
+        
+        
+        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+        @MainActor
+        @Test func testCompletionCalledWithEffectTransducer() async throws {
+            let expectCompletionCalled = Expectation()
+            typealias T = EffectTransducer
+            let observableTransducer = ObservableTransducer(
+                of: T.self,
+                initialState: .start,
+                proxy:  Proxy(initialEvent: .start), // !! we need to start
+                env: Void(),
+                completion: .init { result in
+                    MainActor.shared.assertIsolated()
+                    switch result {
+                    case .success:
+                        break
+                    case .failure(let error):
+                        Issue.record("Unexpected error: \(error)")
+                    }
+                    expectCompletionCalled.fulfill()
+                },
+            )
+            try await expectCompletionCalled.await(timeout: .seconds(10))
+            #expect(observableTransducer.isRunning == false)
+            #expect(observableTransducer.state == .finished)
+        }
+                
+        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+        @MainActor
+        @Test func testCompletionCalledEffectOutputTransducer() async throws {
+            let expectCompletionCalled = Expectation()
+            typealias T = EffectOutputTransducer
+            let observableTransducer = ObservableTransducer(
+                of: EffectOutputTransducer.self,
+                initialState: .start,
+                proxy:  Proxy(initialEvent: .start), // !! we need to start
+                env: Void(),
+                output: Callback { output in },
+                completion: .init { result in
+                    MainActor.shared.assertIsolated()
+                    switch result {
+                    case .success:
+                        break
+                    case .failure(let error):
+                        Issue.record("Unexpected error: \(error)")
+                    }
+                    expectCompletionCalled.fulfill()
+                },
+            )
+            try await expectCompletionCalled.await(timeout: .seconds(10))
+            #expect(observableTransducer.isRunning == false)
+            #expect(observableTransducer.state == .finished)
         }
     }
     
@@ -219,15 +394,19 @@ import Foundation
             let expectFailure = Expectation()
             
             // Create an ObservableTransducer with the cancellable transducer
-            let observableTransducer = ObservableTransducer<T>(
+            let observableTransducer = ObservableTransducer(
+                of: T.self,
                 initialState: .start,
-                completion: { _, _ in
-                    Issue.record("Transducer should not call the completion handler")
+                output: NoCallback(),
+                completion: .init { result in
+                    switch result {
+                    case .success:
+                        Issue.record("completion handler should not receive a success")
+                    case .failure(let error):
+                        #expect(error is TransducerError)  // Proxy cancelled.
+                        expectFailure.fulfill()
+                    }
                 },
-                failure: { error, _ in
-                    #expect(error is TransducerError)  // Proxy cancelled.
-                    expectFailure.fulfill()
-                }
             )
             
             // Ensure the transducer is running
@@ -298,12 +477,14 @@ import Foundation
                     // Create an ObservableTransducer and assign it to weak variable
                     let observableTransducer = ObservableTransducer<T>(
                         initialState: .start,
-                        completion: { value, isolated in
-                            Issue.record("Transducer should not call the completion handler")
-                        },
-                        failure: { error, _ in
-                            #expect(error is CancellationError)
-                            expectFailure.fulfill()
+                        completion: .init { result in
+                            switch result {
+                            case .success:
+                                Issue.record("completion handler should not receive a success")
+                            case .failure(let error):
+                                #expect(error is CancellationError)  // Task cancelled.
+                                expectFailure.fulfill()
+                            }
                         }
                     )
                     weakTransducer = observableTransducer
@@ -384,12 +565,14 @@ import Foundation
                                 break
                             }
                         },
-                        completion: { value, isolated in
-                            Issue.record("Transducer should not call the completion handler")
-                        },
-                        failure: { error, _ in
-                            #expect(error is CancellationError)
-                            expectFailure.fulfill()
+                        completion: .init { result in
+                            switch result {
+                            case .success:
+                                Issue.record("completion handler should not receive a success")
+                            case .failure(let error):
+                                #expect(error is CancellationError)  // Task cancelled.
+                                expectFailure.fulfill()
+                            }
                         }
                     )
                     
@@ -466,12 +649,14 @@ import Foundation
                     let observableTransducer = ObservableTransducer<T>.init(
                         initialState: .start,
                         env: env,
-                        completion: { isolated in
-                            Issue.record("Transducer should not call the completion handler")
-                        },
-                        failure: { error, _ in
-                            #expect(error is CancellationError)
-                            expectFailure.fulfill()
+                        completion: .init { result in
+                            switch result {
+                            case .success:
+                                Issue.record("completion handler should not receive a success")
+                            case .failure(let error):
+                                #expect(error is CancellationError)  // Task cancelled.
+                                expectFailure.fulfill()
+                            }
                         }
                     )
                     
@@ -496,102 +681,6 @@ import Foundation
             
             // The weak variable should become nil (actor deallocated)
             #expect(weakTransducer == nil)
-        }
-    }
-
-    @Suite struct CompletionTests {
-        
-        // Define a simple transducer that can terminate and produces output
-        enum TerminatingTransducer: Transducer {
-            enum State: Terminable, Equatable {
-                case start
-                case counting(Int)
-                case finished(Int)
-                
-                var isTerminal: Bool {
-                    if case .finished = self { return true }
-                    return false
-                }
-            }
-            enum Event {
-                case increment
-                case finish
-            }
-            static func update(_ state: inout State, event: Event) -> Int {
-                switch (state, event) {
-                case (.start, .increment):
-                    state = .counting(1)
-                    return 1
-                case (.counting(let count), .increment):
-                    let newCount = count + 1
-                    state = .counting(newCount)
-                    return newCount
-                case (.counting(let count), .finish):
-                    state = .finished(count)
-                    return count
-                case (.start, .finish):
-                    state = .finished(0)
-                    return 0
-                case (.finished(let count), _):
-                    return count // Already finished
-                }
-            }
-        }
-
-        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
-        @MainActor
-        @Test func testCompletionCallback() async throws {
-            let expectation = Expectation(minFulfillCount: 1)
-            let completionActor = CompletionActor()
-            
-            // Create an ObservableTransducer with completion callback
-            let observableTransducer = ObservableTransducer<TerminatingTransducer>(
-                initialState: .start,
-                completion: { output, _ in
-                    Task { @MainActor in
-                        await completionActor.setOutput(output)
-                        expectation.fulfill()
-                    }
-                }
-            )
-            
-            // Ensure the transducer is running
-            #expect(observableTransducer.isRunning == true)
-            #expect(observableTransducer.state == .start)
-            
-            // Send events to increment then finish
-            try observableTransducer.proxy.send(.increment)
-            try observableTransducer.proxy.send(.increment)
-            try observableTransducer.proxy.send(.finish)
-            
-            // Wait for completion
-            try await expectation.await(timeout: .seconds(1))
-            
-            // Give a brief moment for completion processing to finish and task cleanup
-            try await Task.sleep(nanoseconds: 50_000_000) // 50ms
-            
-            // Ensure the transducer is not running after completion
-            #expect(observableTransducer.isRunning == false)
-            
-            // Read the state and assert it matches expectation
-            #expect(observableTransducer.state == .finished(2))
-            
-            // Read the output and assert it matches expectation
-            let completionOutput = await completionActor.getOutput()
-            #expect(completionOutput == 2)
-        }
-        
-        // Helper actor to handle completion output safely
-        actor CompletionActor {
-            private var output: Int?
-            
-            func setOutput(_ value: Int) {
-                self.output = value
-            }
-            
-            func getOutput() -> Int? {
-                return output
-            }
         }
     }
     
@@ -763,8 +852,8 @@ import Foundation
 @MainActor
 struct ObservableTransducerTestsFallback {   
     @Test
-    func swiftUINotAvailable() async throws {
-        #expect(Bool(false), "ObservableTransducer tests requires Observation. Run from Xcode with a run destination which can import Observation to execute full ObservableTransducer test suite. This skip is expected when testing from command line.")
+    func notAvailableObervationFramework() async throws {
+        #expect(Bool(false), "ObservableTransducer tests requires the Observation framwork. Run from Xcode with a run destination which can import Observation to execute full ObservableTransducer test suite. This skip is expected when testing from command line.")
     }
 }
 #endif

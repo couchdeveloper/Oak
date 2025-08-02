@@ -1,9 +1,9 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
-/// A SwiftUI View that runs a transducer whose state will be provided by the
-/// view itself through a private `@State` variable.
-///
+/// A SwiftUI view that conforms to `TransducerActor`, enabling any view
+/// to act as a transducer actor with its `@State` properties as the FSM state.
+/// 
 /// When the view's body will be executed the very first time it creates a _transducer
 /// identity_, i.e. the life-cycle of a transducer. In other words, when the view appears
 /// the very first time it starts the transducer. This also associates the proxy given in
@@ -23,392 +23,124 @@ import SwiftUI
 /// managed through other means.
 ///
 /// > Tip: A `TransducerView` can be used as a replacement of an observable
-/// object and an associated SwiftUI view which holds this object in a `@State`
-/// variable.
-public struct TransducerView<State, Proxy: TransducerProxy, Content: View>: View {
+/// object, such as a "ViewModel".
+@MainActor
+public struct TransducerView<Transducer, Content>: View, @MainActor TransducerActor where Transducer: BaseTransducer, Content: View {
+    public typealias State = Transducer.State
+    public typealias Event = Transducer.Event
+    public typealias Output = Transducer.Output
+    public typealias Proxy = Transducer.Proxy
+    public typealias Input = Transducer.Proxy.Input
+    public typealias Storage = Binding<State>
     
-    @SwiftUI.State private var state: State
-    @SwiftUI.State private var isInitial = true
+    public struct Completion: @MainActor Oak.Completable {
+        public typealias Value = Output
+        public typealias Failure = Error
+        
+        let f: (Result<Value, Failure>) -> Void
+        
+        public init() {
+            f = { _ in }
+        }
+        public init(_ onCompletion: @escaping(Result<Value, Failure>) -> Void) {
+            f = onCompletion
+        }
+        public func completed(with result: Result<Value, Failure>) {
+            f(result)
+        }
+    }
 
-    let proxy: Proxy
-    let proxyCancellable: Proxy.AutoCancellation
-    let content: (State, Proxy.Input) -> Content
-    let runTransducer: @MainActor (Binding<State>, Proxy) -> Void
+    @SwiftUI.State private var state: State
+    @SwiftUI.State private var taskHolder: TaskHolder?
+
+    public let proxy: Proxy
     
-    private init(
+    private let completion: Completion
+    private let content: (State, Input) -> Content
+    private let runTransducerClosure: (Storage, Proxy, Completion, isolated any Actor) -> Task<Void, Never>
+    
+    /// Do not use this initialiser. This is a required initializer from TransducerActor protocol.
+    ///
+    /// This is the only method we need to implement. All convenience initializers come from
+    /// protocol extensions.
+    ///
+    /// > Warning: Do not call this initialiser directly. It's called internally by the other initialiser
+    /// overloads.
+    ///
+    /// - Parameters:
+    ///   - isolated: The isolation from the caller.
+    ///   - initialState: The start state of the transducer.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - runTransducer: A closure which will be immediately called when the actor will be initialised.
+    ///   It starts the transducer which runs in a Swift Task.
+    ///   - content: A closure which takes the current state and the input as parameters and
+    ///  returns a content. The content closure can be used to drive other components that
+    ///  provide an interface and controls.
+    ///
+    public init(
         initialState: State,
         proxy: Proxy,
-        content: @escaping (State, Proxy.Input ) -> Content,
-        runTransducer: @MainActor @escaping (Binding<State>, Proxy) -> Void
+        completion: Completion?,
+        runTransducer: @escaping (Binding<State>, Proxy, Completion, isolated any Actor) -> Task<Void, Never>,
+        content: @escaping (State, Input) -> Content
     ) {
-        self._state = .init(wrappedValue: initialState)
+        self._state = SwiftUI.State(wrappedValue: initialState)
         self.proxy = proxy
-        self.proxyCancellable = proxy.autoCancellation
+        self.completion = completion ?? Completion()
+        self.runTransducerClosure = runTransducer
         self.content = content
-        self.runTransducer = runTransducer
     }
     
-    /// Initialises a view, running a transducer which has an update function
-    /// with the signature `(inout State, Event) -> Void`.
-    ///
-    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
-    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
-    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
-    /// ignored.
-    ///
-    /// The closure parameter `send(_:)` of the viewBuilder function can fail when the event
-    /// could not successfully enqueued. Usually, this happens only in rare situations.
-    ///
-    /// - Parameters:
-    ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer. Default is `init()`.
-    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
-    ///   creates one.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - content: A viewBuilder function that has a parameter providing the current state and a
-    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
-    ///   view calls the `content` viewBuilder function whenever the state has changed so that the
-    ///   content view can update.
-    ///
-    /// ## Example
-    /// Given a transducer, `MyUseCase`, that conforms to `Transducer`, a transducer view can be
-    /// created by passing in the _type_ of the transducer and the content view can be created in the
-    /// traling closure as shown below:
-    ///
-    ///```swift
-    /// struct ContentView: View {
-    ///     var body: some View {
-    ///         TransducerView(of: MyUseCase.self) {
-    ///             content: { state, send in
-    ///                 GreetingView(
-    ///                     greeting: state.greeting,
-    ///                     send: send
-    ///                 )
-    ///             }
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    /// The below`GreetingView` view shows how to compose a content view
-    /// ```swift
-    /// struct GreetingView: View {
-    ///     let greeting: String
-    ///     let send: (Event) throws -> Void
-    ///
-    ///     var body: some View {
-    ///         VStack {
-    ///             Text(greeting)
-    ///         }
-    ///         Button("Submit") {
-    ///             send(.submit)
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    /// Each content view should have a _state_ constant and a `send` function. The state will
-    /// change whenever the transducer produces a new state. The send function is used by the
-    /// view to send user's intents (aka events) to the transducer.
-    ///
-    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
-    /// makes sense, since there's the transducer which solely exists to perform this computation.
-    /// A view may only manages its own private state when it is invariant of the given logic defined
-    /// by the transducer.
-    ///
-    /// > Tip: When the proxy value changes, the view will re-run the transducer with the given
-    /// initial value.
-    public init<T: Transducer>(
-        of type: T.Type = T.self,
-        initialState: State,
-        proxy: Proxy? = nil,
-        completion: ((T.Output) -> Void)? = nil,
-        @ViewBuilder content: @MainActor @escaping (
-            State,
-            Proxy.Input
-        ) -> Content
-    ) where T.State == State, T.Proxy == Proxy {
-        self.init(
-            initialState: initialState,
-            proxy: proxy ?? Proxy(),
-            content: content,
-            runTransducer: { (state: Binding<State>, proxy: Proxy) in
-                state.wrappedValue = initialState
-                _ = Task {
-                    do {
-                        let output = try await T.run(binding: state, proxy: proxy)
-                        completion?(output)
-                    } catch {
-                        logger.error("Transducer (\(proxy.id) failed: \(error)")
-                    }
-                }
-            }
-        )
-    }
-
-    /// Initialises a view, running a transducer which has an update function
-    /// with the signature `(inout State, Event) -> Output`.
-    ///
-    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
-    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
-    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
-    /// ignored.
-    ///
-    /// The closure parameter `send(_:)` of the viewBuilder function can fail when the event
-    /// could not successfully enqueued. Usually, this happens only in rare situations.
-    ///
-    /// - Parameters:
-    ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer. Default is `init()`.
-    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
-    ///   creates one.
-    ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
-    ///   output it produces. The `output` parameter is usually used to notify the parent view, for example
-    ///   via a `Binding` which can be directly used for the parameter `output`.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - content: A viewBuilder function that has a parameter providing the current state and a
-    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
-    ///   view calls the `content` viewBuilder function whenever the state has changed so that the
-    ///   content view can update.
-    ///
-    /// ## Example
-    /// Given a transducer, `MyUseCase`, that conforms to `Transducer`, a transducer view can be
-    /// created by passing in the _type_ of the transducer and the content view can be created in the
-    /// traling closure as shown below:
-    ///
-    ///```swift
-    /// struct ContentView: View {
-    ///     var body: some View {
-    ///         TransducerView(of: MyUseCase.self) {
-    ///             content: { state, send in
-    ///                 GreetingView(
-    ///                     greeting: state.greeting,
-    ///                     send: send
-    ///                 )
-    ///             }
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    /// The below`GreetingView` view shows how to compose a content view
-    /// ```swift
-    /// struct GreetingView: View {
-    ///     let greeting: String
-    ///     let send: (Event) throws -> Void
-    ///
-    ///     var body: some View {
-    ///         VStack {
-    ///             Text(greeting)
-    ///         }
-    ///         Button("Submit") {
-    ///             send(.submit)
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    /// Each content view should have a _state_ constant and a `send` function. The state will
-    /// change whenever the transducer produces a new state. The send function is used by the
-    /// view to send user's intents (aka events) to the transducer.
-    ///
-    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
-    /// makes sense, since there's the transducer which solely exists to perform this computation.
-    /// A view may only manages its own private state when it is invariant of the given logic defined
-    /// by the transducer.
-    ///
-    /// > Tip: When the proxy value changes, the view will re-run the transducer with the given
-    /// initial value.
-    public init<T: Transducer>(
-        of type: T.Type = T.self,
-        initialState: State,
-        proxy: Proxy? = nil,
-        output: some Subject<T.Output>,
-        completion: ((T.Output) -> Void)? = nil,
-        @ViewBuilder content: @MainActor @escaping (
-            State,
-            Proxy.Input
-        ) -> Content
-    ) where T.State == State, T.Proxy == Proxy {
-        self.init(
-            initialState: initialState,
-            proxy: proxy ?? Proxy(),
-            content: content,
-            runTransducer: { state, proxy in
-                state.wrappedValue = initialState
-                _ = Task {
-                    do {
-                        let output = try await T.run(
-                            binding: state,
-                            proxy: proxy,
-                            output: output,
-                        )
-                        completion?(output)
-                    } catch {
-                        logger.error("Transducer (\(proxy.id) failed: \(error)")
-                    }
-                }
-            }
-        )
-    }
-
-    /// Initialises a view, running a transducer which has an update function
-    /// with the signature `(inout State, Event) -> (Effect?, Output)`.
-    ///
-    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
-    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
-    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
-    /// ignored.
-    ///
-    /// The closure parameter `send(_:)` of the viewBuilder function can fail when the event
-    /// could not successfully enqueued. Usually, this happens only in rare situations.
-    ///
-    /// - Parameters:
-    ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer. Default is `init()`.
-    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
-    ///   creates one.
-    ///   - env: An environment value. The environment value will be passed as an argument to an `Effect`s' `invoke` function.
-    ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
-    ///   output it produces. The `output` parameter is usually used to notify the parent view, for example
-    ///   via a `Binding` which can be directly used for the parameter `output`.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - content: A viewBuilder function that has a parameter providing the current state and a
-    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
-    ///   view calls the `content` viewBuilder function whenever the state has changed so that the
-    ///   content view can update.
-    ///
-    /// Each content view should have a _state_ constant and a `send` function. The state will
-    /// change whenever the transducer produces a new state. The send function is used by the
-    /// view to send user's intents (aka events) to the transducer.
-    ///
-    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
-    /// makes sense, since there's the transducer which solely exists to perform this computation.
-    /// A view may only manages its own private state when it is invariant of the given logic defined
-    /// by the transducer.
-    ///
-    /// > Tip: When the proxy value changes, the view will re-run the transducer with the given
-    /// initial value.
-    public init<T: EffectTransducer>(
-        of type: T.Type = T.self,
-        initialState: State,
-        proxy: Proxy? = nil,
-        env: T.Env,
-        output: some Subject<T.Output>,
-        completion: ((T.Output) -> Void)? = nil,
-        @ViewBuilder content: @MainActor @escaping (
-            State,
-            Proxy.Input
-        ) -> Content
-    ) where T.State == State, T.Proxy == Proxy, T.TransducerOutput == (T.Effect?, T.Output) {
-        self.init(
-            initialState: initialState,
-            proxy: proxy ?? Proxy(),
-            content: content,
-            runTransducer: { state, proxy in
-                state.wrappedValue = initialState
-                _ = Task {
-                    do {
-                        let output = try await T.run(
-                            binding: state,
-                            proxy: proxy,
-                            env: env,
-                            output: output
-                        )
-                        completion?(output)
-                    } catch {
-                        logger.error("Transducer (\(proxy.id) failed: \(error)")
-                    }
-                }
-            }
-        )
-    }
-
-    /// Initialises a view, running a transducer which has an update function
-    /// with the signature `(inout State, Event) -> Effect?`.
-    ///
-    /// The transducer's life-time (i.e. its _identity_) is bound to the view's life-time. If the view will be
-    /// desroyed before the transducer will be terminated, it will be forcibly terminated. If the transducer will
-    /// be terminated, before the view will be destroyed user interactions send to the transducer will be
-    /// ignored.
-    ///
-    /// The closure parameter `send(_:)` of the viewBuilder function can fail when the event
-    /// could not successfully enqueued. Usually, this happens only in rare situations.
-    ///
-    /// - Parameters:
-    ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer. Default is `init()`.
-    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
-    ///   creates one.
-    ///   - env: An environment value. The environment value will be passed as an argument to
-    ///   an `Effect`s' `invoke` function.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully.
-    ///   - content: A viewBuilder function that has a parameter providing the current state and a
-    ///   closure with which the view can send events ("user intents") to the transducer. The transducer
-    ///   view calls the `content` viewBuilder function whenever the state has changed so that the
-    ///   content view can update.
-    ///
-    /// Each content view should have a _state_ constant and a `send` function. The state will
-    /// change whenever the transducer produces a new state. The send function is used by the
-    /// view to send user's intents (aka events) to the transducer.
-    ///
-    /// Basically, a content view should be _a function of state_, i.e. it itself performs no logic. This
-    /// makes sense, since there's the transducer which solely exists to perform this computation.
-    /// A view may only manages its own private state when it is invariant of the given logic defined
-    /// by the transducer.
-    ///
-    /// > Tip: When the proxy value changes, the view will re-run the transducer with the given
-    /// initial value.
-    public init<T: EffectTransducer>(
-        of type: T.Type = T.self,
-        initialState: State,
-        proxy: Proxy? = nil,
-        env: T.Env,
-        completion: (() -> Void)? = nil,
-        @ViewBuilder content: @MainActor @escaping (
-            State,
-            Proxy.Input
-        ) -> Content
-    ) where T.State == State, T.Proxy == Proxy, T.TransducerOutput == T.Effect?, T.Output == Void {
-        self.init(
-            initialState: initialState,
-            proxy: proxy ?? Proxy(),
-            content: content,
-            runTransducer: { @MainActor state, proxy in
-                state.wrappedValue = initialState
-                _ = Task {
-                    do {
-                        _ = try await T.run(
-                            binding: state,
-                            proxy: proxy,
-                            env: env
-                        )
-                        completion?()
-                    } catch {
-                        logger.error("Transducer (\(proxy.id) failed: \(error)")
-                    }
-                }
-            }
-        )
-    }
-
     public var body: some View {
-        VStack {
-            content(state, proxy.input)
-        }
-        .onChange(of: proxy, perform: { [proxy] newProxy in
-            proxy.cancel()
-            runTransducer($state, newProxy)
-        })
-        .task {
-            let proxy = self.proxy
-            if isInitial {
-                isInitial = false
-                runTransducer($state, proxy)
+        content(state, proxy.input)
+        .onAppear {
+            if taskHolder == nil {
+                // TODO: in the completion, reset the taskHolder
+                let transducerTask = runTransducerClosure($state, proxy, completion, MainActor.shared)
+                self.taskHolder = TaskHolder(transducerTask)
+                Task {
+                    _ = await transducerTask.value
+                    self.taskHolder = nil
+                }
             }
+        }
+    }
+    
+    public func cancel() {
+        proxy.cancel()
+        taskHolder?.task.cancel()
+    }
+}
+
+extension TransducerView {
+    final class TaskHolder {
+        init(_ task: Task<Void, Never>) {
+            self.task = task
+        }
+        let task: Task<Void, Never>
+        deinit {
+            task.cancel()
         }
     }
 }
+
+// MARK: - Shared TransducerActor Protocol Extensions
+//
+// Both ObservableTransducer and ActorTransducerView leverage the same protocol extensions:
+//
+// For Transducer types:
+// - init(initialState:proxy:completion:failure:) 
+// - init(initialState:proxy:output:completion:failure:)
+//
+// For EffectTransducer types:
+// - init(initialState:proxy:env:output:completion:failure:)
+// - init(initialState:proxy:env:completion:failure:)
+//
+// This demonstrates the power of protocol-oriented design - both ObservableTransducer
+// and ActorTransducerView share the same initialization logic through protocol extensions.
+
+
 
 #if DEBUG
 
@@ -434,7 +166,7 @@ fileprivate enum A: Transducer {
     static func update(
         _ state: inout State,
         event: Event
-    ) -> Void {
+    ) {
         switch (event, state) {
         case (.buttonTapped, .start(var events)):
             events.append(event)
@@ -444,13 +176,18 @@ fileprivate enum A: Transducer {
     
 }
 
-#Preview("TransducerView A") {
+#Preview("Basic TransducerView") {
+    
+    TransducerView(of: A.self, initialState: .init()) { state, input in
+        Text("TransducerView A")
+    }
     
     
     TransducerView(
         of: A.self,
         initialState: .init()
     ) { state, input in
+        Text("TransducerView B")
         VStack {
             Button("+") {
                 try? input.send(.buttonTapped)
@@ -550,7 +287,7 @@ extension Counters.Views {
                 of: Counters.self,
                 initialState: Counters.initialState,
                 proxy: Counters.Proxy(),
-                output: $output
+                output: $output,
             ) { state, input in
                 ContentView(
                     state: state,
@@ -609,17 +346,7 @@ extension Counters.Views {
     Counters.Views.ComponentView()
 }
 
-#if true
-struct RepeatView: View {
-    
-    final class Foo {
-        init() {
-            print("Foo init")
-        }
-        deinit {
-            print("Foo deinit")
-        }
-    }
+fileprivate struct RepeatView: View {
     
     enum T: Transducer {
         enum State: NonTerminal {
@@ -655,6 +382,7 @@ struct RepeatView: View {
                     let _ = Self._printChanges()
                     Text(verbatim: "\(state)")
                 }
+                .id(proxy.id)
                 .padding()
             }
             
@@ -685,7 +413,7 @@ struct RepeatView: View {
     RepeatView()
 }
 
-struct RepeatViewInSheet: View {
+fileprivate struct RepeatViewInSheet: View {
     @State var isPresented = false
     
     var body: some View {
@@ -705,7 +433,5 @@ struct RepeatViewInSheet: View {
 #Preview("RepeatViewInSheet") {
     RepeatViewInSheet()
 }
-#endif // RepeatView
-#endif // DEBUG
-#endif // canImport(SwiftUI)
-
+#endif
+#endif
