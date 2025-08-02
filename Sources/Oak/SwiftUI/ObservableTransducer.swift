@@ -10,11 +10,31 @@ public final class ObservableTransducer<Transducer>: @MainActor TransducerActor 
     public typealias Output = Transducer.Output
     public typealias Proxy = Transducer.Proxy
     public typealias Input = Transducer.Proxy.Input
-    
-    struct TransducerCancelledError: Error {}
-    
+    public typealias Content = Never
     public typealias Storage = UnownedReferenceKeyPathStorage<ObservableTransducer, State>
     
+    public struct Completion: @MainActor Oak.Completable {
+        public typealias Value = Output
+        public typealias Failure = Error
+        
+        let f: (Result<Value, Failure>) -> Void
+        
+        public init(_ onCompletion: @escaping(Result<Value, Failure>) -> Void) {
+            f = onCompletion
+        }
+        public func completed(with result: Result<Value, Failure>) {
+            f(result)
+        }
+        
+        func before(g: @escaping (Result<Value, Failure>) -> Result<Value, Failure>) -> Self {
+            .init { result in
+                self.f(g(result))
+            }
+        }
+    }
+
+    struct TransducerCancelledError: Error {}
+
     private(set) public var state: State
 
     @ObservationIgnored
@@ -23,40 +43,42 @@ public final class ObservableTransducer<Transducer>: @MainActor TransducerActor 
     @ObservationIgnored
     private var task: Task<Void, Never>?
     
-    /// Returns a transducer actor.
+    /// Required initializer from TransducerActor protocol.
     ///
-    /// > Caution: Do not call this initialiser directly. It's called internally by the other initialiser
+    /// This is the only method we need to implement. All convenience initializers come from
+    /// protocol extensions.
+    ///
+    /// > Warning: Do not call this initialiser directly. It's called internally by the other initialiser
     /// overloads.
     ///
     /// - Parameters:
-    ///  - isolated: The isolation from the caller.
-    ///  - initialState: The start state of the transducer.
-    ///  - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   - isolated: The isolation from the caller.
+    ///   - initialState: The start state of the transducer.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
-    ///  - runTransducer: A closure which will be immediately called when the actor will be initialised.
+    ///   - runTransducer: A closure which will be immediately called when the actor will be initialised.
     ///   It starts the transducer which runs in a Swift Task.
     ///
     public init(
         initialState: State,
         proxy: Proxy,
-        runTransducer: (
-            UnownedReferenceKeyPathStorage<ObservableTransducer, State>,
-            Proxy,
-            isolated any Actor
-        ) -> Task<Void, Never>
+        completion: Completion? = nil,
+        runTransducer: (Storage, Proxy, Completion, isolated any Actor) -> Task<Void, Never>,
+        content: (State, Input) -> Content
     ) {
         self.proxy = proxy
         self.state = initialState
-        let transducerTask = runTransducer(
+        let completion = completion?.before { [weak self] in
+            self?.task = nil
+            return $0
+        } ?? Completion { [weak self] _ in self?.task = nil }
+                
+        self.task = runTransducer(
             .init(host: self, keyPath: \.state),
             proxy,
+            completion,
             MainActor.shared
         )
-        self.task = transducerTask
-        Task { [weak self] in
-            _ = await transducerTask.value
-            self?.task = nil
-        }
     }
     
     public var isRunning: Bool {
@@ -75,6 +97,7 @@ public final class ObservableTransducer<Transducer>: @MainActor TransducerActor 
     deinit {
         task?.cancel()
     }
+    
 }
 
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
