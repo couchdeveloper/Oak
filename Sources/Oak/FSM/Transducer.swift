@@ -156,6 +156,7 @@ extension Transducer {
         var result: Output? = nil
         do  {
             loop: for try await event in stream {
+                try Task.checkCancellation()
                 let outputValue = Self.update(&storage.value, event: event)
                 try await output.send(outputValue, isolated: systemActor)
                 try Task.checkCancellation()

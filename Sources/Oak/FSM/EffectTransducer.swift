@@ -134,6 +134,7 @@ extension EffectTransducer {
         events.reserveCapacity(4)
         do {
             loop: for try await event in stream {
+                try Task.checkCancellation()
                 var outputValue: Output?
                 var nextEvent: Event? = event
                 while let event = nextEvent {
@@ -248,6 +249,7 @@ extension EffectTransducer {
         events.reserveCapacity(4)
         do {
             loop: for try await event in stream {
+                try Task.checkCancellation()
                 var nextEvent: Event? = event
                 while let event = nextEvent {
                     let effect = Self.update(&storage.value, event: event)
