@@ -490,7 +490,7 @@ struct TransducerViewTests {
     
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
-    func inputEventsReachTransducerUsingAsyncProxy() async throws {
+    func inputEventsReachTransducerUsingSyncSuspendingProxy() async throws {
         enum Output {
             case receivedEvent(String)
         }
@@ -508,7 +508,7 @@ struct TransducerViewTests {
                 return .receivedEvent("")
             }
             
-            typealias Proxy = Oak.AsyncProxy<Event>
+            typealias Proxy = Oak.SyncSuspendingProxy<Event>
         }
         
         var receivedEvents: [String] = []
@@ -539,9 +539,9 @@ struct TransducerViewTests {
         let (_, window) = await embedInWindowAndMakeKey(view)
 
         // Note:
-        // When explicitly defining the Proxy type `Oak.AsyncProxy<Event>`
-        // in the `EventTransducer`, we are using an `AsyncProxy` for sending
-        // events into the system. This event delivery mechansism uses an async
+        // When explicitly defining the Proxy type `Oak.SyncSuspendingProxy<Event>`
+        // in the `EventTransducer`, we are using a `SyncSuspendingProxy` for sending
+        // events into the system. This event delivery mechanism uses an async
         // function to deliver the event that suspends until after the event
         // has been processed. This also includes being suspended until the
         // delivery of an output value (through a Subject) has been completed.

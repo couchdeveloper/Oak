@@ -1,3 +1,8 @@
+/// A protocol that abstracts different storage implementations for transducer state.
+///
+/// This protocol is used internally by the Oak framework to provide a unified interface
+/// for various storage types including local storage, KeyPath-based storage, and SwiftUI Bindings.
+/// Users typically won't interact with this protocol directly.
 public protocol Storage<Value> {
     associatedtype Value
     

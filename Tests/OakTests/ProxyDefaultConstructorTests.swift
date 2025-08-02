@@ -23,10 +23,10 @@ struct ProxyDefaultConstructorTests {
     }
     
     @Test
-    func asyncProxyHasDefaultConstructor() {
-        // Test that AsyncProxy also has default constructor
-        let asyncProxy = Oak.AsyncProxy<String>()
-        #expect(asyncProxy.id != UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
+    func syncSuspendingProxyHasDefaultConstructor() {
+        // Test that SyncSuspendingProxy also has default constructor
+        let syncSuspendingProxy = Oak.SyncSuspendingProxy<String>()
+        #expect(syncSuspendingProxy.id != UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
     }
     
     @Test
@@ -50,12 +50,12 @@ struct ProxyDefaultConstructorTests {
     }
     
     @Test 
-    func asyncProxyConstructorDoesNotHang() async throws {
-        // Just test that we can construct the async proxy without hanging
-        let asyncProxy = Oak.AsyncProxy<String>()
+    func syncSuspendingProxyConstructorDoesNotHang() async throws {
+        // Just test that we can construct the sync suspending proxy without hanging
+        let syncSuspendingProxy = Oak.SyncSuspendingProxy<String>()
         
         // Test that the proxy has a valid ID (non-nil UUID)
-        #expect(asyncProxy.id != UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
+        #expect(syncSuspendingProxy.id != UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
         
         // The test passes if we reach here without hanging on construction
         #expect(true)

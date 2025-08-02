@@ -47,7 +47,7 @@ public protocol BaseTransducer<Event> {
     /// a "fire & forget" style of event sending and also requires an internal
     /// event buffer. Sending may fail if the buffer is full.
     /// 
-    /// The other built-in proxy is `AsyncProxy<Event>`, which provides
+    /// The other built-in proxy is `SyncSuspendingProxy<Event>`, which provides
     /// an async interface for sending events. This interface suspends until
     /// the event has been processed. It does not require an internal event
     /// buffer and sending also cannot fail. This effectively implements
