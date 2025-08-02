@@ -118,6 +118,7 @@ extension EffectTransducer {
         if let initialOutputValue = initialOutputValueOrNil {
             try await output.send(initialOutputValue, isolated: systemActor)
         }
+        try Task.checkCancellation()
         if storage.value.isTerminal {
             if let initialOutputValue = initialOutputValueOrNil {
                 return initialOutputValue
@@ -158,6 +159,7 @@ extension EffectTransducer {
                     }
                     nextEvent = events.popLast()
                 }
+                try Task.checkCancellation()
                 if storage.value.isTerminal {
                     result = outputValue!
                     proxy.finish()
@@ -268,6 +270,7 @@ extension EffectTransducer {
                     }
                     nextEvent = events.popLast()
                 }
+                try Task.checkCancellation()
                 if storage.value.isTerminal {
                     proxy.finish()
                     break loop

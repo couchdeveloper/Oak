@@ -145,6 +145,7 @@ extension Transducer {
         if let initialOutputValue = initialOutputValueOrNil {
             try await output.send(initialOutputValue, isolated: systemActor)
         }
+        try Task.checkCancellation()
         if storage.value.isTerminal {
             if let initialOutputValue = initialOutputValueOrNil {
                 return initialOutputValue
@@ -157,6 +158,7 @@ extension Transducer {
             loop: for try await event in stream {
                 let outputValue = Self.update(&storage.value, event: event)
                 try await output.send(outputValue, isolated: systemActor)
+                try Task.checkCancellation()
                 if storage.value.isTerminal {
                     result = outputValue
                     proxy.finish()
