@@ -289,6 +289,54 @@ extension TransducerActor {
             content: content
         )
     }
+    
+    /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
+    /// signature `(inout State, Event) -> Output`.
+    ///
+    /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
+    /// and an `Observable` (aka `ObservableTransducer`) which conform to protocol
+    /// `TransducerActor` and thus are _transducer actors_.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
+    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
+    /// the transducer will be ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - initialState: The start state of the transducer.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
+    ///   actor creates one.
+    ///   - completion: A closure which will be called once when the transducer completed
+    ///   successfully returning the success value of the run function.
+    ///   - failure: A closure which will be called once when the transducer completed
+    ///   with a failure returning the failure value of the run function.
+    ///   - content: A closure which takes the current state and the input as parameters and
+    ///  returns a content. The content closure can be used to drive other components that
+    ///  provide an interface and controls.
+    ///
+    /// ## Examples
+    ///
+    /// ### Using a TransducerView
+    /// TODO
+    ///
+    public init(
+        of type: Transducer.Type = Transducer.self,
+        initialState: sending State,
+        proxy: Proxy? = nil,
+        completion: Completion? = nil,
+        content: @escaping (State, Input) -> Content
+    ) where Transducer: Oak.Transducer {
+        self.init(
+            of: type,
+            initialState: initialState,
+            proxy: proxy,
+            output: NoCallback(),
+            completion: completion,
+            content: content
+        )
+    }
+
 
 }
 
@@ -373,6 +421,58 @@ extension TransducerActor {
         )
     }
 
+    /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
+    /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
+    ///
+    /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
+    /// and an `Observable` (aka `ObservableTransducer`) which conform to protocol
+    /// `TransducerActor` and thus are _transducer actors_.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
+    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
+    /// the transducer will be ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - initialState: The start state of the transducer.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - env: An environment value. The environment value will be passed as an argument to an
+    ///   `Effect`s' `invoke` function.
+    ///   - completion: A closure which will be called once when the transducer completed
+    ///   successfully returning the success value of the run function.
+    ///   - failure: A closure which will be called once when the transducer completed
+    ///   with a failure returning the failure value of the run function.
+    ///   - content: A closure which takes the current state and the input as parameters and
+    ///  returns a content. The content closure can be used to drive other components that
+    ///  provide an interface and controls.
+    ///
+    /// ## Examples
+    ///
+    /// ### Using a TransducerView
+    /// TODO
+    ///
+    public init(
+        of type: Transducer.Type = Transducer.self,
+        initialState: State,
+        proxy: Proxy? = nil,
+        env: Transducer.Env,
+        completion: Completion? = nil,
+        content: @escaping (State, Input) -> Content
+    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output) {
+        self.init(
+            of: type,
+            initialState: initialState,
+            proxy: proxy,
+            env: env,
+            output: NoCallback(),
+            completion: completion,
+            content: content
+        )
+    }
+
+    
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> Self.Effect?`.
     ///
@@ -538,6 +638,48 @@ extension TransducerActor where Content == Never {
             content: { _, _ in fatalError("No content") }
         )
     }
+    
+    /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
+    /// signature `(inout State, Event) -> Output`.
+    ///
+    /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
+    /// and an `Observable` (aka `ObservableTransducer`) which conform to protocol
+    /// `TransducerActor` and thus are _transducer actors_.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
+    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
+    /// the transducer will be ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - initialState: The start state of the transducer.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - completion: A closure which will be called once when the transducer completed
+    ///   successfully returning the success value of the run function.
+    ///   - failure: A closure which will be called once when the transducer completed
+    ///   with a failure returning the failure value of the run function.
+    ///
+    /// ## Examples
+    ///
+    /// ### Using an ObservableTransducer
+    /// TODO
+    ///
+    public init(
+        of type: Transducer.Type = Transducer.self,
+        initialState: sending State,
+        proxy: Proxy? = nil,
+        completion: Completion? = nil,
+    ) where Transducer: Oak.Transducer {
+        self.init(
+            initialState: initialState,
+            proxy: proxy,
+            output: NoCallback(),
+            completion: completion,
+            content: { _, _ in fatalError("No content") }
+        )
+    }
 
 }
 
@@ -592,6 +734,52 @@ extension TransducerActor where Content == Never {
         )
     }
 
+    /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
+    /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
+    ///
+    /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
+    /// and an `Observable` (aka `ObservableTransducer`) which conform to protocol
+    /// `TransducerActor` and thus are _transducer actors_.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
+    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
+    /// the transducer will be ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - initialState: The start state of the transducer.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
+    ///   creates one.
+    ///   - env: An environment value. The environment value will be passed as an argument to an
+    ///   `Effect`s' `invoke` function.
+    ///   - completion: A closure which will be called once when the transducer completed
+    ///   successfully returning the success value of the run function.
+    ///   - failure: A closure which will be called once when the transducer completed
+    ///   with a failure returning the failure value of the run function.
+    ///
+    /// ## Examples
+    ///
+    /// ### Using an ObservableTransducer
+    /// TODO
+    ///
+    public init(
+        of type: Transducer.Type = Transducer.self,
+        initialState: State,
+        proxy: Proxy? = nil,
+        env: Transducer.Env,
+        completion: Completion? = nil,
+    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output) {
+        self.init(
+            initialState: initialState,
+            proxy: proxy,
+            env: env,
+            output: NoCallback(),
+            completion: completion,
+            content: { _, _ in fatalError("No content") }
+        )
+    }
+    
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> Self.Effect?`.
     ///

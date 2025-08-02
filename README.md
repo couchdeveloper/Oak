@@ -6,6 +6,7 @@ A type-safe, asynchronous finite state machine implementation for Swift, with po
 
 OAK provides a robust implementation of finite state machines (FSM), also known as finite state transducers (FST) for Swift applications. It enables you to model complex state transitions and side effects in a type-safe, testable, and maintainable way.
 
+
 ```swift
 // Simple, non-terminating counter state machine with async effects
 enum CounterTransducer: EffectTransducer {    
@@ -142,7 +143,6 @@ TransducerView(
 
 This supports a **"View only architecture"** where traditional artifacts like Model, ViewModel, Router, and Interactor are consolidated and implemented directly as SwiftUI views.
 
-## Installation
 
 ### Swift Package Manager
 
@@ -153,6 +153,21 @@ dependencies: [
 ```
 
 ## Quick Start
+
+### Install via Swift Package Manager
+In Xcode, select **File → Add Packages…** and enter:
+```
+https://github.com/couchdeveloper/Oak.git
+```
+or in your `Package.swift`:
+```swift
+dependencies: [
+  .package(url: "https://github.com/couchdeveloper/Oak.git", from: "0.15.0"),
+],
+targets: [
+  .target(name: "MyApp", dependencies: ["Oak"]),
+]
+```
 
 OAK uses **transducers** - finite state machines that process events and produce outputs. Here's how to create one in just a few steps:
 

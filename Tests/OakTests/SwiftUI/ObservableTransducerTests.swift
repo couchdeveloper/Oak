@@ -419,7 +419,7 @@ import Foundation
             
             // Use the proxy to cancel the running transducer
             observableTransducer.proxy.cancel()
-            try await expectFailure.await(nanoseconds: 1_000_000_000)
+            try await expectFailure.await(timeout: .seconds(10))
 
             // Ensure the transducer is not running after cancellation
             try await Task.sleep(nanoseconds: 1_000_000) // 1ms
@@ -590,8 +590,8 @@ import Foundation
                 }
                 // observableTransducer strong reference goes out of scope here
             }
-            try await expectFailure.await(timeout: .seconds(100000))
-            try await expectOutputThrows.await(timeout: .seconds(100000))
+            try await expectFailure.await(timeout: .seconds(10))
+            try await expectOutputThrows.await(timeout: .seconds(10))
             // Give time for deallocation
             try await Task.sleep(nanoseconds: 1_000_000) // 1ms
             
@@ -618,7 +618,7 @@ import Foundation
             enum SuspendedInActionTransducer: EffectTransducer {
                 enum State: NonTerminal { case start, active }
                 enum Event { case activate, tick }
-                struct Env {  let expectActionCalled = Expectation() }
+                struct Env { let expectActionCalled = Expectation() }
                 static func update(_ state: inout State, event: Event) -> Self.Effect? {
                     switch (state, event) {
                     case (.start, .activate):
@@ -640,10 +640,9 @@ import Foundation
             weak var weakTransducer: ObservableTransducer<T>?
             
             let expectFailure = Expectation()
+            let expectCompletionCalled = Expectation()
             let env = T.Env()
-
             Task {
-                let expectCallOutput = Expectation()
                 do {
                     // Create an ObservableTransducer and assign it to weak variable
                     let observableTransducer = ObservableTransducer<T>.init(
@@ -657,6 +656,7 @@ import Foundation
                                 #expect(error is CancellationError)  // Task cancelled.
                                 expectFailure.fulfill()
                             }
+                            expectCompletionCalled.fulfill()
                         }
                     )
                     
@@ -669,13 +669,13 @@ import Foundation
                     
                     // Send an event to activate the transducer
                     try? observableTransducer.proxy.send(.activate)
-                    try await expectCallOutput.await(timeout: .seconds(1))
+                    try await env.expectActionCalled.await(timeout: .seconds(1))
                     _ = observableTransducer
                 }
                 // observableTransducer strong reference goes out of scope here
             }
+            try await expectCompletionCalled.await(timeout: .seconds(10))
             try await expectFailure.await(timeout: .seconds(10))
-            try await env.expectActionCalled.await(timeout: .seconds(10))
             // Give time for deallocation
             try await Task.sleep(nanoseconds: 1_000_000) // 1ms
             
