@@ -1,6 +1,35 @@
 # OAK - Swift Finite State Machine Library
 
+[![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
+[![Platforms](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS%20%7C%20macCatalyst-brightgreen.svg)](https://swift.org)
+[![iOS 15.0+](https://img.shields.io/badge/iOS-15.0%2B-blue.svg)](https://developer.apple.com/ios/)
+[![macOS 12.0+](https://img.shields.io/badge/macOS-12.0%2B-blue.svg)](https://developer.apple.com/macos/)
+[![Swift Package Manager](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-brightgreen.svg)](https://github.com/apple/swift-package-manager)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 A type-safe, asynchronous finite state machine implementation for Swift, with powerful effect handling and SwiftUI integration.
+
+## 🚧 Development Status
+
+**Oak is currently in early development** and is actively evolving. While the library is well-tested and functional, please consider the following before using it in production:
+
+- **API Stability**: The public API may change between versions as we refine the design.
+- **Breaking Changes**: Expect potential breaking changes in minor version updates until v1.0.
+- **Documentation**: API documentation and guides are continuously being improved.
+- **Community**: We're building the ecosystem - your feedback and contributions are highly valued!
+
+**Perfect for:**
+- ✅ Prototyping and experimentation
+- ✅ Learning finite state machine concepts
+- ✅ Contributing to an innovative Swift library
+- ✅ Early adoption and providing feedback
+
+**Consider carefully for:**
+- ⚠️ Production applications requiring API stability
+- ⚠️ Projects with tight deadlines
+- ⚠️ Teams needing extensive documentation and tutorials
+
+We encourage developers to try Oak, provide feedback, and contribute to its evolution. Follow the repository for updates and join discussions in Issues!
 
 ## Overview
 
@@ -561,7 +590,7 @@ Oak makes state management explicit, predictable, and ergonomic while embracing 
 
 ## License
 
-Appache License (v2) - See LICENSE file for details
+Apache License (v2.0) - See LICENSE file for details
 
 ## Contributing
 
