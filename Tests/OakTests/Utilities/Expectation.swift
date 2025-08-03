@@ -1,15 +1,16 @@
 import os
+
 // Possibly use: https://github.com/swhitty/swift-mutex/blob/main/Sources/Mutex.swift
 
 @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 final class Expectation: Sendable {
-    
+
     enum Error: Swift.Error {
         case deinitalized
         case timeout
         case alreadyAwaited
     }
-    
+
     typealias Continuation = CheckedContinuation<Void, any Swift.Error>
 
     enum State {
@@ -22,18 +23,18 @@ final class Expectation: Sendable {
             Continuation,
             minFulfillCount: Int,
             fulfillCount: Int,
-            timeoutTask: Task<Void,Swift.Error>?
+            timeoutTask: Task<Void, Swift.Error>?
         )
         case fulfilled(minFulfillCount: Int, fulfillCount: Int)
         case rejected(any Swift.Error)
     }
-        
+
     let lock: OSAllocatedUnfairLock<State>
 
     init(minFulfillCount: Int = 1) {
         lock = .init(initialState: .start(minFulfillCount: minFulfillCount))
     }
-    
+
     var isFulfilled: Bool {
         return lock.withLock { state in
             if case .fulfilled = state {
@@ -43,7 +44,7 @@ final class Expectation: Sendable {
             }
         }
     }
-    
+
     func await(
         nanoseconds: UInt64
     ) async throws {
@@ -77,7 +78,7 @@ final class Expectation: Sendable {
 
                 case .rejected(let error):
                     continuation.resume(throwing: error)
-                
+
                 case .fulfilled(let minFulfillCount, let fulfillCount):
                     assert(fulfillCount >= minFulfillCount)
                     let newFulfillCount = fulfillCount - minFulfillCount
@@ -93,14 +94,14 @@ final class Expectation: Sendable {
                         )
                     }
                     continuation.resume()
-                
+
                 case .pending:
                     continuation.resume(throwing: Error.alreadyAwaited)
                 }
             }
         }
     }
-    
+
     func await<C: Clock>(
         timeout duration: C.Instant.Duration,
         tolerance: C.Instant.Duration? = nil,
@@ -144,7 +145,7 @@ final class Expectation: Sendable {
 
                 case .rejected(let error):
                     continuation.resume(throwing: error)
-                
+
                 case .fulfilled(let minFulfillCount, let fulfillCount):
                     assert(fulfillCount >= minFulfillCount)
                     let newFulfillCount = fulfillCount - minFulfillCount
@@ -160,14 +161,14 @@ final class Expectation: Sendable {
                         )
                     }
                     continuation.resume()
-                
+
                 case .pending:
                     continuation.resume(throwing: Error.alreadyAwaited)
                 }
             }
         }
     }
-        
+
     func await() async throws {
         try await withCheckedThrowingContinuation { (continuation: Continuation) in
             self.lock.withLock { state in
@@ -188,13 +189,13 @@ final class Expectation: Sendable {
                         fulfillCount: fulfillCount,
                         timeoutTask: nil
                     )
-                
+
                 case .rejected(let error):
                     continuation.resume(throwing: error)
-                
+
                 case .fulfilled(let minFulfillCount, let fulfillCount):
                     assert(fulfillCount >= minFulfillCount)
-                    let newFulfillCount = fulfillCount - minFulfillCount // consume minFulfillCount
+                    let newFulfillCount = fulfillCount - minFulfillCount  // consume minFulfillCount
                     if newFulfillCount >= minFulfillCount {
                         state = .fulfilled(
                             minFulfillCount: minFulfillCount,
@@ -207,7 +208,7 @@ final class Expectation: Sendable {
                         )
                     }
                     continuation.resume()
-                
+
                 case .pending:
                     continuation.resume(throwing: Error.alreadyAwaited)
                 }
@@ -231,7 +232,7 @@ final class Expectation: Sendable {
                         fulfillCount: 1
                     )
                 }
-                
+
             case .partiallyFulfilled(let minFulfillCount, let fulfillCount):
                 assert(fulfillCount < minFulfillCount)
                 let fulfillCount = fulfillCount + 1
@@ -246,12 +247,12 @@ final class Expectation: Sendable {
                         fulfillCount: fulfillCount
                     )
                 }
-                
+
             case .pending(let continuation, let minFulfillCount, let fulfillCount, let timeoutTask):
                 var newFulfillCount = fulfillCount + 1
                 if newFulfillCount >= minFulfillCount {
                     // fullfilled, we are going to resume the continuation
-                    newFulfillCount -= minFulfillCount // consume minFulfillCount
+                    newFulfillCount -= minFulfillCount  // consume minFulfillCount
                     timeoutTask?.cancel()
                     if newFulfillCount >= minFulfillCount {
                         state = .fulfilled(
@@ -275,21 +276,19 @@ final class Expectation: Sendable {
                         timeoutTask: timeoutTask
                     )
                 }
-                
+
             case .fulfilled(let minFulfillCount, let fulfillCount):
                 assert(fulfillCount >= minFulfillCount)
                 state = .fulfilled(
                     minFulfillCount: minFulfillCount,
                     fulfillCount: fulfillCount + 1
                 )
-            
+
             case .rejected:
                 return
             }
         }
     }
-
-    
 
     func fail(with error: any Swift.Error) {
         self.lock.withLock { state in
@@ -322,7 +321,6 @@ final class Expectation: Sendable {
     }
 }
 
-
 @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 extension Expectation: CustomStringConvertible {
     public var description: String {
@@ -336,7 +334,7 @@ extension Expectation: CustomStringConvertible {
         let description = self.lock.withLock { state in
             return "\(state)"
         }
-        
+
         return "Expectation <\(description)>"
     }
 }

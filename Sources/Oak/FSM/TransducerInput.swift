@@ -2,8 +2,8 @@
 ///
 /// ## Overview
 ///
-/// The `SyncSuspendingTransducerInput` protocol is a fundamental concept from classical finite state automaton 
-/// (FSA) theory, representing the input alphabet and event delivery mechanism. In FSA theory, inputs 
+/// The `SyncSuspendingTransducerInput` protocol is a fundamental concept from classical finite state automaton
+/// (FSA) theory, representing the input alphabet and event delivery mechanism. In FSA theory, inputs
 /// drive state transitions, making this protocol crucial for transducer operation.
 ///
 /// ## Key Features
@@ -24,7 +24,7 @@
 /// - **Shared safely**: No synchronization required for access
 ///
 /// ### Composable System Architecture
-/// The copyable, sendable nature makes it extremely handy for building and composing systems of 
+/// The copyable, sendable nature makes it extremely handy for building and composing systems of
 /// transducers where:
 /// - One transducer's output connects to another's input
 /// - Event distribution to multiple transducers
@@ -45,7 +45,7 @@
 /// struct ComposedSystem {
 ///     let processorInput: some SyncSuspendingTransducerInput<ProcessEvent>
 ///     let displayInput: some SyncSuspendingTransducerInput<DisplayEvent>
-///     
+///
 ///     func handleProcessorOutput(_ output: ProcessResult) async {
 ///         // Transform and forward to display transducer
 ///         await displayInput.send(.showResult(output))
@@ -59,7 +59,7 @@
 /// let sharedInput = transducer.input
 /// let inputCopy1 = sharedInput  // Safe to copy
 /// let inputCopy2 = sharedInput  // Each copy is independent
-/// 
+///
 /// // Use from different contexts
 /// Task { await inputCopy1.send(.event1) }
 /// Task { await inputCopy2.send(.event2) }
@@ -84,22 +84,21 @@
 ///
 public protocol SyncSuspendingTransducerInput<Event>: Sendable {
     associatedtype Event
-    
+
     /// Sends an event to the transducer.
-    /// 
+    ///
     /// - Parameter event: The event to be sent.
-    /// - Throws: An error if the event cannot be delivered, 
-    /// for example, the transducer is already terminated, or 
+    /// - Throws: An error if the event cannot be delivered,
+    /// for example, the transducer is already terminated, or
     /// the event buffer is full.
     func send(_ event: Event) async
 }
-
 
 /// Represents the buffered input interface for a transducer in a finite state machine (FSM).
 ///
 /// ## Overview
 ///
-/// `BufferedTransducerInput` provides a buffered, non-suspending input mechanism that contrasts with 
+/// `BufferedTransducerInput` provides a buffered, non-suspending input mechanism that contrasts with
 /// `SyncSuspendingTransducerInput`'s synchronous computation semantics.
 ///
 /// ### Execution Semantics: "Asynchronous and Non-Suspending"
@@ -161,7 +160,7 @@ public protocol SyncSuspendingTransducerInput<Event>: Sendable {
 ///
 public protocol BufferedTransducerInput<Event>: Sendable {
     associatedtype Event
-    
+
     /// Sends an event to the transducer.
     ///
     /// - Parameter event: The event to be sent.

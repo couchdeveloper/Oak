@@ -1,4 +1,5 @@
 import AsyncAlgorithms
+
 import struct Foundation.UUID
 
 /// `SyncSuspendingProxy` is a proxy that sends events into the system using
@@ -17,22 +18,22 @@ import struct Foundation.UUID
 /// consumers through utilising suspension.
 public struct SyncSuspendingProxy<Event: Sendable>: TransducerProxy {
     public let id: UUID = UUID()
-    
+
     enum Error: Swift.Error {
         case terminated
         case deinitialised
     }
-    
+
     public let stream: AsyncThrowingChannel<Event, Swift.Error>
-            
+
     public struct Input: SyncSuspendingTransducerInput {
         let channel: AsyncThrowingChannel<Event, Swift.Error>
-        
+
         public func send(_ event: Event) async {
             await channel.send(event)
         }
     }
-    
+
     public final class AutoCancellation: Sendable, Equatable {
         public static func == (lhs: AutoCancellation, rhs: AutoCancellation) -> Bool {
             lhs.id == rhs.id
@@ -45,7 +46,7 @@ public struct SyncSuspendingProxy<Event: Sendable>: TransducerProxy {
             stream = proxy.stream
             id = proxy.id
         }
-        
+
         deinit {
             stream.fail(SyncSuspendingProxy<Event>.Error.deinitialised)
         }
@@ -54,7 +55,7 @@ public struct SyncSuspendingProxy<Event: Sendable>: TransducerProxy {
     public init() {
         self.stream = .init()
     }
-        
+
     public func send(_ event: Event) async {
         await stream.send(event)
     }
@@ -64,19 +65,19 @@ public struct SyncSuspendingProxy<Event: Sendable>: TransducerProxy {
             await self.send(event())
         }
     }
-    
+
     public var input: Input {
         .init(channel: self.stream)
     }
-    
+
     public var autoCancellation: AutoCancellation {
         .init(proxy: self)
     }
-    
+
     public func cancel(with error: Swift.Error? = nil) {
         stream.fail(error ?? TransducerError.cancelled)
     }
-    
+
     public func finish() {
         stream.finish()
     }

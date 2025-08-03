@@ -2,7 +2,7 @@
 import SwiftUI
 
 extension Transducer {
-    
+
     /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///
@@ -74,7 +74,7 @@ extension Transducer {
             output: NoCallback<Output>(),
         )
     }
-    
+
     /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Void`.
     ///
@@ -109,4 +109,4 @@ extension Transducer {
 
 }
 
-#endif // canImport(SwiftUI)
+#endif  // canImport(SwiftUI)

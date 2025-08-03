@@ -2,7 +2,7 @@
 import SwiftUI
 
 extension EffectTransducer {
-    
+
     /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> (Effect?, Output)`.
     ///
@@ -49,7 +49,7 @@ extension EffectTransducer {
             systemActor: isolated
         )
     }
-    
+
     /// Runs a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Effect?`.
     ///
@@ -136,4 +136,4 @@ extension EffectTransducer {
     }
 }
 
-#endif // canImport(SwiftUI)
+#endif  // canImport(SwiftUI)

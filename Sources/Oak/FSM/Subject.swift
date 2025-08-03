@@ -1,4 +1,3 @@
-
 /// A type that can receive values and send it to a destination.
 ///
 /// ## Overview
@@ -20,7 +19,7 @@
 ///
 /// Additional implementations can include:
 ///
-/// - **AsyncStream**: Stream-based asynchronous value consumption  
+/// - **AsyncStream**: Stream-based asynchronous value consumption
 /// - **Combine Subject**: Integration with the Combine framework for reactive programming
 /// - **Custom Consumers**: Any type that needs to consume values from a transducer
 ///
@@ -52,7 +51,7 @@
 public protocol Subject<Value> {
     /// The type of the input value.
     associatedtype Value
-    
+
     /// Sends the value `value` to `Self`.
     ///
     /// Sends a value into the subject and suspends until it

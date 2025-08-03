@@ -4,7 +4,8 @@ import Observation
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 @Observable
 @MainActor
-public final class ObservableTransducer<Transducer>: @MainActor TransducerActor where Transducer: BaseTransducer {
+public final class ObservableTransducer<Transducer>: @MainActor TransducerActor
+where Transducer: BaseTransducer {
     public typealias State = Transducer.State
     public typealias Event = Transducer.Event
     public typealias Output = Transducer.Output
@@ -12,20 +13,20 @@ public final class ObservableTransducer<Transducer>: @MainActor TransducerActor 
     public typealias Input = Transducer.Proxy.Input
     public typealias Content = Never
     public typealias Storage = UnownedReferenceKeyPathStorage<ObservableTransducer, State>
-    
+
     public struct Completion: @MainActor Oak.Completable {
         public typealias Value = Output
         public typealias Failure = Error
-        
+
         let f: (Result<Value, Failure>) -> Void
-        
-        public init(_ onCompletion: @escaping(Result<Value, Failure>) -> Void) {
+
+        public init(_ onCompletion: @escaping (Result<Value, Failure>) -> Void) {
             f = onCompletion
         }
         public func completed(with result: Result<Value, Failure>) {
             f(result)
         }
-        
+
         func before(g: @escaping (Result<Value, Failure>) -> Result<Value, Failure>) -> Self {
             .init { result in
                 self.f(g(result))
@@ -39,10 +40,10 @@ public final class ObservableTransducer<Transducer>: @MainActor TransducerActor 
 
     @ObservationIgnored
     public let proxy: Proxy
-    
+
     @ObservationIgnored
     private var task: Task<Void, Never>?
-    
+
     /// Required initializer from TransducerActor protocol.
     ///
     /// This is the only method we need to implement. All convenience initializers come from
@@ -71,11 +72,12 @@ public final class ObservableTransducer<Transducer>: @MainActor TransducerActor 
     ) {
         self.proxy = proxy
         self.state = initialState
-        let completion = completion?.before { [weak self] in
-            self?.task = nil
-            return $0
-        } ?? Completion { [weak self] _ in self?.task = nil }
-                
+        let completion =
+            completion?.before { [weak self] in
+                self?.task = nil
+                return $0
+            } ?? Completion { [weak self] _ in self?.task = nil }
+
         self.task = runTransducer(
             .init(host: self, keyPath: \.state),
             proxy,
@@ -83,11 +85,11 @@ public final class ObservableTransducer<Transducer>: @MainActor TransducerActor 
             MainActor.shared
         )
     }
-    
+
     public var isRunning: Bool {
         task != nil
     }
-    
+
     public func cancel() {
         if let task = task {
             proxy.cancel()
@@ -95,12 +97,12 @@ public final class ObservableTransducer<Transducer>: @MainActor TransducerActor 
         }
         task = nil
     }
-    
+
     // TODO: in future, for Swift 6.2+ use isolated deinit.
     deinit {
         task?.cancel()
     }
-    
+
 }
 
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)

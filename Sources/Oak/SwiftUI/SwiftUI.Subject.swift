@@ -9,4 +9,4 @@ extension Binding: Subject {
         self.wrappedValue = value
     }
 }
-#endif // canImport(SwiftUI)
+#endif  // canImport(SwiftUI)

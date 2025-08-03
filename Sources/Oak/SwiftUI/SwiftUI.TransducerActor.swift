@@ -1,8 +1,7 @@
-
 import SwiftUI
 
 extension TransducerActor where Content: View {
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Void`.
     ///
@@ -89,10 +88,10 @@ extension TransducerActor where Content: View {
             content: viewContent
         )
     }
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
-    /// 
+    ///
     /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
     /// and an `Observable` (aka `ObservableTransducer`) which conform to protocol
     /// `TransducerActor` and thus are _transducer actors_.
@@ -182,7 +181,7 @@ extension TransducerActor where Content: View {
         )
     }
 
-    }
+}
 
 extension TransducerActor where Content: View {
 
@@ -226,7 +225,11 @@ extension TransducerActor where Content: View {
         output: sending some Subject<Output>,
         completion: Completion? = nil,
         @ViewBuilder viewContent: @escaping (State, Input) -> Content
-    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output) {
+    )
+    where
+        Transducer: Oak.EffectTransducer,
+        Transducer.TransducerOutput == (Transducer.Effect?, Output)
+    {
         self.init(
             of: type,
             initialState: initialState,
@@ -237,7 +240,7 @@ extension TransducerActor where Content: View {
             content: viewContent
         )
     }
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
     ///
@@ -275,7 +278,11 @@ extension TransducerActor where Content: View {
         env: Transducer.Env,
         completion: Completion? = nil,
         @ViewBuilder viewContent: @escaping (State, Input) -> Content
-    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output) {
+    )
+    where
+        Transducer: Oak.EffectTransducer,
+        Transducer.TransducerOutput == (Transducer.Effect?, Output)
+    {
         self.init(
             of: type,
             initialState: initialState,
@@ -323,7 +330,11 @@ extension TransducerActor where Content: View {
         env: Transducer.Env,
         completion: Completion? = nil,
         @ViewBuilder viewContent: @escaping (State, Input) -> Content
-    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?, Output == Void {
+    )
+    where
+        Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?,
+        Output == Void
+    {
         self.init(
             of: type,
             initialState: initialState,

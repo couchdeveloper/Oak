@@ -5,7 +5,7 @@
 ///  handled by the closure.
 public struct Callback<Value>: Subject {
     let fn: @Sendable @isolated(any) (sending Value) async throws -> Void
-    
+
     /// Initialises a `Callback` value with the given isolated throwing closure.
     ///
     /// - Parameter fn: An async throwing closure which will be called when `Self`
@@ -17,7 +17,10 @@ public struct Callback<Value>: Subject {
     /// Send a value to `Self` which calls its callback clouser with the argument `value`.
     /// - Parameter value: The value which is used as the argument to the callback closure.
     /// - Parameter isolated: The "system actor" where this function is being called on.
-    public func send(_ value: sending Value, isolated: isolated any Actor = #isolation) async throws {
+    public func send(
+        _ value: sending Value,
+        isolated: isolated any Actor = #isolation
+    ) async throws {
         try await fn(value)
     }
 }
@@ -28,5 +31,8 @@ extension Callback: Sendable where Value: Sendable {}
 public struct NoCallback<Value>: Subject {
     public init() {}
     /// Sending the value has no effect.
-    public func send(_ value: sending Value, isolated: isolated any Actor = #isolation) async {}
+    public func send(
+        _ value: sending Value,
+        isolated: isolated any Actor = #isolation
+    ) async {}
 }

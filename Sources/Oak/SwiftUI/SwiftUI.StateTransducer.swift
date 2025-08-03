@@ -3,7 +3,7 @@ import SwiftUI
 import Observation
 import Combine
 
-#if false // StateTransducer
+#if false  // StateTransducer
 /// A property wrapper type that instantiates a finite state transducer whose
 /// state is observable.
 ///
@@ -178,8 +178,9 @@ import Combine
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 @MainActor
 @propertyWrapper
-public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty where T.State: Sendable {
-    
+public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty
+where T.State: Sendable {
+
     // An alternative implementation which does not require the Observation
     // framework would have a `@State` property for the `State` value and
     // use a OnceFSA which can access it through a Binding. This will also
@@ -187,9 +188,9 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
     // The caveat with this approach is that the initialisation of the state
     // variable will be a side effect which will be executed every time the
     // StateTransducer property will be constructed.
-        
+
     @State private var once: OnceFSA<T>
-    
+
     /// Creates a new state transducer with an initial start state whose update
     /// function has the signature `(inout State, Event) -> Output`
     ///
@@ -197,7 +198,7 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
     /// calls it for you when you declare a property with the `@StateTransducer`
     /// attribute in an ``App``, ``Scene``, or ``View`` and provide an initial
     /// value:
-    /// 
+    ///
     ///     struct MyView: View {
     ///         @StateTransducer private var counter(
     ///             of: Counters.self
@@ -205,30 +206,30 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
     ///
     ///         // ...
     ///     }
-    /// 
+    ///
     /// SwiftUI creates only one instance of the state transducer for each
     /// container instance that you declare. In the above code, SwiftUI
     /// creates `counter` only the first time it initializes a particular
     /// instance of `MyView`. On the other hand, each instance of `MyView`
     /// creates a distinct instance of the data model. For example, each of
     /// the views in the following ``VStack`` has its own transducer:
-    /// 
+    ///
     ///     var body: some View {
     ///         VStack {
     ///             MyView()
     ///             MyView()
     ///         }
     ///     }
-    /// 
+    ///
     /// ### Initialize using external data
-    /// 
+    ///
     /// If the initial state of a state transducer depends on external data, you can
     /// call this initializer directly. However, use caution when doing this,
     /// because SwiftUI only initializes the object once during the lifetime of
     /// the view --- even if you call the state transducer initializer more than
     /// once --- which might result in unexpected behavior. For more information
     /// and an example, see ``StateTransducer``.
-    /// 
+    ///
     /// - Parameters:
     ///   - initialState: The initial state of the trsansducer. The initials state value should be a valid start state.
     ///   - of: The type of the transducer.
@@ -249,7 +250,7 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
         }
         self._once = .init(wrappedValue: OnceFSA(thunk: thunk))
     }
-        
+
     /// Creates a new state transducer with an initial start state whose update
     /// function has the signature `(inout State, Event) -> (Effect?, Output)`
     ///
@@ -312,7 +313,7 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
         }
         self._once = .init(wrappedValue: OnceFSA(thunk: thunk))
     }
-    
+
     /// Creates a new state transducer with an initial start state whose update
     /// function has the signature `(inout State, Event) -> Effect?`
     ///
@@ -372,7 +373,6 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
         }
         self._once = .init(wrappedValue: OnceFSA(thunk: thunk))
     }
-        
 
     public func update() {
         once()
@@ -387,7 +387,7 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
     public var output: some Publisher<T.Output, Never> {
         once.output
     }
-    
+
     /// The proxy for the transducer.
     public var proxy: T.Proxy {
         once.proxy
@@ -414,7 +414,7 @@ public struct StateTransducer<T: Transducer>: @preconcurrency DynamicProperty wh
 
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension StateTransducer where T.State: DefaultInitializable {
-    
+
     /// Creates a new state transducer with an initial start state whose update
     /// function has the signature `(inout State, Event) -> Output`
     /// with the initial start value given by the default init function `init()`.
@@ -469,7 +469,7 @@ extension StateTransducer where T.State: DefaultInitializable {
             initialOutput: initialOutput
         )
     }
-    
+
     /// Creates a new state transducer with an initial start state whose update
     /// function has the signature `(inout State, Event) -> (Effect?, Output)`
     /// with the initial start value given by the default init function `init()`.
@@ -527,7 +527,7 @@ extension StateTransducer where T.State: DefaultInitializable {
             initialOutput: initialOutput
         )
     }
-    
+
     /// Creates a new state transducer with an initial start state whose update
     /// function has the signature `(inout State, Event) -> Effect?`
     /// with the initial start value given by the default init function `init()`.
@@ -582,7 +582,7 @@ extension StateTransducer where T.State: DefaultInitializable {
             env: env
         )
     }
-    
+
 }
 
 // MARK: - Internal
@@ -604,17 +604,16 @@ extension Callback {
     }
 }
 
-
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 @MainActor
 final class OnceFSA<T: Transducer> {
     private var thunk: (() -> FSA<T>)?
     private var fsa: FSA<T>!
-    
+
     init(thunk: @escaping () -> FSA<T>) {
         self.thunk = thunk
     }
-    
+
     var state: T.State {
         fsa.state
     }
@@ -638,9 +637,9 @@ final class OnceFSA<T: Transducer> {
 @Observable
 @MainActor
 final class FSA<T: Transducer> {
-    
+
     private(set) var state: T.State
-    
+
     @ObservationIgnored
     let proxy: T.Proxy
     @ObservationIgnored
@@ -670,7 +669,7 @@ final class FSA<T: Transducer> {
             )
         }
     }
-    
+
     init(
         initialState: T.State,
         proxy: T.Proxy,
@@ -692,7 +691,7 @@ final class FSA<T: Transducer> {
             )
         }
     }
-    
+
     init(
         initialState: T.State,
         proxy: T.Proxy,
@@ -711,7 +710,7 @@ final class FSA<T: Transducer> {
             )
         }
     }
-    
+
     deinit {
         continuation.finish(throwing: ProxyTerminationError())
     }
@@ -724,25 +723,24 @@ extension FSA where T.Output: Sendable {
     }
 }
 
-
 // MARK: - Testing
 
 #if DEBUG
 
-fileprivate enum Counters {}
+private enum Counters {}
 
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension Counters: Transducer {
 
     enum State: Terminable, DefaultInitializable {
         init() { self = .start }
-        
+
         case start
         case counting(counter: Int)
         case terminated(counter: Int)
-        
+
         var isTerminal: Bool { if case .terminated = self { true } else { false } }
-        
+
         var value: Int {
             switch self {
             case .start:
@@ -752,15 +750,15 @@ extension Counters: Transducer {
             }
         }
     }
-    
+
     enum Event {
         case intentPlus
         case intentMinus
         case done
     }
-    
+
     typealias Output = Int
-        
+
     static func update(
         _ state: inout State,
         event: Event
@@ -769,7 +767,7 @@ extension Counters: Transducer {
         defer {
             print("-> state: \(state)")
         }
-        
+
         switch (event, state) {
         case (.intentPlus, .start):
             state = .counting(counter: 1)
@@ -805,11 +803,10 @@ extension Counters: Transducer {
     }
 }
 
-
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 struct CounterView: View {
     @StateTransducer(of: Counters.self) private var counter
-    
+
     var body: some View {
         VStack {
             Text(verbatim: "state: \(counter)")
@@ -836,7 +833,7 @@ struct CounterView: View {
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 struct CounterView2: View {
     @StateTransducer<Counters> private var counter: Counters.State
-    
+
     fileprivate init(initialState: Counters.State) {
         // SwiftUI ensures that the following initialization uses the
         // closure only once during the lifetime of the view, so
@@ -860,9 +857,8 @@ struct CounterView2: View {
     CounterView2(initialState: .counting(counter: 5))
 }
 
-#endif // DEBUG
+#endif  // DEBUG
 
 #endif
 
-#endif // canImport(SwiftUI) && canImport(Combine) && canImport(Observation)
-
+#endif  // canImport(SwiftUI) && canImport(Combine) && canImport(Observation)
