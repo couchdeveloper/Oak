@@ -5,7 +5,7 @@
 [![iOS 15.0+](https://img.shields.io/badge/iOS-15.0%2B-blue.svg)](https://developer.apple.com/ios/)
 [![macOS 12.0+](https://img.shields.io/badge/macOS-12.0%2B-blue.svg)](https://developer.apple.com/macos/)
 [![Swift Package Manager](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-brightgreen.svg)](https://github.com/apple/swift-package-manager)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 A type-safe, asynchronous finite state machine implementation for Swift, with powerful effect handling and SwiftUI integration.
 
@@ -590,7 +590,7 @@ Oak makes state management explicit, predictable, and ergonomic while embracing 
 
 ## License
 
-Appache License (v2) - See LICENSE file for details
+Apache License (v2.0) - See LICENSE file for details
 
 ## Contributing
 
