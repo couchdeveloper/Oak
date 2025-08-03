@@ -59,6 +59,7 @@ public protocol Subject<Value> {
     /// is successfully delivered to the destination.
     ///
     /// - Parameter value: The value which should be send to the destination.
+    /// - Parameter isolated: The actor isolation context for the send operation.
     /// - Throws: When the value could not be delivered to the destination, it throws an error.
     func send(_ value: sending Value, isolated: isolated any Actor) async throws
 }

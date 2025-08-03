@@ -91,7 +91,6 @@ extension Transducer {
     ///   SwiftUI view.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
     ///   - isolated: The actor where the `update` function will run on and where the state
-    /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
     /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
     /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could

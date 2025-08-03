@@ -470,8 +470,6 @@ extension EffectTransducer {
     ///   when running the transducer. The default value `#isolation` uses the 
     ///   current actor context.
     /// 
-    /// - Returns: The final output produced by the transducer when the state
-    ///   becomes terminal.
     /// - Throws: An error if the transducer cannot execute its transition and
     ///   output function as expected. For example, if the initial state is
     ///   terminal, or if no output is produced, or when events could not be
