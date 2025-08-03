@@ -1,9 +1,9 @@
-import SwiftUI
 import Oak
 import Observation
+import SwiftUI
 
 enum Counters: Transducer {
-    
+
     enum State: Terminable {
         case idle(value: Int)
         case finished(value: Int)
@@ -15,18 +15,18 @@ enum Counters: Transducer {
         }
         var value: Int {
             switch self {
-            case .idle(value: let value), .finished(value: let value):
+            case .idle(let value), .finished(let value):
                 return value
             }
         }
     }
-    
+
     enum Event {
         case intentPlus
         case intentMinus
         case done
     }
-    
+
     static func update(_ state: inout State, event: Event) {
         switch (state, event) {
         case (.idle(let value), .intentPlus):

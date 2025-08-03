@@ -1,4 +1,3 @@
-
 /// A type which observes a completion notification.
 ///
 /// A completion value is used as a parameter and set by the caller when

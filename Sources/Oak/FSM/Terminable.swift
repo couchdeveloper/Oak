@@ -24,7 +24,7 @@
 ///     case processing
 ///     case completed  // Terminal state
 ///     case failed     // Terminal state
-///     
+///
 ///     var isTerminal: Bool {
 ///         switch self {
 ///         case .completed, .failed:
@@ -69,7 +69,6 @@ public protocol Terminable {
 extension Terminable {
 }
 
-
 /// A convenience protocol for states that are never terminal.
 ///
 /// ## Overview
@@ -98,7 +97,7 @@ extension Terminable {
 ///     case loading
 ///     case displaying(content: String)
 ///     case editing
-///     
+///
 ///     var isTerminal: Bool { false }
 /// }
 /// ```

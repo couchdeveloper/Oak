@@ -4,48 +4,51 @@ import SwiftUI
 import AppKit
 import Oak
 
-/**
- * Comprehensive unit tests for TransducerView to verify:
- * - Lifecycle management (initialization, termination)
- * - State binding and updates
- * - Input handling and event propagation
- * - Output subject management
- * - Error handling scenarios
- * - Proxy lifecycle coordination
- *
- * Testing Strategy:
- * SwiftUI views cannot be tested in isolation as they lack the necessary environment
- * and lifecycle. Therefore, we wrap each TransducerView in a UIHostingController
- * following conventional wisdom for testing UIViewController functional parts.
- * This provides the proper SwiftUI hosting environment for realistic testing.
- */
+/// Comprehensive unit tests for TransducerView to verify:
+/// - Lifecycle management (initialization, termination)
+/// - State binding and updates
+/// - Input handling and event propagation
+/// - Output subject management
+/// - Error handling scenarios
+/// - Proxy lifecycle coordination
+///
+/// Testing Strategy:
+/// SwiftUI views cannot be tested in isolation as they lack the necessary environment
+/// and lifecycle. Therefore, we wrap each TransducerView in a UIHostingController
+/// following conventional wisdom for testing UIViewController functional parts.
+/// This provides the proper SwiftUI hosting environment for realistic testing.
 @MainActor
 struct TransducerViewTests {
-    
+
     // MARK: - Test Helpers
-    
+
     /// Helper function to properly host a SwiftUI view for testing
-    func embedInWindowAndMakeKey<V: View>(_ view: V) async -> (NSHostingController<AnyView>, NSWindow) {
+    func embedInWindowAndMakeKey<V: View>(
+        _ view: V
+    ) async -> (
+        NSHostingController<AnyView>, NSWindow
+    ) {
         var hostingController: NSHostingController<AnyView>?
         var window: NSWindow?
         await withCheckedContinuation({ continuation in
             hostingController = NSHostingController(
-                rootView: AnyView(view.onAppear {
-                    continuation.resume()
-                })
+                rootView: AnyView(
+                    view.onAppear {
+                        continuation.resume()
+                    })
             )
             window = NSWindow(contentViewController: hostingController!)
             window!.makeKeyAndOrderFront(nil)
         })
         return (hostingController!, window!)
     }
-    
+
     func cleanupView(_ window: NSWindow) {
         window.orderOut(nil)
     }
-    
+
     // MARK: - Lifecycle Management Tests
-    
+
     @Test
     func bodyRunsOnceOnFirstRender() async throws {
 
@@ -53,7 +56,7 @@ struct TransducerViewTests {
             case none
             case started
         }
-                
+
         enum TestTransducer: Transducer {
             enum State: NonTerminal {
                 case start, idle
@@ -71,7 +74,7 @@ struct TransducerViewTests {
 
         var bodyExecutionCount = 0
         let proxy = TestTransducer.Proxy()
-        
+
         let view = TransducerView.init(
             of: TestTransducer.self,
             initialState: .start,
@@ -85,17 +88,19 @@ struct TransducerViewTests {
                     bodyExecutionCount += 1
                 }
         }
-        
+
         // Wrap in UIHostingController to provide SwiftUI environment
         let (_, window) = await embedInWindowAndMakeKey(view)
-        
+
         // Verify that the view's body was executed
-        #expect(bodyExecutionCount == 1, "Body should be executed once and only once when view is rendered")
-        
+        #expect(
+            bodyExecutionCount == 1,
+            "Body should be executed once and only once when view is rendered")
+
         // Clean up
         cleanupView(window)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func updateFunctionExecutesOnEventSendFromProxy() async throws {
@@ -104,7 +109,7 @@ struct TransducerViewTests {
             case none
             case started
         }
-                
+
         enum TestTransducer: Transducer {
             enum State: NonTerminal {
                 case start, idle
@@ -121,7 +126,7 @@ struct TransducerViewTests {
 
         let receivedStartedEvent = Expectation()
         var isTransducerStarted = false
-        
+
         // Use a class to track body executions
         class BodyExecutionTracker: ObservableObject {
             var count = 0
@@ -131,9 +136,9 @@ struct TransducerViewTests {
             }
         }
         let tracker = BodyExecutionTracker()
-        
+
         let proxy = TestTransducer.Proxy()
-        
+
         let view = TransducerView(
             of: TestTransducer.self,
             initialState: .start,
@@ -150,22 +155,24 @@ struct TransducerViewTests {
         ) { state, input in
             Text(verbatim: "Test - Body executed \(tracker.increment()) times, state: \(state)")
         }
-        
+
         // Wrap in UIHostingController to provide SwiftUI environment
         let (_, window) = await embedInWindowAndMakeKey(view)
-        
+
         // Now send an event to trigger the update function (using proxy):
         try proxy.send(.start)
-        
+
         try await receivedStartedEvent.await(timeout: .seconds(10))
 
         // Verify that the view's body was executed twice (initial + state change)
-        #expect(tracker.count >= 2, "Body should be executed at least twice (initial render + state change)")
+        #expect(
+            tracker.count >= 2,
+            "Body should be executed at least twice (initial render + state change)")
         #expect(isTransducerStarted)
-        
+
         cleanupView(window)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func updateFunctionExecutesOnEventSendFromInput() async throws {
@@ -174,7 +181,7 @@ struct TransducerViewTests {
             case none
             case started
         }
-                
+
         enum TestTransducer: Transducer {
             enum State: NonTerminal {
                 case start, idle
@@ -191,12 +198,12 @@ struct TransducerViewTests {
 
         var isOutputValueSent = false
         var bodyExecutionCount = 0
-        
+
         let proxy = TestTransducer.Proxy()
         var capturedInput: TestTransducer.Input? = nil
-        
+
         let expectation = Expectation()
-        
+
         let view = TransducerView(
             of: TestTransducer.self,
             initialState: .start,
@@ -217,13 +224,15 @@ struct TransducerViewTests {
                     capturedInput = input
                 }
         }
-        
+
         // Wrap in UIHostingController to provide SwiftUI environment
         let (_, window) = await embedInWindowAndMakeKey(view)
 
         // Verify that the view's body was executed
-        #expect(bodyExecutionCount == 1, "Body should be executed once and only once when view is rendered")
-        
+        #expect(
+            bodyExecutionCount == 1,
+            "Body should be executed once and only once when view is rendered")
+
         // verify we have captured the input:
         #expect(capturedInput != nil)
 
@@ -231,13 +240,13 @@ struct TransducerViewTests {
         try capturedInput?.send(.start)
         try await expectation.await(timeout: .seconds(10))
         #expect(isOutputValueSent)
-        
+
         // Clean up
         cleanupView(window)
     }
-    
+
     // MARK: - State Management Tests
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func stateUpdatesReflectInView() async throws {
@@ -257,7 +266,7 @@ struct TransducerViewTests {
                 }
             }
         }
-        
+
         let proxy = CounterTransducer.Proxy()
         var capturedInput: CounterTransducer.Proxy.Input?
         let expectation = Expectation()
@@ -283,23 +292,23 @@ struct TransducerViewTests {
                     }
                 }
         }
-        
+
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
 
         // Verify initial state capture
         #expect(observedStates.first?.value == 0)
         #expect(capturedInput != nil)
-                
+
         // Send event and verify state update
         try capturedInput?.send(.increment)
         try await expectation.await(timeout: .seconds(10))
         #expect(observedStates.last?.value == 1)
-        
+
         // Clean up
         cleanupView(window)
     }
-    
+
     @Test
     func initialStateIsPreserved() async throws {
         enum TestTransducer: Transducer {
@@ -310,10 +319,10 @@ struct TransducerViewTests {
             enum Event { case dummy }
             static func update(_ state: inout State, event: Event) {}
         }
-        
+
         let customInitialState = TestTransducer.State.custom("custom")
         var capturedState: TestTransducer.State?
-        
+
         let view = TransducerView(
             of: TestTransducer.self,
             initialState: customInitialState,
@@ -324,7 +333,7 @@ struct TransducerViewTests {
                     capturedState = state
                 }
         }
-        
+
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
 
@@ -333,11 +342,11 @@ struct TransducerViewTests {
         } else {
             Issue.record("Expected custom state")
         }
-        
+
         // Clean up
         cleanupView(window)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func stateChangesTriggersViewUpdate() async throws {
@@ -354,10 +363,10 @@ struct TransducerViewTests {
                 }
             }
         }
-        
+
         let proxy = ToggleTransducer.Proxy()
         let expectation = Expectation()
-        
+
         // Use a class to track view updates (body executions)
         class ViewUpdateTracker: ObservableObject {
             var count = 0
@@ -367,14 +376,14 @@ struct TransducerViewTests {
             }
         }
         let updateTracker = ViewUpdateTracker()
-        
+
         let view = TransducerView(
             of: ToggleTransducer.self,
             initialState: .off,
             proxy: proxy
         ) { state, input in
             let currentCount = updateTracker.increment()
-            
+
             // Fulfill expectation when we see the .on state
             Text(state == .on ? "ON (\(currentCount))" : "OFF (\(currentCount))")
                 .onChange(of: state) { oldState, newState in
@@ -383,29 +392,33 @@ struct TransducerViewTests {
                     }
                 }
         }
-        
+
         // Host the view properly for initial render
         let (_, window) = await embedInWindowAndMakeKey(view)
         let initialCount = updateTracker.count
-        
+
         try proxy.input.send(.toggle)
         try await expectation.await(timeout: .seconds(10))
-        #expect(updateTracker.count > initialCount, "View should have been updated after state change")
-        #expect(updateTracker.count >= 2, "Should have at least 2 body executions (initial + toggle)")
-        
+        #expect(
+            updateTracker.count > initialCount,
+            "View should have been updated after state change")
+        #expect(
+            updateTracker.count >= 2,
+            "Should have at least 2 body executions (initial + toggle)")
+
         // Clean up
         cleanupView(window)
     }
-    
+
     // MARK: - Input Handling Tests
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func inputEventsReachTransducer() async throws {
         enum Output {
             case receivedEvent(String)
         }
-        
+
         enum EventTransducer: Transducer {
             enum State: NonTerminal, Equatable {
                 case idle, processing(Int)
@@ -426,16 +439,15 @@ struct TransducerViewTests {
                 return .receivedEvent("")
             }
         }
-        
+
         let expectedCount = 10
         var receivedEvents: [String] = []
         var observedStates: [EventTransducer.State] = []
-        
+
         let proxy = EventTransducer.Proxy(bufferSize: expectedCount + 2)
         var capturedInput: EventTransducer.Proxy.Input?
         let expectation = Expectation(minFulfillCount: expectedCount)
-        
-        
+
         let view = TransducerView(
             of: EventTransducer.self,
             initialState: .idle,
@@ -456,10 +468,10 @@ struct TransducerViewTests {
                     observedStates.append(state)
                 }
         }
-        
+
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
-        
+
         // Note:
         // When using the default Proxy type, aka `Oak.Proxy<Event>` as it is
         // defined in the protocol `BaseTransducer`, the proxy will
@@ -473,7 +485,7 @@ struct TransducerViewTests {
         // For the test, the event buffer has been set to 10. Thus, it is
         // expected that the test will succeed.
         #expect(capturedInput != nil)
-        for i in 0..<10 {
+        for i in 0 ..< 10 {
             await #expect(throws: Never.self) {
                 try capturedInput?.send(.test("\(i)"))
                 try await Task.sleep(for: .milliseconds(10))
@@ -487,14 +499,14 @@ struct TransducerViewTests {
         let accepted = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         #expect(receivedEvents == accepted)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func inputEventsReachTransducerUsingSyncSuspendingProxy() async throws {
         enum Output {
             case receivedEvent(String)
         }
-        
+
         enum EventTransducer: Transducer {
             enum State: NonTerminal {
                 case idle
@@ -507,16 +519,16 @@ struct TransducerViewTests {
                 }
                 return .receivedEvent("")
             }
-            
+
             typealias Proxy = Oak.SyncSuspendingProxy<Event>
         }
-        
+
         var receivedEvents: [String] = []
-        
+
         let proxy = EventTransducer.Proxy()
         var capturedInput: EventTransducer.Proxy.Input?
         let expectation = Expectation(minFulfillCount: 10)
-        
+
         let view = TransducerView(
             of: EventTransducer.self,
             initialState: .idle,
@@ -533,7 +545,7 @@ struct TransducerViewTests {
                     capturedInput = input
                 }
         }
-        
+
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
 
@@ -549,31 +561,31 @@ struct TransducerViewTests {
         // The processing speed of the transducer will be dynamically adjusted
         // so that it is synchronised with its event producers and its output
         // consumers through utilising suspension.
-        
+
         // Here, we are using a suspending loop, which sends events
         // "as fast as it can":
-        for i in 0..<10 {
+        for i in 0 ..< 10 {
             await capturedInput?.send(.test("\(i)"))
-            await Task.yield() // give the output a chance to consume the value
+            await Task.yield()  // give the output a chance to consume the value
         }
         // after we reach here, we can observe that the new state has been
         // actually computed.
-        
+
         try await expectation.await(nanoseconds: 10_000_000_000)
         let accepted = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         #expect(receivedEvents == accepted)
-        
+
         // Clean up
         cleanupView(window)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func multipleEventsProcessedInOrder() async throws {
         enum Output {
             case receivedNumber(Int)
         }
-        
+
         enum SequenceTransducer: Transducer {
             enum State: NonTerminal {
                 case idle
@@ -587,13 +599,13 @@ struct TransducerViewTests {
                 return .receivedNumber(0)
             }
         }
-        
+
         var receivedEvents: [Int] = []
-        
+
         let proxy = SequenceTransducer.Proxy(bufferSize: 100)
         var capturedInput: SequenceTransducer.Proxy.Input?
         let expectation = Expectation()
-        
+
         let view = TransducerView(
             of: SequenceTransducer.self,
             initialState: .idle,
@@ -612,7 +624,7 @@ struct TransducerViewTests {
                     capturedInput = input
                 }
         }
-        
+
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
 
@@ -621,21 +633,21 @@ struct TransducerViewTests {
         // Send multiple events
         // Caution: sending multiple events where the proxy is type `Proxy`
         // can cause the event buffer to overflow!
-        for i in 1..<10 {
+        for i in 1 ..< 10 {
             try capturedInput.send(.number(i))
             // await Task.yield()  // Yield here to give the output a chance to send events.
         }
         await Task.yield()
-        
+
         try await expectation.await(timeout: .seconds(10))
         #expect(receivedEvents == [1, 2, 3, 4, 5, 6, 7, 8, 9])
-        
+
         // Clean up
         cleanupView(window)
     }
-    
+
     // MARK: - Output Subject Tests
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func outputsSentToSubject() async throws {
@@ -646,7 +658,7 @@ struct TransducerViewTests {
             }
             enum Event { case produce(Int) }
             typealias Output = Int
-            
+
             static func update(_ state: inout State, event: Event) -> Int {
                 if case .produce(let value) = event {
                     return value
@@ -654,12 +666,12 @@ struct TransducerViewTests {
                 return 0
             }
         }
-        
+
         var receivedOutput: Int = 0
         let proxy = OutputTransducer.Proxy()
         var capturedInput: OutputTransducer.Proxy.Input?
         let expectation = Expectation()
-        
+
         let view = TransducerView(
             of: OutputTransducer.self,
             initialState: .idle,
@@ -670,11 +682,11 @@ struct TransducerViewTests {
             }
         ) { state, input in
             Text("\(receivedOutput)")
-                .onAppear() {
+                .onAppear {
                     capturedInput = input
                 }
         }
-        
+
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
 
@@ -683,16 +695,16 @@ struct TransducerViewTests {
         try capturedInput?.send(.produce(42))
         try await expectation.await(timeout: .seconds(10))
         #expect(receivedOutput == 42)
-        
+
         // Clean up
         cleanupView(window)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func initialOutputSent() async throws {
         var receivedOutput: String = ""
-        
+
         enum TestTransducer: Transducer {
             enum State: NonTerminal {
                 case idle
@@ -704,14 +716,14 @@ struct TransducerViewTests {
                 Issue.record("Unexpected update execution")
                 return ""
             }
-            
+
             static func initialOutput(initialState: State) -> Output? {
                 "initial"
             }
         }
-        
+
         let expectation = Expectation()
-        
+
         let view = TransducerView(
             of: TestTransducer.self,
             initialState: .idle,
@@ -725,22 +737,22 @@ struct TransducerViewTests {
         ) { state, input in
             Text("Test")
         }
-        
+
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
-        
+
         try await expectation.await(timeout: .seconds(10000))
         #expect(receivedOutput == "initial")
-        
+
         // Clean up
         cleanupView(window)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func multipleOutputsDelivered() async throws {
         var outputs: [String] = []
-        
+
         enum MultiOutputTransducer: Transducer {
             enum State: NonTerminal {
                 case idle
@@ -748,7 +760,7 @@ struct TransducerViewTests {
             }
             enum Event { case emit(String) }
             typealias Output = String
-            
+
             static func update(_ state: inout State, event: Event) -> String {
                 if case .emit(let value) = event {
                     return value
@@ -756,11 +768,11 @@ struct TransducerViewTests {
                 return ""
             }
         }
-        
+
         let proxy = MultiOutputTransducer.Proxy()
         var capturedInput: MultiOutputTransducer.Proxy.Input?
         let expectation = Expectation()
-        
+
         let view = TransducerView(
             of: MultiOutputTransducer.self,
             initialState: .idle,
@@ -777,23 +789,23 @@ struct TransducerViewTests {
                     capturedInput = input
                 }
         }
-        
+
         // Host the view properly
-        let (_, window) = await embedInWindowAndMakeKey(view)        
-        
+        let (_, window) = await embedInWindowAndMakeKey(view)
+
         try capturedInput?.send(.emit("first"))
         try capturedInput?.send(.emit("second"))
         try await expectation.await(timeout: .seconds(10))
-        
+
         #expect(outputs.contains("first"))
         #expect(outputs.contains("second"))
-        
+
         // Clean up
         cleanupView(window)
     }
-    
+
     // MARK: - Completion Callback Tests
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func completionCallbackInvokedOnSuccess() async throws {
@@ -806,7 +818,7 @@ struct TransducerViewTests {
             }
             enum Event { case finish }
             typealias Output = String
-            
+
             static func update(_ state: inout State, event: Event) -> String {
                 switch (state, event) {
                 case (.ready, .finish):
@@ -817,15 +829,15 @@ struct TransducerViewTests {
                 }
             }
         }
-        
+
         var completionCalled = false
         var completionValue: String?
         let completionExpectation = Expectation()
         let outputExpectation = Expectation()
-        
+
         let proxy = CompletionTransducer.Proxy()
         var capturedInput: CompletionTransducer.Proxy.Input?
-        
+
         let view = TransducerView(
             of: CompletionTransducer.self,
             initialState: .ready,
@@ -851,21 +863,21 @@ struct TransducerViewTests {
                     capturedInput = input
                 }
         }
-        
+
         let (_, window) = await embedInWindowAndMakeKey(view)
-        
+
         // Trigger completion
         try capturedInput?.send(.finish)
-        
+
         try await outputExpectation.await(timeout: .seconds(10))
         try await completionExpectation.await(timeout: .seconds(10))
-        
+
         #expect(completionCalled)
         #expect(completionValue == "completed")
-        
+
         cleanupView(window)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func completionCallbackInvokedOnError() async throws {
@@ -880,12 +892,12 @@ struct TransducerViewTests {
         // and the transducer is not yet finished, or when an
         // output fails to consum the value. Then and only
         // then, the tranducer should throw an error.
-        
+
         // Note: This test documents the expected error handling behavior.
         // Error conditions in the transducer system are rare and difficult
         // to reproduce deterministically in a test environment because
         // the system is designed to be robust and handle edge cases gracefully.
-        
+
         enum TestTransducer: Transducer {
             enum State: NonTerminal {
                 case idle
@@ -893,17 +905,17 @@ struct TransducerViewTests {
             }
             enum Event { case test }
             typealias Output = String
-            
+
             static func update(_ state: inout State, event: Event) -> String {
                 return "success"
             }
         }
-        
+
         var completionResult: Result<String, Error>?
         let completionExpectation = Expectation()
-        
+
         let proxy = TestTransducer.Proxy()
-        
+
         let view = TransducerView(
             of: TestTransducer.self,
             initialState: .idle,
@@ -918,34 +930,34 @@ struct TransducerViewTests {
         ) { state, input in
             Text("Test")
         }
-        
+
         let (_, window) = await embedInWindowAndMakeKey(view)
-        
+
         // Send a normal event
         try proxy.input.send(.test)
-        
+
         // For demonstration purposes, we verify that the completion callback
         // infrastructure is properly set up and would be called in error scenarios.
         // In practice, errors are handled gracefully by the robust transducer system.
-        
+
         // Since we can't easily reproduce error conditions, we'll just verify
         // the test setup compiles and runs without crashing.
-        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-        
+        try? await Task.sleep(nanoseconds: 100_000_000)  // 100ms
+
         // This test passes if we reach here without any runtime errors,
         // demonstrating that the error handling infrastructure is in place.
         #expect(true, "Error handling infrastructure is properly configured")
-        
+
         // Verify completion callback setup (even though we don't expect it to be called in normal operation)
         if let _ = completionResult {
             // Completion was called, which is fine but not expected in normal operation
         }
-        
+
         cleanupView(window)
     }
-    
+
     // MARK: - Optional Proxy Tests
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func transducerViewWorksWithNilProxy() async throws {
@@ -955,21 +967,21 @@ struct TransducerViewTests {
             }
             enum Event { case test }
             typealias Output = String
-            
+
             static func update(_ state: inout State, event: Event) -> String {
                 return "event_received"
             }
         }
-        
+
         var receivedOutput: String?
         let expectation = Expectation()
         var capturedInput: SimpleTransducer.Proxy.Input?
-        
+
         // Test with nil proxy (should create default)
         let view = TransducerView(
             of: SimpleTransducer.self,
             initialState: .idle,
-            proxy: nil, // Explicitly nil
+            proxy: nil,  // Explicitly nil
             output: Callback { @MainActor output in
                 receivedOutput = output
                 expectation.fulfill()
@@ -980,18 +992,18 @@ struct TransducerViewTests {
                     capturedInput = input
                 }
         }
-        
+
         let (_, window) = await embedInWindowAndMakeKey(view)
-        
+
         #expect(capturedInput != nil)
         try capturedInput?.send(.test)
-        
+
         try await expectation.await(timeout: .seconds(10))
         #expect(receivedOutput == "event_received")
-        
+
         cleanupView(window)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func transducerViewWorksWithOmittedProxy() async throws {
@@ -1001,16 +1013,16 @@ struct TransducerViewTests {
             }
             enum Event { case test }
             typealias Output = String
-            
+
             static func update(_ state: inout State, event: Event) -> String {
                 return "event_received"
             }
         }
-        
+
         var receivedOutput: String?
         let expectation = Expectation()
         var capturedInput: SimpleTransducer.Proxy.Input?
-        
+
         // Test with omitted proxy parameter (should use default)
         let view = TransducerView(
             of: SimpleTransducer.self,
@@ -1025,18 +1037,18 @@ struct TransducerViewTests {
                     capturedInput = input
                 }
         }
-        
+
         let (_, window) = await embedInWindowAndMakeKey(view)
-        
+
         #expect(capturedInput != nil)
         try capturedInput?.send(.test)
-        
+
         try await expectation.await(timeout: .seconds(10))
         #expect(receivedOutput == "event_received")
-        
+
         cleanupView(window)
     }
-    
+
     // MARK: - Proxy Change and State Reset Tests
 
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
@@ -1053,7 +1065,7 @@ struct TransducerViewTests {
             }
             enum Event { case increment }
             typealias Output = Int
-            
+
             static func update(_ state: inout State, event: Event) -> Int {
                 switch (state, event) {
                 case (.count(let current), .increment):
@@ -1061,24 +1073,24 @@ struct TransducerViewTests {
                     return state.value
                 }
             }
-            
+
             static func initialOutput(initialState: State) -> Int? {
                 initialState.value
             }
         }
-        
-        let initialState = CounterTransducer.State.count(5) // Start with 5
-        
+
+        let initialState = CounterTransducer.State.count(5)  // Start with 5
+
         var outputs: [Int] = []
         var capturedInput: CounterTransducer.Proxy.Input?
         var observedStates: [CounterTransducer.State] = []
-        
+
         let initialOutputExpectation = Expectation()
         let incrementExpectation = Expectation()
         let proxyChangeExpectation = Expectation()
-        
+
         var currentProxy = CounterTransducer.Proxy()
-        
+
         let view = TransducerView(
             of: CounterTransducer.self,
             initialState: initialState,
@@ -1111,52 +1123,53 @@ struct TransducerViewTests {
                 observedStates.append(state)
             }
         }
-        
+
         let (hostingController, window) = await embedInWindowAndMakeKey(view)
-        
+
         // Wait for initial output
         try await initialOutputExpectation.await(timeout: .seconds(10))
-        #expect(outputs == [5]) // Initial state value
+        #expect(outputs == [5])  // Initial state value
         #expect(observedStates.last?.value == 5)
-        
+
         // Increment counter
         try capturedInput?.send(.increment)
         try await incrementExpectation.await(timeout: .seconds(10))
         #expect(outputs == [5, 6])
         #expect(observedStates.last?.value == 6)
-        
+
         // Change proxy - this should restart transducer and reset state
         currentProxy = CounterTransducer.Proxy()
-        hostingController.rootView = AnyView(TransducerView(
-            of: CounterTransducer.self,
-            initialState: initialState,
-            proxy: currentProxy,
-            output: Callback { @MainActor output in
-                outputs.append(output)
-                if outputs.count == 3 {
-                    proxyChangeExpectation.fulfill()
-                }
-            },
-            completion: nil
-        ) { state, input in
-            Text(verbatim: "Count: \(state.value)")
-                .onAppear {
-                    capturedInput = input
-                    observedStates.append(state)
-                }
-                .onChange(of: state) {
-                    observedStates.append(state)
-                }
-        })
+        hostingController.rootView = AnyView(
+            TransducerView(
+                of: CounterTransducer.self,
+                initialState: initialState,
+                proxy: currentProxy,
+                output: Callback { @MainActor output in
+                    outputs.append(output)
+                    if outputs.count == 3 {
+                        proxyChangeExpectation.fulfill()
+                    }
+                },
+                completion: nil
+            ) { state, input in
+                Text(verbatim: "Count: \(state.value)")
+                    .onAppear {
+                        capturedInput = input
+                        observedStates.append(state)
+                    }
+                    .onChange(of: state) {
+                        observedStates.append(state)
+                    }
+            })
         try await proxyChangeExpectation.await(timeout: .seconds(10))
-        
+
         // Verify state was reset to initial state after proxy change
-        #expect(outputs == [5, 6, 5]) // Back to initial state
+        #expect(outputs == [5, 6, 5])  // Back to initial state
         #expect(observedStates.last?.value == 5)
-        
+
         cleanupView(window)
     }
-    
+
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func proxyChangeCancelsRunningTransducer() async throws {
@@ -1167,7 +1180,7 @@ struct TransducerViewTests {
             }
             enum Event { case start, cancel }
             typealias Output = String
-            
+
             static func update(_ state: inout State, event: Event) -> String {
                 switch (state, event) {
                 case (.running, .cancel):
@@ -1178,16 +1191,16 @@ struct TransducerViewTests {
                 }
             }
         }
-        
+
         let proxy1 = LongRunningTransducer.Proxy()
         var proxy2 = LongRunningTransducer.Proxy()
-        
+
         var observedOutputs: [String] = []
         var capturedInput: LongRunningTransducer.Proxy.Input?
         let cancelExpectation = Expectation()
-        
+
         var currentProxy = proxy1
-        
+
         let view = TransducerView(
             of: LongRunningTransducer.self,
             initialState: .running,
@@ -1211,36 +1224,37 @@ struct TransducerViewTests {
                 capturedInput = input
             }
         }
-        
+
         let (hostingController, window) = await embedInWindowAndMakeKey(view)
-        
+
         // Verify we can send events to first proxy
         #expect(capturedInput != nil)
-        
+
         // Change proxy by updating the view
         proxy2 = LongRunningTransducer.Proxy()
-        hostingController.rootView = AnyView(TransducerView(
-            of: LongRunningTransducer.self,
-            initialState: .running,
-            proxy: proxy2,
-            output: Callback { @MainActor output in
-                if !output.isEmpty {
-                    observedOutputs.append(output)
+        hostingController.rootView = AnyView(
+            TransducerView(
+                of: LongRunningTransducer.self,
+                initialState: .running,
+                proxy: proxy2,
+                output: Callback { @MainActor output in
+                    if !output.isEmpty {
+                        observedOutputs.append(output)
+                    }
                 }
-            }
-        ) { state, input in
-            Text(verbatim: "State: \(state)")
-                .onAppear {
-                    capturedInput = input
-                }
-        })
-        
+            ) { state, input in
+                Text(verbatim: "State: \(state)")
+                    .onAppear {
+                        capturedInput = input
+                    }
+            })
+
         // Allow time for proxy change to take effect
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-        
+        try? await Task.sleep(nanoseconds: 50_000_000)  // 50ms
+
         // Verify new input is available (new proxy)
         #expect(capturedInput != nil)
-        
+
         cleanupView(window)
     }
 
@@ -1259,7 +1273,7 @@ struct TransducerViewTests {
             enum Event { case start, process }
             typealias Output = String
             typealias Env = Void
-            
+
             static func update(_ state: inout State, event: Event) -> (Effect<Self>?, Output) {
                 switch (state, event) {
                 case (.ready, .start):
@@ -1274,15 +1288,15 @@ struct TransducerViewTests {
                 }
             }
         }
-        
+
         var completionCalled = false
         var completionValue: String?
         let completionExpectation = Expectation()
         let outputExpectation = Expectation()
-        
+
         let proxy = EffectTestTransducer.Proxy()
         let input = proxy.input
-        
+
         let view = TransducerView.init(
             of: EffectTestTransducer.self,
             initialState: .ready,
@@ -1306,22 +1320,22 @@ struct TransducerViewTests {
         ) { state, input in
             Text(verbatim: "State: \(state)")
         }
-        
+
         let (_, window) = await embedInWindowAndMakeKey(view)
-        
+
         // Trigger the workflow
         try input.send(.start)
         try input.send(.process)
-        
+
         try await outputExpectation.await(timeout: .seconds(10))
         try await completionExpectation.await(timeout: .seconds(10))
-        
+
         #expect(completionCalled)
         #expect(completionValue == "work_completed")
-        
+
         cleanupView(window)
     }
-    
+
     // MARK: - Integration Tests with Simple Examples
 
     @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
@@ -1383,26 +1397,26 @@ struct TransducerViewTests {
         // onAppear: 0
         #expect(observedStates == [0])
 
-        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
-        try capturedInput?.send(.increment) // 1
+        try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
+        try capturedInput?.send(.increment)  // 1
         try await receicedStateExpectation.await(timeout: .seconds(10_000))
         // onChange: 1
         #expect(observedStates == [0, 1])
 
-        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
-        try capturedInput?.send(.increment) // 2
+        try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
+        try capturedInput?.send(.increment)  // 2
         try await receicedStateExpectation.await(timeout: .seconds(10_000))
         // onChange: 2
         #expect(observedStates == [0, 1, 2])
 
-        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
-        try capturedInput?.send(.increment) // 3
+        try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
+        try capturedInput?.send(.increment)  // 3
         try await receicedStateExpectation.await(timeout: .seconds(10_000))
         // onChange: 3
         #expect(observedStates == [0, 1, 2, 3])
 
-        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
-        try capturedInput?.send(.decrement) // 2
+        try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
+        try capturedInput?.send(.decrement)  // 2
         try await receicedStateExpectation.await(timeout: .seconds(10_000))
         // onChange: 2
         #expect(observedStates == [0, 1, 2, 3, 2])
@@ -1412,7 +1426,6 @@ struct TransducerViewTests {
     }
 }
 
-
 #else
 // SwiftUI not available - TransducerView tests skipped
 
@@ -1420,11 +1433,14 @@ import Testing
 
 @MainActor
 struct TransducerViewTestsFallback {
-    
+
     @Test
     func swiftUINotAvailable() async throws {
-        #expect(Bool(false), "TransducerView tests require SwiftUI and AppKit. Run from Xcode with a run destination which has UIKit to execute full TransducerView test suite. This skip is expected when testing from command line.")
+        #expect(
+            Bool(false),
+            "TransducerView tests require SwiftUI and AppKit. Run from Xcode with a run destination which has UIKit to execute full TransducerView test suite. This skip is expected when testing from command line."
+        )
     }
 }
 
-#endif // canImport(SwiftUI)
+#endif  // canImport(SwiftUI)

@@ -1,39 +1,39 @@
-/// A type that describes the behavior and its constituting parts of a 
+/// A type that describes the behavior and its constituting parts of a
 /// Finite State Machine (FSM).
 ///
-/// A Finite State Machine (FSM) is a computational model that can be in one 
-/// of a finite number of states at any given time. It can transition between 
-/// these states based on input events, and it can produce output based on 
+/// A Finite State Machine (FSM) is a computational model that can be in one
+/// of a finite number of states at any given time. It can transition between
+/// these states based on input events, and it can produce output based on
 /// its current state and the input events it receives.
-/// 
+///
 /// A FSM is also called a finite state transducer (FST) or simply a transducer,
 /// when it produces output based on the input events and its current state.
-/// 
+///
 /// A FSM is a tuple of the form:
 /// $(States, Inputs, Initial State, Transition Function, Output Function)$
 /// - `States`: A finite set of states that the FSM can be in.
 /// - `Inputs`: A finite set of input events that the FSM can receive.
 /// - `Initial State`: The state in which the FSM starts.
-/// - `Transition Function`: A function that takes the current state and an input 
+/// - `Transition Function`: A function that takes the current state and an input
 ///   event and returns the next state.
-/// - `Output Function`: A function that takes the current state and an input event 
+/// - `Output Function`: A function that takes the current state and an input event
 ///   and returns an output value.
-/// 
-/// The protocol `Transducer` defines the interface for a finite state machine (FSM) 
-/// that can process events and produce output based on its current state and the 
-/// input events it receives. 
-/// 
-/// The terminology of the protocol `Transducer` uses the name `Event` instead of 
-/// "Input" to better reflect the nature of the input of the FSM in a software 
-/// implementation, which are in fact _events_ that happen in the system and that 
+///
+/// The protocol `Transducer` defines the interface for a finite state machine (FSM)
+/// that can process events and produce output based on its current state and the
+/// input events it receives.
+///
+/// The terminology of the protocol `Transducer` uses the name `Event` instead of
+/// "Input" to better reflect the nature of the input of the FSM in a software
+/// implementation, which are in fact _events_ that happen in the system and that
 /// the FSM can process.
-/// 
-/// In addition to this, the protocol `Transducer` does not require a separate 
+///
+/// In addition to this, the protocol `Transducer` does not require a separate
 /// transition and output function, but instead combines these two functions into a
 /// single function called `update`. This function takes the current state and an
 /// input event and returns the output value produced by the FSM. The state is
 /// updated in place.
-/// 
+///
 /// Due to this design, the specific implementation of a FSM allows for socalled
 /// Moore or Mealy machines, where the output can be produced based on the current
 /// state (Moore) or the current state and the input event (Mealy), respectively.
@@ -41,14 +41,14 @@
 /// Note that a conforming type describes the behavior of a transducer, but does not
 /// implement the state machine itself. The actual state machine is created by
 /// executing the `run` function, which takes an initial state and a transducer proxy.
-/// 
-/// The asynchronous throwing `run` function also represents the life-cycle of the 
-/// transducer. It returns when the transducer reaches a terminal state or when an 
+///
+/// The asynchronous throwing `run` function also represents the life-cycle of the
+/// transducer. It returns when the transducer reaches a terminal state or when an
 /// error occurs.
-/// 
+///
 /// Note also, that this design requires no objects or classes to be created
-/// to represent the transducer. The transducer is a pure function that can be 
-/// executed in an asynchronous context, and it can be used to process events and 
+/// to represent the transducer. The transducer is a pure function that can be
+/// executed in an asynchronous context, and it can be used to process events and
 /// produce output.
 ///
 /// ## Usage Examples
@@ -110,13 +110,12 @@
 /// In the example above, once the FSM receives an event `start` it also
 /// will terminate and the asynchronous `run()` will return.
 
-
 public protocol Transducer: BaseTransducer {
-    
+
     associatedtype Event
     associatedtype State
     associatedtype Output = Void
-    
+
     /// A pure function that combines the _transition_ and the _output_ function
     /// of the finite state machine (FSM) into a single function.
     ///
@@ -131,7 +130,7 @@ public protocol Transducer: BaseTransducer {
 }
 
 extension Transducer {
-    
+
     package static func run(
         storage: some Storage<State>,
         proxy: Proxy,
@@ -141,7 +140,7 @@ extension Transducer {
         try proxy.checkInUse()
         try Task.checkCancellation()
         let stream = proxy.stream
-        let initialOutputValueOrNil = initialOutput(initialState: storage.value) 
+        let initialOutputValueOrNil = initialOutput(initialState: storage.value)
         if let initialOutputValue = initialOutputValueOrNil {
             try await output.send(initialOutputValue, isolated: systemActor)
         }
@@ -154,7 +153,7 @@ extension Transducer {
             }
         }
         var result: Output? = nil
-        do  {
+        do {
             loop: for try await event in stream {
                 try Task.checkCancellation()
                 let outputValue = Self.update(&storage.value, event: event)
@@ -196,20 +195,22 @@ extension Transducer {
         // events. We do explicitly throw a `CancellationError` to indicate
         // this fact:
         try Task.checkCancellation()
-        
+
         // If we reach here, the transducer should be terminated normally, i.e.
         // the state is terminal.
-#if DEBUG
+        #if DEBUG
         // Here, the event buffer may still have events in it, but the transducer
         // has finished processing. These events have been successfull enqueued,
         // and no error indicates this fact. In DEBUG we log these unprocessed
         // events, since it may indicate an error.
         var ignoreCount = 0
         for try await transducerEvent in proxy.stream {
-            logger.warning("Transducer '\(Self.self)': ignoring event \(ignoreCount): \(String(describing: transducerEvent))")
+            logger.warning(
+                "Transducer '\(Self.self)': ignoring event \(ignoreCount): \(String(describing: transducerEvent))"
+            )
             ignoreCount += 1
         }
-#endif
+        #endif
         guard let result = result else {
             throw TransducerError.noOutputProduced
         }
@@ -218,17 +219,17 @@ extension Transducer {
 }
 
 extension Transducer {
-    
+
     /// Executes the Finite State Machine (FSM) with the given initial state.
-    /// 
+    ///
     /// The function `run(initialState:proxy:output:)` returns when the transducer
     /// reaches a terminal state or when an error occurs.
-    /// 
+    ///
     /// The proxy, or more specifically, the `Input` interface of the proxy, is used to
     /// send events to the transducer. The output can be used to connect to other
     /// components. This can also be another transducer. In this case, the output is
     /// connected to the input interface of another transducer.
-    /// 
+    ///
     /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
@@ -238,16 +239,16 @@ extension Transducer {
     ///
     /// > Note: State observation is not supported in this implementation of the
     ///   run function.
-    /// 
+    ///
     /// - Returns: The final output produced by the transducer when the state
     ///   becomes terminal.
-    /// 
-    /// - Throws: 
+    ///
+    /// - Throws:
     ///   - `TransducerError.noOutputProduced`: If no output is produced before reaching the terminal state.
-    ///   - Other errors: If the transducer cannot execute its transition and output function as expected, 
-    ///     for example, when events could not be enqueued because of a full event buffer, 
+    ///   - Other errors: If the transducer cannot execute its transition and output function as expected,
+    ///     for example, when events could not be enqueued because of a full event buffer,
     ///     when the func `terminate()` is called on the proxy, or when the output value cannot be sent.
-    /// 
+    ///
     @discardableResult
     public static func run(
         initialState: State,
@@ -255,16 +256,16 @@ extension Transducer {
         output: some Subject<Output>,
         systemActor: isolated any Actor = #isolation
     ) async throws -> Output {
-       return try await Self.run(
-            storage: LocalStorage(value: initialState), 
-            proxy: proxy, 
+        return try await Self.run(
+            storage: LocalStorage(value: initialState),
+            proxy: proxy,
             output: output,
             systemActor: systemActor
         )
     }
-    
+
     /// Executes the Finite State Machine (FSM) with the given initial state.
-    /// 
+    ///
     /// The function `run(initialState:proxy:)` returns when the transducer
     /// reaches a terminal state or when an error occurs.
     ///
@@ -272,7 +273,7 @@ extension Transducer {
     /// send events to the transducer. The output can be used to connect to other
     /// components. This can also be another transducer. In this case, the output is
     /// connected to the input interface of another transducer.
-    /// 
+    ///
     /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
@@ -280,21 +281,21 @@ extension Transducer {
     ///
     /// > Note: State observation is not supported in this implementation of the
     ///   run function.
-    /// 
+    ///
     /// - Throws: An error if the transducer cannot execute its transition and
     ///   output function as expected. For example, if the initial state is
     ///   terminal, or if no output is produced, or when events could not be
     ///   enqueued because of a full event buffer, or when the func `terminate()`
     ///   is called on the proxy, or when the output value cannot be sent.
-    /// 
+    ///
     public static func run(
         initialState: State,
         proxy: Proxy,
         systemActor: isolated any Actor = #isolation
     ) async throws where Output == Void {
-       try await Self.run(
-            storage: LocalStorage(value: initialState), 
-            proxy: proxy, 
+        try await Self.run(
+            storage: LocalStorage(value: initialState),
+            proxy: proxy,
             output: NoCallback<Void>(),
             systemActor: systemActor
         )
@@ -304,15 +305,15 @@ extension Transducer {
 extension Transducer {
 
     /// Executes the Finite State Machine (FSM) with the given observable state.
-    /// 
+    ///
     /// The function `run(initialState:proxy:)` returns when the transducer
     /// reaches a terminal state or when an error occurs.
-    /// 
+    ///
     /// The proxy, or more specifically, the `Input` interface of the proxy, is used to
     /// send events to the transducer. The output can be used to connect to other
     /// components. This can also be another transducer. In this case, the output is
     /// connected to the input interface of another transducer.
-    /// 
+    ///
     /// - Parameter state: A reference-writeable key path to the state.
     /// - Parameter host: The host providing the backing store for the state.
     /// - Parameter proxy: The transducer proxy that provides the input interface
@@ -326,7 +327,7 @@ extension Transducer {
     ///   terminal, or if no output is produced, or when events could not be
     ///   enqueued because of a full event buffer, or when the func `terminate()`
     ///   is called on the proxy, or when the output value cannot be sent.
-    /// 
+    ///
     @discardableResult
     public static func run<Host>(
         state: ReferenceWritableKeyPath<Host, State>,
@@ -340,9 +341,9 @@ extension Transducer {
             proxy: proxy,
             output: output,
             systemActor: systemActor
-        )   
+        )
     }
-    
+
     /// Creates a transducer with an observable state whose update function has the signature
     /// `(inout State, Event) -> Output`.
     ///

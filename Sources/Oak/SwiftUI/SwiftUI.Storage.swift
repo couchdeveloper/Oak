@@ -10,4 +10,3 @@ extension SwiftUI.Binding: Storage {
         }
     }
 }
-

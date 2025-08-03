@@ -1,17 +1,17 @@
 final class Context {
     let terminateProxy: (Swift.Error) -> Void
     var tasks: [ID: (Int, Task<Void, Never>)] = [:]
-    
+
     init(terminateProxy: @escaping (Swift.Error) -> Void) {
         self.terminateProxy = terminateProxy
     }
-    
+
     deinit {
         for (_, task) in tasks.values {
             task.cancel()
         }
     }
-    
+
     func register(
         task: Task<Void, Never>,
         uid: Int,
@@ -22,7 +22,7 @@ final class Context {
         }
         tasks[id] = (uid, task)
     }
-    
+
     func removeCompleted(
         uid: Int,
         id: ID,
@@ -52,14 +52,14 @@ final class Context {
             tasks[id] = nil
         }
     }
-    
+
     func cancellAllTasks() {
         for (_, task) in tasks.values {
             task.cancel()
         }
         tasks.removeAll()
     }
-    
+
     func terminate(_ error: Swift.Error) {
         terminateProxy(error)
     }

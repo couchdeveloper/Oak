@@ -21,27 +21,27 @@
 ///
 /// The protocol `EffectTransducer` defines the interface for a finite state
 /// machine (FSM) that can process events and produce output based on its current
-/// state and the input events it receives. 
-/// 
+/// state and the input events it receives.
+///
 /// In addition to the FSM's behavior, the protocol also allows for the definition
 /// of side effects that can occur during the processing of events. A side effect
-/// is an operation that has an observable interaction with the outside world. 
-/// Effects are created within the FSM's update function and returned as part of 
-/// the transducer's output. 
-/// 
+/// is an operation that has an observable interaction with the outside world.
+/// Effects are created within the FSM's update function and returned as part of
+/// the transducer's output.
+///
 /// Effects are a powerful way to call asynchronous operations, such as network
 /// requests or database updates. The effects can send events back into the transducer
 /// using the provided `Input` interface of the transducer proxy. This allows for
 /// a seamless integration of asynchronous operations into the FSM's processing
 /// logic, enabling the FSM to react to the results of these operations.
-/// 
+///
 /// The transducer manages these effects by providing a way to define and handle
 /// them within the FSM's processing logic. This also includes the ability to
-/// cancel the effects by referencing the effect with a unique ID and sending a 
-/// cancellation event from within the update function. Effects can also spawn new 
-/// transducers expanding the FSM's capabilities. The life-cycle of effects is 
-/// managed by the transducer itself, which keeps track of all active effects. 
-/// When a transducer reaches a terminal state, it will automatically cancel all 
+/// cancel the effects by referencing the effect with a unique ID and sending a
+/// cancellation event from within the update function. Effects can also spawn new
+/// transducers expanding the FSM's capabilities. The life-cycle of effects is
+/// managed by the transducer itself, which keeps track of all active effects.
+/// When a transducer reaches a terminal state, it will automatically cancel all
 /// active effects, ensuring that no further operations are performed.
 ///
 /// The terminology of the protocol `Transducer` uses the name `Event` instead of
@@ -49,10 +49,10 @@
 /// implementation, which are in fact _events_ that happen in the system and that
 /// the FSM can process.
 ///
-/// The protocol `Transducer` does not require a separate transition and output 
-/// function, but instead combines these two functions into a single function 
-/// called `update`. This function takes the current state and an input event 
-/// and returns the output value produced by the FSM. The state is updated in 
+/// The protocol `Transducer` does not require a separate transition and output
+/// function, but instead combines these two functions into a single function
+/// called `update`. This function takes the current state and an input event
+/// and returns the output value produced by the FSM. The state is updated in
 /// place.
 ///
 /// Due to this design, the specific implementation of a FSM allows for socalled
@@ -72,21 +72,21 @@
 /// executed in an asynchronous context, and it can be used to process events and
 /// produce output.
 public protocol EffectTransducer: BaseTransducer {
-    
+
     associatedtype Output = Void
 
     /// The type of the environment in which the transducer operates and which
     /// provides the necessary context for executing effects.
     associatedtype Env = Void
-    
+
     /// The _Output_ of the FSM, which may include an optional
     /// effect and a value type, `Output`. Typically, it it is either
     /// `Effect?` or the tuple `(Effect?, Output)`.
     associatedtype TransducerOutput
-    
+
     /// The concrete type of the effect which performs side effects.
     typealias Effect = Oak.Effect<Self>
-    
+
     /// A pure function that combines the _transition_ and the _output_ function
     /// of the finite state machine (FSM) into a single function.
     ///
@@ -114,7 +114,7 @@ extension EffectTransducer {
         try Task.checkCancellation()
         let stream = proxy.stream
         let input = proxy.input
-        let initialOutputValueOrNil = initialOutput(initialState: storage.value) 
+        let initialOutputValueOrNil = initialOutput(initialState: storage.value)
         if let initialOutputValue = initialOutputValueOrNil {
             try await output.send(initialOutputValue, isolated: systemActor)
         }
@@ -206,19 +206,19 @@ extension EffectTransducer {
         // this fact:
         try Task.checkCancellation()
 
-        
-
-#if DEBUG
+        #if DEBUG
         // Here, the event buffer may still have events in it, but the transducer
         // has finished processing. These events have been successfull enqueued,
         // and no error indicates this fact. In DEBUG we log these unprocessed
         // events, since it may indicate an error.
         var ignoreCount = 0
         for try await transducerEvent in proxy.stream {
-            logger.info("Transducer '\(Self.self)': ignoring event \(ignoreCount): \(String(describing: transducerEvent))")
+            logger.info(
+                "Transducer '\(Self.self)': ignoring event \(ignoreCount): \(String(describing: transducerEvent))"
+            )
             ignoreCount += 1
         }
-#endif        
+        #endif
         guard let result = result else {
             throw TransducerError.noOutputProduced
         }
@@ -240,7 +240,7 @@ extension EffectTransducer {
         let stream = proxy.stream
         let input = proxy.input
         if storage.value.isTerminal {
-            return 
+            return
         }
         let context = Context(terminateProxy: { error in
             proxy.cancel(with: error)
@@ -316,49 +316,51 @@ extension EffectTransducer {
         // events. We do explicitly throw a `CancellationError` to indicate
         // this fact:
         try Task.checkCancellation()
-        
-#if DEBUG
+
+        #if DEBUG
         // Here, the event buffer may still have events in it, but the transducer
         // has finished processing. These events have been successfull enqueued,
         // and no error indicates this fact. In DEBUG we log these unprocessed
         // events, since it may indicate an error.
         var ignoreCount = 0
         for try await transducerEvent in proxy.stream {
-            logger.info("Transducer '\(Self.self)': ignoring event \(ignoreCount): \(String(describing: transducerEvent))")
+            logger.info(
+                "Transducer '\(Self.self)': ignoring event \(ignoreCount): \(String(describing: transducerEvent))"
+            )
             ignoreCount += 1
         }
-#endif        
+        #endif
     }
 }
 
 extension EffectTransducer {
 
     /// Executes the Finite State Machine (FSM) with the given initial state.
-    /// 
-    /// This overload of `run` is specialized for transducers where 
+    ///
+    /// This overload of `run` is specialized for transducers where
     /// `TransducerOutput == (Effect?, Output)`.
-    /// 
+    ///
     /// The function `run(initialState:proxy:output:)` returns when the transducer
     /// reaches a terminal state or when an error occurs.
-    /// 
+    ///
     /// The proxy, or more specifically, the `Input` interface of the proxy, is used to
     /// send events to the transducer. The output can be used to connect to other
     /// components. This can also be another transducer. In this case, the output is
     /// connected to the input interface of another transducer.
-    /// 
+    ///
     /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
-    /// - Parameter env: The environment in which the transducer operates and which 
+    /// - Parameter env: The environment in which the transducer operates and which
     /// provides the necessary context for executing effects.
     /// - Parameter output: The subject to which the transducer's output will be
     ///   sent.
-    /// - Parameter systemActor: The actor isolation context in which the transducer 
-    ///   operates. This parameter allows the caller to specify the actor context 
-    ///   for isolation, ensuring thread safety and correct actor execution semantics 
-    ///   when running the transducer. The default value `#isolation` uses the 
+    /// - Parameter systemActor: The actor isolation context in which the transducer
+    ///   operates. This parameter allows the caller to specify the actor context
+    ///   for isolation, ensuring thread safety and correct actor execution semantics
+    ///   when running the transducer. The default value `#isolation` uses the
     ///   current actor context.
-    /// 
+    ///
     /// - Returns: The final output produced by the transducer when the state
     ///   became terminal.
     /// - Throws: An error if the transducer cannot execute its transition and
@@ -366,76 +368,76 @@ extension EffectTransducer {
     ///   terminal, or if no output is produced, or when events could not be
     ///   enqueued because of a full event buffer, or when the func `terminate()`
     ///   is called on the proxy, or when the output value cannot be sent.
-    /// 
+    ///
     /// > Note: State observation is not supported in this implementation of the
     ///  run function.
-    /// 
+    ///
     /// Specialization for transducers where `TransducerOutput == (Effect?, Output)`.
     /// This overload is the public entry point for running a transducer with output emission.
     /// - Note: The constraint `TransducerOutput == (Effect?, Output)` is required for this overload.
     /// - See documentation above for details on this specialization.
-        public static func run(
-            initialState: State,
-            proxy: Proxy,
-            env: Env,
-            output: some Subject<Output>,
-            systemActor: isolated any Actor = #isolation
-        ) async throws -> Output where TransducerOutput == (Effect?, Output) {
+    public static func run(
+        initialState: State,
+        proxy: Proxy,
+        env: Env,
+        output: some Subject<Output>,
+        systemActor: isolated any Actor = #isolation
+    ) async throws -> Output where TransducerOutput == (Effect?, Output) {
         try await Self.run(
-            storage: LocalStorage(value: initialState), 
-            proxy: proxy, 
+            storage: LocalStorage(value: initialState),
+            proxy: proxy,
             env: env,
             output: output,
             systemActor: systemActor
         )
     }
-    
+
     /// Executes the Finate State Machine (FSM) with the given initial state.
     ///
-    /// This overload of `run` is specialized for transducers where 
+    /// This overload of `run` is specialized for transducers where
     /// `TransducerOutput == (Effect?, Output)`.
     ///
     /// The function `run(initialState:proxy:output:)` returns when the transducer
     /// reaches a terminal state or when an error occurs.
-    /// 
+    ///
     /// The proxy, or more specically, the `Input` interface of the proxy, is used to
     /// send events to the transducer. The output can be used to connect to other
     /// components. This can also be another transducer. In this case, the output is
     /// connected to the input interface of another transducer.
-    /// 
+    ///
     /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
-    /// - Parameter env: The environment in which the transducer operates and which 
+    /// - Parameter env: The environment in which the transducer operates and which
     /// provides the necessary context for executing effects.
-    /// - Parameter systemActor: The actor isolation context in which the transducer 
-    ///   operates. This parameter allows the caller to specify the actor context 
-    ///   for isolation, ensuring thread safety and correct actor execution semantics 
-    ///   when running the transducer. The default value `#isolation` uses the 
+    /// - Parameter systemActor: The actor isolation context in which the transducer
+    ///   operates. This parameter allows the caller to specify the actor context
+    ///   for isolation, ensuring thread safety and correct actor execution semantics
+    ///   when running the transducer. The default value `#isolation` uses the
     ///   current actor context.
-    /// 
+    ///
     /// - Throws: An error if the transducer cannot execute its transition and
     ///   output function as expected. For example, if the initial state is
     ///   terminal, or if no output is produced, or when events could not be
     ///   equeued because of a full event buffer, or when the func `terminate()`
     ///   is called on the proxy, or when the output value cannot be sent.
-    /// 
+    ///
     /// > Note: State observation is not supported in this implementation of the
     ///   run function.
-    /// 
+    ///
     /// Specialization for transducers where `TransducerOutput == (Effect?, Output)`.
     /// This overload is used when no output emission is required.
     /// - Note: The constraint `TransducerOutput == (Effect?, Output)` is required for this overload.
     /// - See documentation above for details on this specialization.
-        public static func run(
-            initialState: State,
-            proxy: Proxy,
-            env: Env,
-            systemActor: isolated any Actor = #isolation
-        ) async throws where TransducerOutput == (Effect?, Output) {
+    public static func run(
+        initialState: State,
+        proxy: Proxy,
+        env: Env,
+        systemActor: isolated any Actor = #isolation
+    ) async throws where TransducerOutput == (Effect?, Output) {
         _ = try await Self.run(
-            storage: LocalStorage(value: initialState), 
-            proxy: proxy, 
+            storage: LocalStorage(value: initialState),
+            proxy: proxy,
             env: env,
             output: NoCallback<Output>(),
             systemActor: systemActor
@@ -447,38 +449,38 @@ extension EffectTransducer {
 extension EffectTransducer {
 
     /// Executes the Finite State Machine (FSM) with the given initial state.
-    /// 
-    /// This overload of `run` is specialized for transducers where 
+    ///
+    /// This overload of `run` is specialized for transducers where
     /// `TransducerOutput == Effect?`.
-    /// 
+    ///
     /// The function `run(initialState:proxy:output:)` returns when the transducer
     /// reaches a terminal state or when an error occurs.
-    /// 
+    ///
     /// The proxy, or more specifically, the `Input` interface of the proxy, is used to
     /// send events to the transducer. The output can be used to connect to other
     /// components. This can also be another transducer. In this case, the output is
     /// connected to the input interface of another transducer.
-    /// 
+    ///
     /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
-    /// - Parameter env: The environment in which the transducer operates and which 
+    /// - Parameter env: The environment in which the transducer operates and which
     /// provides the necessary context for executing effects.
-    /// - Parameter systemActor: The actor isolation context in which the transducer 
-    ///   operates. This parameter allows the caller to specify the actor context 
-    ///   for isolation, ensuring thread safety and correct actor execution semantics 
-    ///   when running the transducer. The default value `#isolation` uses the 
+    /// - Parameter systemActor: The actor isolation context in which the transducer
+    ///   operates. This parameter allows the caller to specify the actor context
+    ///   for isolation, ensuring thread safety and correct actor execution semantics
+    ///   when running the transducer. The default value `#isolation` uses the
     ///   current actor context.
-    /// 
+    ///
     /// - Throws: An error if the transducer cannot execute its transition and
     ///   output function as expected. For example, if the initial state is
     ///   terminal, or if no output is produced, or when events could not be
     ///   enqueued because of a full event buffer, or when the func `terminate()`
     ///   is called on the proxy, or when the output value cannot be sent.
-    /// 
+    ///
     /// > Note: State observation is not supported in this implementation of the
     ///  run function.
-    /// 
+    ///
     public static func run(
         initialState: State,
         proxy: Proxy,
@@ -486,17 +488,16 @@ extension EffectTransducer {
         systemActor: isolated any Actor = #isolation
     ) async throws where TransducerOutput == Effect?, Output == Void {
         try await Self.run(
-            storage: LocalStorage(value: initialState), 
-            proxy: proxy, 
+            storage: LocalStorage(value: initialState),
+            proxy: proxy,
             env: env,
             systemActor: systemActor
         )
     }
 }
 
-
 extension EffectTransducer {
-    
+
     private static func execute(
         _ effect: consuming Effect,
         input: Input,

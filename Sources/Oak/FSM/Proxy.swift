@@ -32,7 +32,7 @@ import struct Foundation.UUID
 /// - Integrates with the transducer runtime for event flow management.
 /// - Safe for concurrent use by multiple event producers.
 /// - Supports sending events and control signals.
-/// 
+///
 /// ## Detailed Description
 ///
 /// The proxy provides a means to send events into a transducer. Internally, the
@@ -41,7 +41,7 @@ import struct Foundation.UUID
 /// them in the order they were received. Thus, a proxy must be associated with
 /// a transducer by passing it as parameter to the `run` function, so that the
 /// transducer can process the events.
-/// 
+///
 /// A proxy instance can only be used by a single transducer. Once the transducer
 /// reaches a terminal state, the proxy will no longer accept events and will
 /// terminate the stream.
@@ -75,56 +75,56 @@ import struct Foundation.UUID
 /// - Maintains isolation between event producers and proxy implementation.
 ///
 /// - Parameter Event: The type of event transmitted through the proxy.
-/// 
+///
 public struct Proxy<Event>: TransducerProxy, Identifiable {
-    
+
     enum Error: Swift.Error {
         case terminated
         case droppedEvent(String)
         case sendFailed(String)
         case deinitialised
     }
-    
+
     public typealias Stream = AsyncThrowingStream<Event, Swift.Error>
     typealias Continuation = Stream.Continuation
-        
+
     public let stream: Stream
     private let continuation: Continuation
-    
+
     public let id: UUID = UUID()
 
     /// The Input type provides a way to send events into the transducer.
-    /// 
+    ///
     /// It is designed to be used within effects or other asynchronous contexts
     /// where you need to send events back to the transducer.
     public struct Input: BufferedTransducerInput {
-        
+
         internal init(continuation: Continuation) {
             self.continuation = continuation
         }
-        
+
         let continuation: Continuation
-        
+
         /// Sends the specified event to the transducer.
-        /// 
+        ///
         /// An `Input` instance will be provided by the transducer to its effects,
         /// allowing them to send events back to the transducer. But an instance of
         /// `Input` can also be created directly from the proxy, allowing you to send
         /// events from outside the transducer's context.
-        /// 
+        ///
         /// The Input value conforms to `Sendable` allowing it to be used across
         /// different threads or isolation contexts, ensuring that events can be sent
         /// safely from any asynchronous context.
-        /// 
+        ///
         /// - Parameter event: The event to send.
-        /// 
-        /// - Throws: An error if the event could not be sent, for example when the proxy is 
+        ///
+        /// - Throws: An error if the event could not be sent, for example when the proxy is
         /// terminated or the event buffer is full.
         public func send(_ event: sending Event) throws {
             try Proxy.send(continuation: self.continuation, event: event)
         }
     }
-    
+
     public final class AutoCancellation: Sendable, Equatable {
         public static func == (lhs: AutoCancellation, rhs: AutoCancellation) -> Bool {
             lhs.id == rhs.id
@@ -132,7 +132,7 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
 
         let continuation: Continuation
         let id: Proxy.ID
-        
+
         init(proxy: Proxy) {
             continuation = proxy.continuation
             id = proxy.id
@@ -143,7 +143,7 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
     }
 
     /// Initializes a new `Proxy` instance with a specified event buffer size.
-    /// 
+    ///
     /// The buffer size determines how many events can be buffered before
     /// new events are dropped. If the buffer is full, sending new events
     /// will result in an error, which terminates the transducer with an error.
@@ -156,8 +156,8 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
     ///
     /// > Note: Being able to buffer eight events is a reasonable default for most use cases,
     ///   but you can adjust this value based on your application's requirements.
-    ///   A larger buffer size may increase memory usage, while a smaller buffer size may 
-    ///   increase the risk of an event being dropped, which terminates the transducer with 
+    ///   A larger buffer size may increase memory usage, while a smaller buffer size may
+    ///   increase the risk of an event being dropped, which terminates the transducer with
     ///   an error.
     ///
     public init(bufferSize: Int = 8, initialEvent: sending Event? = nil) {
@@ -170,11 +170,12 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
             } catch {
                 // This can only happen, when the buffer size is less than one,
                 // which is a programmer error.
-                fatalError("Could not initialize proxy with initial event: \(error.localizedDescription)")
+                fatalError(
+                    "Could not initialize proxy with initial event: \(error.localizedDescription)")
             }
         }
     }
-    
+
     /// Creates a proxy with default settings.
     ///
     /// This initializer provides a convenient way to create a proxy with sensible defaults:
@@ -191,16 +192,16 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
     public init() {
         self.init(bufferSize: 8, initialEvent: nil)
     }
-        
+
     /// Sends the specified event to the transducer.
-    /// 
-    /// In contrast to the `Input` type, `Proxy` is only Sendable when type 
-    /// `Event` is Sendable. This means that if you need to send events from 
+    ///
+    /// In contrast to the `Input` type, `Proxy` is only Sendable when type
+    /// `Event` is Sendable. This means that if you need to send events from
     /// a non-Sendable context, you must use the `Input` type instead.
-    /// 
+    ///
     /// - Parameter event: The event to send.
-    /// 
-    /// - Throws: An error if the event could not be sent, for example when the proxy is 
+    ///
+    /// - Throws: An error if the event could not be sent, for example when the proxy is
     /// terminated or the event buffer is full.
     public func send(_ event: sending Event) throws {
         try Self.send(continuation: continuation, event: event)
@@ -215,7 +216,7 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
     public var autoCancellation: AutoCancellation {
         AutoCancellation(proxy: self)
     }
-    
+
     /// Terminates the proxy, preventing any further events from being sent and causing
     /// the `run` function to throw an error.
     ///
@@ -235,11 +236,11 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
     public func cancel(with error: Swift.Error? = nil) {
         continuation.finish(throwing: error ?? TransducerError.cancelled)
     }
-    
+
     public func finish() {
         continuation.finish()
     }
-    
+
     private static func send(
         continuation: Continuation,
         event: sending Event
@@ -257,12 +258,11 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
             break
         }
     }
-    
+
     static func descriptionOf(_ event: sending Event) -> String {
         "\(String(describing: event))"
     }
 }
-
 
 extension Proxy: Equatable {
     public static func == (lhs: Proxy<Event>, rhs: Proxy<Event>) -> Bool {
@@ -273,7 +273,7 @@ extension Proxy: Equatable {
 extension Proxy: Sendable where Event: Sendable {}
 
 extension Proxy: TransducerProxyInternal {
-    
+
     public func checkInUse() throws(TransducerError) {
         // Note: this implementation cannot guarantee,
         // that a proxy can be attempted to be reused
@@ -292,5 +292,5 @@ extension Proxy: TransducerProxyInternal {
         }
         continuation.onTermination = { _ in }
     }
-    
+
 }

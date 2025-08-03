@@ -10,17 +10,17 @@ let package = Package(
         .macOS(.v14),
         .watchOS(.v10),
         .macCatalyst(.v15),
-        .tvOS(.v17),
+        .tvOS(.v17)
     ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "Examples",
             targets: ["Examples"]
-        ),
+        )
     ],
     dependencies: [
-        .package(name: "Oak", path: "../../Oak"),
+        .package(name: "Oak", path: "../../Oak")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -34,6 +34,6 @@ let package = Package(
         .testTarget(
             name: "ExamplesTests",
             dependencies: ["Examples"]
-        ),
+        )
     ]
 )

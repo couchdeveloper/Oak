@@ -1,6 +1,6 @@
-import Testing
 import Foundation
 import Oak
+import Testing
 
 #if !DEBUG
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
@@ -13,7 +13,7 @@ func benchmarkAction() async throws {
             let maxCount: Int
             var isTerminal: Bool { count >= maxCount }
         }
-        
+
         enum Event { case start, tick }
 
         typealias Output = Void
@@ -22,10 +22,10 @@ func benchmarkAction() async throws {
         static func update(_ state: inout State, event: Event) -> Self.Effect? {
             switch event {
             case .start:
-                return Effect { _, _ in   // calling `Effect(isolatedAction:)` - this is bit faster than `Effect(action:)`
+                return Effect { _, _ in  // calling `Effect(isolatedAction:)` - this is bit faster than `Effect(action:)`
                     return .tick
                 }
-                
+
             case .tick:
                 state.count += 1
                 if !state.isTerminal {
@@ -38,8 +38,8 @@ func benchmarkAction() async throws {
             }
         }
     }
-    
-    let clock = ContinuousClock() // Or SuspendingClock
+
+    let clock = ContinuousClock()  // Or SuspendingClock
 
     func logTime(duration: ContinuousClock.Duration, function: String = #function) {
         print("\(function) Time elaspsed = \(duration)")
@@ -59,7 +59,6 @@ func benchmarkAction() async throws {
     )
 }
 
-
 @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
 @TestGlobalActor
 @Test
@@ -70,7 +69,7 @@ func benchmarkActionWithOutput() async throws {
             let maxCount: Int
             var isTerminal: Bool { count >= maxCount }
         }
-            
+
         enum Event { case start, tick }
 
         typealias Output = Int
@@ -80,7 +79,7 @@ func benchmarkActionWithOutput() async throws {
             switch event {
             case .start:
                 return (Effect { _, _ in .tick }, 0)
-                
+
             case .tick:
                 state.count += 1
                 if !state.isTerminal {
@@ -92,7 +91,7 @@ func benchmarkActionWithOutput() async throws {
         }
     }
 
-    let clock = ContinuousClock() // Or SuspendingClock
+    let clock = ContinuousClock()  // Or SuspendingClock
 
     func logTime(duration: ContinuousClock.Duration, function: String = #function) {
         print("\(function) Time elaspsed = \(duration)")

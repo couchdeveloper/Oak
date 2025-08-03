@@ -7,7 +7,7 @@ public protocol TransducerProxy<Event>: TransducerProxyInternal, Identifiable, E
     associatedtype Event
     associatedtype Input
     associatedtype AutoCancellation: Equatable
-    
+
     /// A proxy is default-constructible.
     init()
 
@@ -17,7 +17,7 @@ public protocol TransducerProxy<Event>: TransducerProxyInternal, Identifiable, E
 
     /// An object which cancels the proxy when deinitialised.
     var autoCancellation: AutoCancellation { get }
-        
+
     /// Terminates the proxy, preventing any further events from being sent and causing
     /// the `run` function to throw an error.
     ///
@@ -33,7 +33,7 @@ public protocol TransducerProxy<Event>: TransducerProxyInternal, Identifiable, E
     /// - Note: This method should be idempotent; calling it multiple times should
     /// have no effect.
     func cancel(with error: Swift.Error?)
-    
+
     var id: UUID { get }
 }
 
@@ -42,7 +42,6 @@ extension TransducerProxy {
         lhs.id == rhs.id
     }
 }
-
 
 extension TransducerProxy {
     public func cancel() {
@@ -62,7 +61,7 @@ extension TransducerProxy {
 public protocol TransducerProxyInternal<Event> {
     associatedtype Event
     associatedtype Stream: AsyncSequence where Stream.Element == Event
-    
+
     /// Returns the internal stream which is an implementation of
     /// an `AsyncSequence`.
     ///
@@ -70,7 +69,7 @@ public protocol TransducerProxyInternal<Event> {
     /// be used by the internal transducer logic only. Accessing it from
     /// outside is considered a programmer error.
     var stream: Stream { get }
-    
+
     /// Performs an invariant check, if available.
     ///
     /// The default implementation does not perform any checks
@@ -90,7 +89,7 @@ public protocol TransducerProxyInternal<Event> {
     /// be used by the internal transducer logic only. Accessing it
     /// from outside is considered a programmer error.
     func checkInUse() throws(TransducerError)
-    
+
     /// Finishes the internal stream.
     ///
     /// This function will be called by the internal transducer logic

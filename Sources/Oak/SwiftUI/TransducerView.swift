@@ -3,7 +3,7 @@ import SwiftUI
 
 /// A SwiftUI view that conforms to `TransducerActor`, enabling any view
 /// to act as a transducer actor with its `@State` properties as the FSM state.
-/// 
+///
 /// When the view's body will be executed the very first time it creates a _transducer
 /// identity_, i.e. the life-cycle of a transducer. In other words, when the view appears
 /// the very first time it starts the transducer. This also associates the proxy given in
@@ -25,24 +25,25 @@ import SwiftUI
 /// > Tip: A `TransducerView` can be used as a replacement of an observable
 /// object, such as a "ViewModel".
 @MainActor
-public struct TransducerView<Transducer, Content>: View, @MainActor TransducerActor where Transducer: BaseTransducer, Content: View {
+public struct TransducerView<Transducer, Content>: View, @MainActor TransducerActor
+where Transducer: BaseTransducer, Content: View {
     public typealias State = Transducer.State
     public typealias Event = Transducer.Event
     public typealias Output = Transducer.Output
     public typealias Proxy = Transducer.Proxy
     public typealias Input = Transducer.Proxy.Input
     public typealias Storage = Binding<State>
-    
+
     public struct Completion: @MainActor Oak.Completable {
         public typealias Value = Output
         public typealias Failure = Error
-        
+
         let f: (Result<Value, Failure>) -> Void
-        
+
         public init() {
             f = { _ in }
         }
-        public init(_ onCompletion: @escaping(Result<Value, Failure>) -> Void) {
+        public init(_ onCompletion: @escaping (Result<Value, Failure>) -> Void) {
             f = onCompletion
         }
         public func completed(with result: Result<Value, Failure>) {
@@ -54,11 +55,17 @@ public struct TransducerView<Transducer, Content>: View, @MainActor TransducerAc
     @SwiftUI.State private var taskHolder: TaskHolder?
 
     public let proxy: Proxy
-    
+
     private let completion: Completion
     private let content: (State, Input) -> Content
-    private let runTransducerClosure: (Storage, Proxy, Completion, isolated any Actor) -> Task<Void, Never>
-    
+    private let runTransducerClosure:
+        (
+            Storage,
+            Proxy,
+            Completion,
+            isolated any Actor
+        ) -> Task<Void, Never>
+
     /// Do not use this initialiser. This is a required initializer from TransducerActor protocol.
     ///
     /// This is the only method we need to implement. All convenience initializers come from
@@ -84,7 +91,11 @@ public struct TransducerView<Transducer, Content>: View, @MainActor TransducerAc
         initialState: State,
         proxy: Proxy,
         completion: Completion?,
-        runTransducer: @escaping (Binding<State>, Proxy, Completion, isolated any Actor) -> Task<Void, Never>,
+        runTransducer: @escaping (
+            Binding<State>,
+            Proxy,
+            Completion, isolated any Actor
+        ) -> Task<Void, Never>,
         content: @escaping (State, Input) -> Content
     ) {
         self._state = SwiftUI.State(wrappedValue: initialState)
@@ -93,22 +104,23 @@ public struct TransducerView<Transducer, Content>: View, @MainActor TransducerAc
         self.runTransducerClosure = runTransducer
         self.content = content
     }
-    
+
     public var body: some View {
         content(state, proxy.input)
-        .onAppear {
-            if taskHolder == nil {
-                // TODO: in the completion, reset the taskHolder
-                let transducerTask = runTransducerClosure($state, proxy, completion, MainActor.shared)
-                self.taskHolder = TaskHolder(transducerTask)
-                Task {
-                    _ = await transducerTask.value
-                    self.taskHolder = nil
+            .onAppear {
+                if taskHolder == nil {
+                    // TODO: in the completion, reset the taskHolder
+                    let transducerTask = runTransducerClosure(
+                        $state, proxy, completion, MainActor.shared)
+                    self.taskHolder = TaskHolder(transducerTask)
+                    Task {
+                        _ = await transducerTask.value
+                        self.taskHolder = nil
+                    }
                 }
             }
-        }
     }
-    
+
     public func cancel() {
         proxy.cancel()
         taskHolder?.task.cancel()
@@ -132,7 +144,7 @@ extension TransducerView {
 // Both ObservableTransducer and ActorTransducerView leverage the same protocol extensions:
 //
 // For Transducer types:
-// - init(initialState:proxy:completion:failure:) 
+// - init(initialState:proxy:completion:failure:)
 // - init(initialState:proxy:output:completion:failure:)
 //
 // For EffectTransducer types:
@@ -142,19 +154,17 @@ extension TransducerView {
 // This demonstrates the power of protocol-oriented design - both ObservableTransducer
 // and ActorTransducerView share the same initialization logic through protocol extensions.
 
-
-
 #if DEBUG
 
 // MARK: - Demo
 
-fileprivate enum A: Transducer {
+private enum A: Transducer {
     enum State: NonTerminal {
         init() { self = .start() }
         case start(events: [Event] = [])
         var events: [Event] {
             switch self {
-                case .start(events: let events):
+            case .start(let events):
                 return events
             }
         }
@@ -162,9 +172,9 @@ fileprivate enum A: Transducer {
     enum Event {
         case buttonTapped
     }
-    
+
     typealias Output = Void
-    
+
     static func update(
         _ state: inout State,
         event: Event
@@ -175,16 +185,15 @@ fileprivate enum A: Transducer {
             state = .start(events: events)
         }
     }
-    
+
 }
 
 #Preview("Basic TransducerView") {
-    
+
     TransducerView(of: A.self, initialState: .init()) { state, input in
         Text("TransducerView A")
     }
-    
-    
+
     TransducerView(
         of: A.self,
         initialState: .init()
@@ -196,28 +205,27 @@ fileprivate enum A: Transducer {
             }
             .buttonStyle(.borderedProminent)
             .padding(32)
-    
+
             let events = state.events.map { "\($0)" }.joined(separator: ", ")
             TextEditor(text: .constant(events))
-            .padding()
+                .padding()
         }
     }
 }
 
-
-fileprivate enum Counters {}
+private enum Counters {}
 
 extension Counters: Transducer {
-    
+
     enum State: Terminable {
         init() { self = .start }
-        
+
         case start
         case counting(counter: Int)
         case terminated(counter: Int)
-        
+
         var isTerminal: Bool { if case .terminated = self { true } else { false } }
-        
+
         var value: Int {
             switch self {
             case .start:
@@ -227,23 +235,23 @@ extension Counters: Transducer {
             }
         }
     }
-    
+
     enum Event {
         case intentPlus
         case intentMinus
         case done
     }
-    
+
     typealias Output = Int
-    
+
     static var initialState: State { .start }
-        
+
     static func update(
         _ state: inout State,
         event: Event
     ) -> Int {
         print("*** event: \(event) with current state: \(state)")
-        
+
         switch (event, state) {
         case (.intentPlus, .start):
             state = .counting(counter: 1)
@@ -348,8 +356,8 @@ extension Counters.Views {
     Counters.Views.ComponentView()
 }
 
-fileprivate struct RepeatView: View {
-    
+private struct RepeatView: View {
+
     enum T: Transducer {
         enum State: NonTerminal {
             init() { self = .start }
@@ -370,7 +378,7 @@ fileprivate struct RepeatView: View {
             print("*** -> state: \(state)")
         }
     }
-        
+
     @State private var proxy: T.Proxy? = nil
 
     var body: some View {
@@ -387,7 +395,7 @@ fileprivate struct RepeatView: View {
                 .id(proxy.id)
                 .padding()
             }
-            
+
             Button("Cancel Transducer") {
                 proxy?.cancel()
                 self.proxy = nil
@@ -403,21 +411,24 @@ fileprivate struct RepeatView: View {
             }
             .buttonStyle(.borderedProminent)
             .padding()
-            
-            Text(verbatim: "proxy.id: \(self.proxy == nil ? "nil" : "\(self.proxy!.id.uuidString)")")
+
+            Text(
+                verbatim:
+                    "proxy.id: \(self.proxy == nil ? "nil" : "\(self.proxy!.id.uuidString)")"
+            )
             .font(.caption)
         }
     }
-    
+
 }
 
 #Preview("Repeat View") {
     RepeatView()
 }
 
-fileprivate struct RepeatViewInSheet: View {
+private struct RepeatViewInSheet: View {
     @State var isPresented = false
-    
+
     var body: some View {
         Button("Show sheet") {
             self.isPresented.toggle()

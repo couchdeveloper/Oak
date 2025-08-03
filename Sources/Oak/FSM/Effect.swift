@@ -1,4 +1,3 @@
-
 /// Represents a side effect that may interact with the environment.
 ///
 /// The `Effect` struct encapsulates an asynchronous operation that will be executed by the transducer.
@@ -18,9 +17,9 @@ public struct Effect<T: EffectTransducer> {
     public typealias Input = T.Input
     public typealias Event = T.Event
     public typealias Env = T.Env
-    
+
     private let f: (Env, Input, Context, isolated any Actor) async throws -> [Event]
-    
+
     /// Initialises the effect.
     /// - Parameter f: An async throwing function, that might cause side effects.
     ///
@@ -31,7 +30,7 @@ public struct Effect<T: EffectTransducer> {
     ) {
         self.f = f
     }
-    
+
     internal func invoke(
         env: Env,
         input: Input,
@@ -40,10 +39,10 @@ public struct Effect<T: EffectTransducer> {
     ) async throws -> [Event] {
         try await self.f(env, input, context, systemActor)
     }
-    
+
     /// Executes the closure `action` on the specified global actor provided by
     /// the caller.
-    /// 
+    ///
     /// The action may return events provided in an array which gets processed
     /// by the system. These events will be procesed _synchronously_ and in
     /// order. The next processed event is alway the first event in the array
@@ -303,8 +302,7 @@ public struct Effect<T: EffectTransducer> {
             return []
         }
     }
-    
-    
+
     // Note: we do have to explicitly add `Sendable` conformance to `Env` to
     // ensure `Env` is sendbale in uses in the `@Sendable` closure. The compiler
     // would successfully compile it even without being constraint to be
@@ -321,11 +319,11 @@ public struct Effect<T: EffectTransducer> {
     // systemActor (which needs to be a global actor) then it will also not
     // compile, even it would be safe. The fix is to call the other overload
     // above where the closure `operation` is isolated to the systemActor.
-    
+
     // unsafe concurrent accesses to parameter `env` within multiple calls to
     // operation (which may have different isolations) and also between systemActor,
     // EXCEPT where all calls to operation are isolated to `systemActor`.
-    
+
     /// Creates an effect that executes an asynchronous operation executing within an
     /// unstructured Task managed by the transducer.
     ///
@@ -386,7 +384,7 @@ public struct Effect<T: EffectTransducer> {
             return []
         }
     }
-    
+
 }
 
 extension Effect {
@@ -397,7 +395,7 @@ extension Effect {
     /// If the operation completes successfully, the effect will complete with its result.
     /// If the operation fails with an error, the effect will propagate that error to the caller,
     /// causing the transducer's run function to return with this error.
-    /// 
+    ///
     /// - Parameters:
     ///   - id: An optional unique identifier for this effect. When provided, it can be used for
     ///     cancellation, or to distinguish between multiple effects of the same type.
@@ -415,7 +413,7 @@ extension Effect {
     ///   - If it's a `CancellationError`, the transducer continues normally.
     ///   - For any other error, it will terminate the transducer and causing
     ///     the`run` function to rethrow it.
-    /// 
+    ///
     /// - Important: The transducer offers lifecycle management for the Swift Task which
     /// executes the operation.
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
@@ -460,7 +458,7 @@ extension Effect {
     /// If the operation completes successfully, the effect will complete with its result.
     /// If the operation fails with an error, the effect will propagate that error to the caller,
     /// causing the transducer's run function to return with this error.
-    /// 
+    ///
     /// - Parameters:
     ///   - id: An optional unique identifier for this effect. When provided, it can be used for
     ///     cancellation, or to distinguish between multiple effects of the same type.
@@ -471,14 +469,14 @@ extension Effect {
     ///   - clock: The clock to use for measuring the duration. Defaults to `ContinuousClock()`.
     ///
     /// This effect will execute the operation on the global actor associated to the closure.
-    /// This enables to match the global actor where `Env` is isolated to, so that accessing 
-    /// it is safe.    
+    /// This enables to match the global actor where `Env` is isolated to, so that accessing
+    /// it is safe.
     ///
     /// - Note: If the operation throws an error:
     ///   - If it's a `CancellationError`, the transducer continues normally.
     ///   - For any other error, it will terminate the transducer and causing
     ///     the`run` function to rethrow it.
-    /// 
+    ///
     /// - Important: The transducer offers lifecycle management for the Swift Task which
     /// executes the operation.
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
@@ -519,9 +517,9 @@ extension Effect {
 }
 
 extension Effect {
-    
+
     /// Creates an effect which, when invoked, sends an event to the transducer.
-    /// 
+    ///
     /// The event will be directly executed and has precedence over any other events
     /// enqueued in the event buffer.
     ///
@@ -549,7 +547,7 @@ public func action<T: Transducer>(
     // isolated: isolated (any Actor)? = #isolation
 ) -> T.Effect {
     // let boxedAction = UnsafeIsolatedBox2(action)
-    return T.Effect.init({ env, input, _, isolated in // Pattern that the region based isolation checker does not understand how to check. Please file a bug
+    return T.Effect.init({ env, input, _, isolated in  // Pattern that the region based isolation checker does not understand how to check. Please file a bug
         // boxedAction.open()(env, input, isolated)
     })
 }
@@ -557,9 +555,9 @@ public func action<T: Transducer>(
 
 #if false
 extension Effect {
-    
+
     // MARK: - Public
-    
+
     public static func action(
         _ action: sending @escaping (
             sending Env,
@@ -569,17 +567,17 @@ extension Effect {
         // isolated: isolated (any Actor)? = #isolation
     ) -> Self {
         // let boxedAction = UnsafeIsolatedBox2(action)
-        return Effect({ env, input, _, isolated in // Pattern that the region based isolation checker does not understand how to check. Please file a bug
+        return Effect({ env, input, _, isolated in  // Pattern that the region based isolation checker does not understand how to check. Please file a bug
             // boxedAction.open()(env, input, isolated)
         })
     }
-    
+
 }
 #endif
 
 #if false
 extension Effect {
-    
+
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public static func event<C: Clock>(
         _ event: sending Event,
@@ -604,7 +602,7 @@ extension Effect {
             context.register(task: task, uid: uid, id: ID(id), isolated: currentActor)
         })
     }
-    
+
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public static func event<C: Clock>(
         _ event: sending Event,
@@ -629,7 +627,7 @@ extension Effect {
             context.register(task: task, uid: uid, id: id, isolated: currentActor)
         })
     }
-    
+
 }
 #endif
 
@@ -639,7 +637,7 @@ extension Effect {
     /// - Parameters:
     ///   - effect1: The first effect to combine.
     ///   - effect2: The second effect to combine.
-    /// 
+    ///
     /// This method allows you to combine multiple effects into a single effect that executes them in order.
     /// Each effect will be executed one after the other, and if any effect throws an error,
     /// the combined effect will also throw that error, terminating the transducer.
@@ -653,7 +651,7 @@ extension Effect {
             let events1 = try await f1(env, proxy, context, isolated)
             let events2 = try await f2(env, proxy, context, isolated)
             return events1 + events2
-            
+
         })
     }
 
@@ -662,7 +660,7 @@ extension Effect {
     ///   - effect1: The first effect to combine.
     ///   - effect2: The second effect to combine.
     ///   - effect3: The third effect to combine.
-    /// 
+    ///
     /// This method allows you to combine multiple effects into a single effect that executes them in order.
     /// Each effect will be executed one after the other, and if any effect throws an error,
     /// the combined effect will also throw that error, terminating the transducer.
@@ -688,7 +686,7 @@ extension Effect {
     ///   - effect2: The second effect to combine.
     ///   - effect3: The third effect to combine.
     ///   - effect4: The fourth effect to combine.
-    /// 
+    ///
     /// This method allows you to combine multiple effects into a single effect that executes them in order.
     /// Each effect will be executed one after the other, and if any effect throws an error,
     /// the combined effect will also throw that error, terminating the transducer.
@@ -743,7 +741,7 @@ extension Effect {
             return events1 + events2 + events3 + events4 + events5
         })
     }
-    
+
     // TODO: Enable this code when the issue has been fixed in the compiler.
     // public static func effects(
     //     _ effects: sending Effect...  // Error: 'sending' may only be used on parameters and results
@@ -754,20 +752,19 @@ extension Effect {
     //         }
     //     })
     // }
-    
-}
 
+}
 
 extension Effect {
 
     /// Cancels the task with the specified identifier.
-    /// 
+    ///
     /// - Parameter id: The identifier of the task to cancel.
-    /// - Returns: An effect that cancels the task. 
-    /// 
+    /// - Returns: An effect that cancels the task.
+    ///
     /// Create this effect and return it in the `update` function
     /// to cancel a previously created effect.
-    /// 
+    ///
     public static func cancelTask(_ id: some Hashable & Sendable) -> Effect {
         return Effect(f: { env, input, context, isolated in
             context.cancelTask(id: ID(id), isolated: isolated)

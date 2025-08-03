@@ -11,34 +11,34 @@
 ///  returns a content. The content closure can be used to drive other components that
 ///  provide an interface and controls.
 ///
-/// ## Examplesducer functions can be called directly without an actor (in which case they "strictly encapsulate" 
-/// the state), the main purpose of having a `TransducerActor` is to provide _observable_ state that can be 
+/// ## Examplesducer functions can be called directly without an actor (in which case they "strictly encapsulate"
+/// the state), the main purpose of having a `TransducerActor` is to provide _observable_ state that can be
 /// integrated with UI frameworks and reactive systems.
 ///
-/// The protocol is designed to work seamlessly with SwiftUI views and types conforming to the `Observable` 
+/// The protocol is designed to work seamlessly with SwiftUI views and types conforming to the `Observable`
 /// protocol from the Observation framework, enabling reactive updates when the transducer's state changes.
 ///
 /// ## Key Characteristics
 ///
-/// - **Observable State**: Unlike standalone transducers that encapsulate state internally, a `TransducerActor` 
+/// - **Observable State**: Unlike standalone transducers that encapsulate state internally, a `TransducerActor`
 ///   exposes state in a way that external observers (like UI components) can react to changes.
 /// - **Isolation Context**: Provides the isolation boundary for safe concurrent access to the transducer's state.
 /// - **Framework Integration**: Enables integration with SwiftUI and other reactive frameworks through observable patterns.
-/// - **Life-cycle Management**: The transducer's lifetime is bound to the actor's lifetime, ensuring proper 
+/// - **Life-cycle Management**: The transducer's lifetime is bound to the actor's lifetime, ensuring proper
 ///   resource management and cleanup.
-/// - **Task-based Execution**: When using a `TransducerActor`, the transducer runs in its own `Task`, providing 
+/// - **Task-based Execution**: When using a `TransducerActor`, the transducer runs in its own `Task`, providing
 ///   concurrent execution without blocking the actor or UI.
-/// - **Weak Reference Pattern**: The transducer does not keep a strong reference to the `TransducerActor` while 
-///   running. If the actor deinitializes while the transducer is still running, the transducer will be forcibly 
+/// - **Weak Reference Pattern**: The transducer does not keep a strong reference to the `TransducerActor` while
+///   running. If the actor deinitializes while the transducer is still running, the transducer will be forcibly
 ///   cancelled, preventing memory leaks and ensuring clean resource cleanup.
 ///
 /// ## Provided Implementations
 ///
 /// The Oak library provides two generic implementations of this protocol:
 ///
-/// - **`TransducerView`**: A SwiftUI view that conforms to `TransducerActor`, enabling declarative UI 
+/// - **`TransducerView`**: A SwiftUI view that conforms to `TransducerActor`, enabling declarative UI
 ///   that automatically updates when the transducer's state changes.
-/// - **`ObservableTransducer`**: A generic type conforming to the `Observable` protocol from the 
+/// - **`ObservableTransducer`**: A generic type conforming to the `Observable` protocol from the
 ///   Observation framework, providing reactive state management outside of SwiftUI contexts.
 ///
 /// ## Usage Patterns
@@ -68,12 +68,12 @@
 ///
 /// ## State Management Philosophy
 ///
-/// The distinction between standalone transducers and `TransducerActor` implementations reflects different 
+/// The distinction between standalone transducers and `TransducerActor` implementations reflects different
 /// architectural needs:
 ///
-/// - **Standalone Transducers**: Provide strict encapsulation, ideal for business logic that doesn't need 
+/// - **Standalone Transducers**: Provide strict encapsulation, ideal for business logic that doesn't need
 ///   external observation.
-/// - **TransducerActor**: Provides controlled observation of state changes, essential for reactive UI patterns 
+/// - **TransducerActor**: Provides controlled observation of state changes, essential for reactive UI patterns
 ///   and external system integration.
 ///
 public protocol TransducerActor<Transducer> {
@@ -82,14 +82,14 @@ public protocol TransducerActor<Transducer> {
     typealias Output = Transducer.Output
     typealias Proxy = Transducer.Proxy
     typealias Input = Proxy.Input
-    
+
     associatedtype Transducer: BaseTransducer
     associatedtype Content
     associatedtype Storage: Oak.Storage<State>
     associatedtype Completion: Oak.Completable<Output, Error>
 
     var proxy: Proxy { get }
-    
+
     /// Returns a transducer actor.
     ///
     /// > Warning: Do not call this initialiser directly. It's called internally by the other initialiser
@@ -119,7 +119,7 @@ public protocol TransducerActor<Transducer> {
         ) -> Task<Void, Never>,
         content: @escaping (State, Input) -> Content
     )
-    
+
     /// Cancels the transducer.
     ///
     /// This forcibly terminates the running transducer task. The state will not be
@@ -130,7 +130,7 @@ public protocol TransducerActor<Transducer> {
 }
 
 extension TransducerActor {
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Void`.
     ///
@@ -148,7 +148,7 @@ extension TransducerActor {
     ///   - initialState: The start state of the transducer.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
     ///   actor creates one.
-    ///   - completion: An optional completion handler which will be called once when the transducer 
+    ///   - completion: An optional completion handler which will be called once when the transducer
     ///   finishes, providing a `Result` that contains either the successful output value or
     ///   an error if the transducer failed.
     ///   - content: A closure which takes the current state and the input as parameters and
@@ -235,7 +235,7 @@ extension TransducerActor {
             content: content
         )
     }
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
     ///
@@ -299,7 +299,7 @@ extension TransducerActor {
             content: content
         )
     }
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
     ///
@@ -344,7 +344,6 @@ extension TransducerActor {
             content: content
         )
     }
-
 
 }
 
@@ -390,8 +389,12 @@ extension TransducerActor {
         output: sending some Subject<Output>,
         completion: Completion? = nil,
         content: @escaping (State, Input) -> Content
-    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output) {
-        nonisolated(unsafe) let env = env // TODO: have to silence compiler error: Sending 'env' risks causing data races
+    )
+    where
+        Transducer: Oak.EffectTransducer,
+        Transducer.TransducerOutput == (Transducer.Effect?, Output)
+    {
+        nonisolated(unsafe) let env = env  // TODO: have to silence compiler error: Sending 'env' risks causing data races
         // IMHO, the compiler's error is not justified: `env` will only ever be
         // mutated from `isolated`. And yes, it is allowed to mutated it, outside
         // of the system (being isolated), but since it's isolated we cannot get
@@ -464,7 +467,11 @@ extension TransducerActor {
         env: Transducer.Env,
         completion: Completion? = nil,
         content: @escaping (State, Input) -> Content
-    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output) {
+    )
+    where
+        Transducer: Oak.EffectTransducer,
+        Transducer.TransducerOutput == (Transducer.Effect?, Output)
+    {
         self.init(
             of: type,
             initialState: initialState,
@@ -476,7 +483,6 @@ extension TransducerActor {
         )
     }
 
-    
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> Self.Effect?`.
     ///
@@ -514,8 +520,12 @@ extension TransducerActor {
         env: Transducer.Env,
         completion: Completion? = nil,
         content: @escaping (State, Input) -> Content
-    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?, Output == Void {
-        nonisolated(unsafe) let env = env // TODO: have to silence compiler error: Sending 'env' risks causing data races
+    )
+    where
+        Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?,
+        Output == Void
+    {
+        nonisolated(unsafe) let env = env  // TODO: have to silence compiler error: Sending 'env' risks causing data races
         // IMHO, the compiler's error is not justified: `env` will only ever be
         // mutated from `isolated`. And yes, it is allowed to mutated it, outside
         // of the system (being isolated), but since it's isolated we cannot get
@@ -551,9 +561,8 @@ extension TransducerActor {
     }
 }
 
-
 extension TransducerActor where Content == Never {
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Void`.
     ///
@@ -592,7 +601,7 @@ extension TransducerActor where Content == Never {
             content: { _, _ in fatalError("No content") }
         )
     }
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
     ///
@@ -635,7 +644,7 @@ extension TransducerActor where Content == Never {
             content: { _, _ in fatalError("No content") }
         )
     }
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
     ///
@@ -716,7 +725,11 @@ extension TransducerActor where Content == Never {
         env: Transducer.Env,
         output: sending some Subject<Output>,
         completion: Completion? = nil,
-    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output) {
+    )
+    where
+        Transducer: Oak.EffectTransducer,
+        Transducer.TransducerOutput == (Transducer.Effect?, Output)
+    {
         self.init(
             initialState: initialState,
             proxy: proxy,
@@ -760,7 +773,11 @@ extension TransducerActor where Content == Never {
         proxy: Proxy? = nil,
         env: Transducer.Env,
         completion: Completion? = nil,
-    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output) {
+    )
+    where
+        Transducer: Oak.EffectTransducer,
+        Transducer.TransducerOutput == (Transducer.Effect?, Output)
+    {
         self.init(
             initialState: initialState,
             proxy: proxy,
@@ -770,7 +787,7 @@ extension TransducerActor where Content == Never {
             content: { _, _ in fatalError("No content") }
         )
     }
-    
+
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> Self.Effect?`.
     ///
@@ -804,7 +821,11 @@ extension TransducerActor where Content == Never {
         proxy: Proxy? = nil,
         env: Transducer.Env,
         completion: Completion? = nil,
-    ) where Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?, Output == Void {
+    )
+    where
+        Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?,
+        Output == Void
+    {
         self.init(
             initialState: initialState,
             proxy: proxy,
