@@ -17,16 +17,12 @@ extension TransducerActor where Content: View {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - isolated: The isolation from the caller.
-    ///   - type: The type of the transducer.
     ///   - initialState: The start state of the transducer.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - failure: A closure which will be called once when the transducer completed
-    ///   with a failure returning the failure value of the run function.
-    ///   - content: A closure which takes the current state and the input as parameters and
+    ///   - completion: A completion handler which will be called once when the transducer
+    ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
+    ///   - viewContent: A closure which takes the current state and the input as parameters and
     ///  returns a content. The content closure can be used to drive other components that
     ///  provide an interface and controls.
     ///
@@ -113,11 +109,9 @@ extension TransducerActor where Content: View {
     ///   actor creates one.
     ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
     ///   output it produces.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - failure: A closure which will be called once when the transducer completed
-    ///   with a failure returning the failure value of the run function.
-    ///   - content: A closure which takes the current state and the input as parameters and
+    ///   - completion: A completion handler which will be called once when the transducer
+    ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
+    ///   - viewContent: A closure which takes the current state and the input as parameters and
     ///  returns a content. The content closure can be used to drive other components that
     ///  provide an interface and controls.
     ///
@@ -161,11 +155,9 @@ extension TransducerActor where Content: View {
     ///   - initialState: The start state of the transducer.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
     ///   actor creates one.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - failure: A closure which will be called once when the transducer completed
-    ///   with a failure returning the failure value of the run function.
-    ///   - content: A closure which takes the current state and the input as parameters and
+    ///   - completion: A completion handler which will be called once when the transducer
+    ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
+    ///   - viewContent: A closure which takes the current state and the input as parameters and
     ///  returns a content. The content closure can be used to drive other components that
     ///  provide an interface and controls.
     ///
@@ -215,11 +207,9 @@ extension TransducerActor where Content: View {
     ///   `Effect`s' `invoke` function.
     ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
     ///   output it produces.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - failure: A closure which will be called once when the transducer completed
-    ///   with a failure returning the failure value of the run function.
-    ///   - content: A closure which takes the current state and the input as parameters and
+    ///   - completion: A completion handler which will be called once when the transducer
+    ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
+    ///   - viewContent: A closure which takes the current state and the input as parameters and
     ///  returns a content. The content closure can be used to drive other components that
     ///  provide an interface and controls.
     ///
@@ -267,11 +257,9 @@ extension TransducerActor where Content: View {
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
     ///   `Effect`s' `invoke` function.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - failure: A closure which will be called once when the transducer completed
-    ///   with a failure returning the failure value of the run function.
-    ///   - content: A closure which takes the current state and the input as parameters and
+    ///   - completion: A completion handler which will be called once when the transducer
+    ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
+    ///   - viewContent: A closure which takes the current state and the input as parameters and
     ///  returns a content. The content closure can be used to drive other components that
     ///  provide an interface and controls.
     ///
@@ -317,11 +305,9 @@ extension TransducerActor where Content: View {
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
     ///   `Effect`s' `invoke` function.
-    ///   - completion: A closure which will be called once when the transducer completed
-    ///   successfully returning the success value of the run function.
-    ///   - failure: A closure which will be called once when the transducer completed
-    ///   with a failure returning the failure value of the run function.
-    ///   - content: A closure which takes the current state and the input as parameters and
+    ///   - completion: A completion handler which will be called once when the transducer
+    ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
+    ///   - viewContent: A closure which takes the current state and the input as parameters and
     ///  returns a content. The content closure can be used to drive other components that
     ///  provide an interface and controls.
     ///

@@ -68,10 +68,12 @@ public struct TransducerView<Transducer, Content>: View, @MainActor TransducerAc
     /// overloads.
     ///
     /// - Parameters:
-    ///   - isolated: The isolation from the caller.
     ///   - initialState: The start state of the transducer.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
+    ///   - completion: A completion handler which will be called once when the transducer
+    ///   finishes, providing a `Result` that contains either the successful output value or
+    ///   an error if the transducer failed.
     ///   - runTransducer: A closure which will be immediately called when the actor will be initialised.
     ///   It starts the transducer which runs in a Swift Task.
     ///   - content: A closure which takes the current state and the input as parameters and
