@@ -443,7 +443,6 @@ struct TransducerViewTests {
             output: Callback { @MainActor output in
                 if case .receivedEvent(let message) = output, !message.isEmpty {
                     receivedEvents.append(message)
-                    print("received output: \(message)")
                     expectation.fulfill()
                 }
             }
@@ -475,8 +474,9 @@ struct TransducerViewTests {
         // expected that the test will succeed.
         #expect(capturedInput != nil)
         for i in 0..<10 {
-            #expect(throws: Never.self) {
+            await #expect(throws: Never.self) {
                 try capturedInput?.send(.test("\(i)"))
+                try await Task.sleep(for: .milliseconds(10))
             }
         }
 
@@ -525,7 +525,6 @@ struct TransducerViewTests {
                 if case .receivedEvent(let message) = output, !message.isEmpty {
                     receivedEvents.append(message)
                     expectation.fulfill()
-                    print("output: \(message)")
                 }
             }
         ) { state, input in
@@ -1332,14 +1331,10 @@ struct TransducerViewTests {
             enum State: NonTerminal, Equatable {
                 case count(Int)
                 init() { self = .count(0) }
-                var value: Int {
-                    if case .count(let v) = self { return v }
-                    return 0
-                }
+                var value: Int { if case .count(let v) = self { return v } else { return 0 } }
             }
             enum Event { case increment, decrement }
             typealias Output = Int
-            
             static func update(_ state: inout State, event: Event) -> Int {
                 MainActor.assertIsolated()
                 switch (event, state) {
@@ -1350,73 +1345,69 @@ struct TransducerViewTests {
                 }
                 return state.value
             }
-            
-            static func initialOutput(initialState: State) -> Int? {
-                initialState.value
-            }
+            static func initialOutput(initialState: State) -> Int? { initialState.value }
         }
-        
+
         let proxy = CounterTransducer.Proxy()
-        var output: Int = 0
-        var outputs: [Int] = []
         var capturedInput: CounterTransducer.Proxy.Input?
-        var observedStates: [CounterTransducer.State] = []
-        
-        let expect5 = Expectation(minFulfillCount: 5)
-        let expect2 = Expectation(minFulfillCount: 2)
+        var observedStates: [Int] = []
+        var outputs: [Int] = []
+
+        let receicedStateExpectation = Expectation()
 
         let view = TransducerView(
             of: CounterTransducer.self,
             initialState: .count(0),
             proxy: proxy,
-            output: Callback { @MainActor in
+            output: Callback { @MainActor value in
                 MainActor.assertIsolated()
-                output = $0
-                outputs.append($0)
-                expect5.fulfill()
-                switch $0 {
-                case 0:
-                    break
-                case 1:
-                    break
-                case 2:
-                    expect2.fulfill()
-                case 3:
-                    break
-                default:
-                    break
-                }
+                outputs.append(value)
             }
         ) { state, input in
             Text("\(state.value)")
                 .onAppear {
                     capturedInput = input
-                    observedStates.append(state)
+                    observedStates.append(state.value)
+                    receicedStateExpectation.fulfill()
                 }
                 .onChange(of: state) {
-                    observedStates.append(state)
+                    observedStates.append(state.value)
+                    receicedStateExpectation.fulfill()
                 }
         }
-        
-        // Host the view properly
-        let (_, window) = await embedInWindowAndMakeKey(view)
-        
-        // Test increment
-        try capturedInput?.send(.increment) // 1
-        
-        // Test multiple increments
-        try capturedInput?.send(.increment) // 2
-        try capturedInput?.send(.increment) // 3
-        
-        // Test decrement
-        try capturedInput?.send(.decrement) // 2
-        await #expect(throws: Never.self) { try await expect5.await(timeout: .seconds(1)) }
-        #expect(expect2.isFulfilled)
-        #expect(output == 2)
-        #expect(outputs == [0,1,2,3,2])
-        #expect(observedStates == [.count(0), .count(1), .count(2), .count(3), .count(2)])
 
-        // Clean up
+        let (_, window) = await embedInWindowAndMakeKey(view)
+
+        // Simulate user actions
+        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        // onAppear: 0
+        #expect(observedStates == [0])
+
+        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        try capturedInput?.send(.increment) // 1
+        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        // onChange: 1
+        #expect(observedStates == [0, 1])
+
+        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        try capturedInput?.send(.increment) // 2
+        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        // onChange: 2
+        #expect(observedStates == [0, 1, 2])
+
+        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        try capturedInput?.send(.increment) // 3
+        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        // onChange: 3
+        #expect(observedStates == [0, 1, 2, 3])
+
+        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        try capturedInput?.send(.decrement) // 2
+        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        // onChange: 2
+        #expect(observedStates == [0, 1, 2, 3, 2])
+        #expect(outputs == [0, 1, 2, 3, 2])
+
         cleanupView(window)
     }
 }

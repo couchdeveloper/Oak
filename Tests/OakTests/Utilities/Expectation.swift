@@ -13,17 +13,25 @@ final class Expectation: Sendable {
     typealias Continuation = CheckedContinuation<Void, any Swift.Error>
 
     enum State {
-        case unitialized(minFulfillCount: Int)
-        case partiallyFulfilled(minFulfillCount: Int, fulfillCount: Int)
-        case pending(Continuation, minFulfillCount: Int, fulfillCount: Int, timeoutTask: Task<Void, Swift.Error>?)
-        case fulfilled(fulfillCount: Int)
+        case start(minFulfillCount: Int)
+        case partiallyFulfilled(
+            minFulfillCount: Int,
+            fulfillCount: Int
+        )
+        case pending(
+            Continuation,
+            minFulfillCount: Int,
+            fulfillCount: Int,
+            timeoutTask: Task<Void,Swift.Error>?
+        )
+        case fulfilled(minFulfillCount: Int, fulfillCount: Int)
         case rejected(any Swift.Error)
     }
         
     let lock: OSAllocatedUnfairLock<State>
 
     init(minFulfillCount: Int = 1) {
-        lock = .init(initialState: .unitialized(minFulfillCount: minFulfillCount))
+        lock = .init(initialState: .start(minFulfillCount: minFulfillCount))
     }
     
     var isFulfilled: Bool {
@@ -42,24 +50,48 @@ final class Expectation: Sendable {
         try await withCheckedThrowingContinuation { (continuation: Continuation) in
             self.lock.withLock { state in
                 switch state {
-                case .unitialized(let minFulfillCount):
+                case .start(let minFulfillCount):
                     let timeoutTask = Task { [weak self] in
                         try await Task.sleep(nanoseconds: nanoseconds)
                         self?.fail(with: Error.timeout)
                     }
-                    state = .pending(continuation, minFulfillCount: minFulfillCount, fulfillCount: 0, timeoutTask: timeoutTask)
+                    state = .pending(
+                        continuation,
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: 0,
+                        timeoutTask: timeoutTask
+                    )
 
                 case .partiallyFulfilled(let minFulfillCount, let fulfillCount):
+                    assert(fulfillCount < minFulfillCount)
                     let timeoutTask = Task { [weak self] in
                         try await Task.sleep(nanoseconds: nanoseconds)
                         self?.fail(with: Error.timeout)
                     }
-                    state = .pending(continuation, minFulfillCount: minFulfillCount, fulfillCount: fulfillCount, timeoutTask: timeoutTask)
+                    state = .pending(
+                        continuation,
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: fulfillCount,
+                        timeoutTask: timeoutTask
+                    )
 
                 case .rejected(let error):
                     continuation.resume(throwing: error)
                 
-                case .fulfilled:
+                case .fulfilled(let minFulfillCount, let fulfillCount):
+                    assert(fulfillCount >= minFulfillCount)
+                    let newFulfillCount = fulfillCount - minFulfillCount
+                    if newFulfillCount >= minFulfillCount {
+                        state = .fulfilled(
+                            minFulfillCount: minFulfillCount,
+                            fulfillCount: newFulfillCount
+                        )
+                    } else {
+                        state = .partiallyFulfilled(
+                            minFulfillCount: minFulfillCount,
+                            fulfillCount: newFulfillCount
+                        )
+                    }
                     continuation.resume()
                 
                 case .pending:
@@ -77,24 +109,56 @@ final class Expectation: Sendable {
         try await withCheckedThrowingContinuation { (continuation: Continuation) in
             self.lock.withLock { state in
                 switch state {
-                case .unitialized(let minFulfillCount):
+                case .start(let minFulfillCount):
                     let timeoutTask = Task { [weak self] in
-                        try await Task.sleep(for: duration, tolerance: tolerance, clock: clock)
+                        try await Task.sleep(
+                            for: duration,
+                            tolerance: tolerance,
+                            clock: clock
+                        )
                         self?.fail(with: Error.timeout)
                     }
-                    state = .pending(continuation, minFulfillCount: minFulfillCount, fulfillCount: 0, timeoutTask: timeoutTask)
+                    state = .pending(
+                        continuation,
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: 0,
+                        timeoutTask: timeoutTask
+                    )
 
                 case .partiallyFulfilled(let minFulfillCount, let fulfillCount):
+                    assert(fulfillCount < minFulfillCount)
                     let timeoutTask = Task { [weak self] in
-                        try await Task.sleep(for: duration, tolerance: tolerance, clock: clock)
+                        try await Task.sleep(
+                            for: duration,
+                            tolerance: tolerance,
+                            clock: clock
+                        )
                         self?.fail(with: Error.timeout)
                     }
-                    state = .pending(continuation, minFulfillCount: minFulfillCount, fulfillCount: fulfillCount, timeoutTask: timeoutTask)
+                    state = .pending(
+                        continuation,
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: fulfillCount,
+                        timeoutTask: timeoutTask
+                    )
 
                 case .rejected(let error):
                     continuation.resume(throwing: error)
                 
-                case .fulfilled:
+                case .fulfilled(let minFulfillCount, let fulfillCount):
+                    assert(fulfillCount >= minFulfillCount)
+                    let newFulfillCount = fulfillCount - minFulfillCount
+                    if newFulfillCount >= minFulfillCount {
+                        state = .fulfilled(
+                            minFulfillCount: minFulfillCount,
+                            fulfillCount: newFulfillCount
+                        )
+                    } else {
+                        state = .partiallyFulfilled(
+                            minFulfillCount: minFulfillCount,
+                            fulfillCount: newFulfillCount
+                        )
+                    }
                     continuation.resume()
                 
                 case .pending:
@@ -108,16 +172,40 @@ final class Expectation: Sendable {
         try await withCheckedThrowingContinuation { (continuation: Continuation) in
             self.lock.withLock { state in
                 switch state {
-                case .unitialized(let minFulfillCount):
-                    state = .pending(continuation, minFulfillCount: minFulfillCount, fulfillCount: 0, timeoutTask: nil)
+                case .start(let minFulfillCount):
+                    state = .pending(
+                        continuation,
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: 0,
+                        timeoutTask: nil
+                    )
 
                 case .partiallyFulfilled(let minFulfillCount, let fulfillCount):
-                    state = .pending(continuation, minFulfillCount: minFulfillCount, fulfillCount: fulfillCount, timeoutTask: nil)
+                    assert(fulfillCount < minFulfillCount)
+                    state = .pending(
+                        continuation,
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: fulfillCount,
+                        timeoutTask: nil
+                    )
                 
                 case .rejected(let error):
                     continuation.resume(throwing: error)
                 
-                case .fulfilled:
+                case .fulfilled(let minFulfillCount, let fulfillCount):
+                    assert(fulfillCount >= minFulfillCount)
+                    let newFulfillCount = fulfillCount - minFulfillCount // consume minFulfillCount
+                    if newFulfillCount >= minFulfillCount {
+                        state = .fulfilled(
+                            minFulfillCount: minFulfillCount,
+                            fulfillCount: newFulfillCount
+                        )
+                    } else {
+                        state = .partiallyFulfilled(
+                            minFulfillCount: minFulfillCount,
+                            fulfillCount: newFulfillCount
+                        )
+                    }
                     continuation.resume()
                 
                 case .pending:
@@ -130,34 +218,70 @@ final class Expectation: Sendable {
     func fulfill() {
         self.lock.withLock { state in
             switch state {
-            case .unitialized(let minFulfillCount):
+            case .start(let minFulfillCount):
                 let fulfillCount = 1
                 if fulfillCount >= minFulfillCount {
-                    state = .fulfilled(fulfillCount: 1)
+                    state = .fulfilled(
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: 1
+                    )
                 } else {
-                    state = .partiallyFulfilled(minFulfillCount: minFulfillCount, fulfillCount: 1)
+                    state = .partiallyFulfilled(
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: 1
+                    )
                 }
                 
             case .partiallyFulfilled(let minFulfillCount, let fulfillCount):
+                assert(fulfillCount < minFulfillCount)
                 let fulfillCount = fulfillCount + 1
                 if fulfillCount >= minFulfillCount {
-                    state = .fulfilled(fulfillCount: fulfillCount)
+                    state = .fulfilled(
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: fulfillCount
+                    )
                 } else {
-                    state = .partiallyFulfilled(minFulfillCount: minFulfillCount, fulfillCount: fulfillCount)
+                    state = .partiallyFulfilled(
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: fulfillCount
+                    )
                 }
                 
             case .pending(let continuation, let minFulfillCount, let fulfillCount, let timeoutTask):
-                let fulfillCount = fulfillCount + 1
-                if fulfillCount >= minFulfillCount {
+                var newFulfillCount = fulfillCount + 1
+                if newFulfillCount >= minFulfillCount {
+                    // fullfilled, we are going to resume the continuation
+                    newFulfillCount -= minFulfillCount // consume minFulfillCount
                     timeoutTask?.cancel()
-                    state = .fulfilled(fulfillCount: fulfillCount)
+                    if newFulfillCount >= minFulfillCount {
+                        state = .fulfilled(
+                            minFulfillCount: minFulfillCount,
+                            fulfillCount: newFulfillCount
+                        )
+                    } else {
+                        // partially fulfilled
+                        state = .partiallyFulfilled(
+                            minFulfillCount: minFulfillCount,
+                            fulfillCount: newFulfillCount
+                        )
+                    }
                     continuation.resume(returning: Void())
                 } else {
-                    state = .pending(continuation, minFulfillCount: minFulfillCount, fulfillCount: fulfillCount, timeoutTask: timeoutTask)
+                    // partially fulfilled
+                    state = .pending(
+                        continuation,
+                        minFulfillCount: minFulfillCount,
+                        fulfillCount: newFulfillCount,
+                        timeoutTask: timeoutTask
+                    )
                 }
                 
-            case .fulfilled(let fulfillCount):
-                state = .fulfilled(fulfillCount: fulfillCount + 1)
+            case .fulfilled(let minFulfillCount, let fulfillCount):
+                assert(fulfillCount >= minFulfillCount)
+                state = .fulfilled(
+                    minFulfillCount: minFulfillCount,
+                    fulfillCount: fulfillCount + 1
+                )
             
             case .rejected:
                 return
@@ -165,10 +289,12 @@ final class Expectation: Sendable {
         }
     }
 
+    
+
     func fail(with error: any Swift.Error) {
         self.lock.withLock { state in
             switch state {
-            case .unitialized:
+            case .start:
                 state = .rejected(error)
             case .partiallyFulfilled:
                 state = .rejected(error)
