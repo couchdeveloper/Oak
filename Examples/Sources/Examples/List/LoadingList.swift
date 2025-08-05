@@ -80,7 +80,6 @@ extension LoadingList.Transducer: EffectTransducer {
                 let data = try await env.service(parameter)
                 try input.send(.serviceLoaded(data))
             } catch {
-                // Handle runtime errors explicitly - don't throw through the system
                 try input.send(.serviceError(error))
             }
         })
@@ -158,7 +157,7 @@ extension LoadingList.Transducer: EffectTransducer {
             
         // Service encounters error
         case (.modal(_, .loading(_), let context), .serviceError(let error)):
-            // Create retry action using stored input
+            // Setup Alert
             let confirmAction = State.Action(
                 id: "OK",
                 title: "OK",
