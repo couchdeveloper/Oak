@@ -131,21 +131,26 @@ TransducerView(of: MyTransducer.self, initialState: .initial, proxy: MyProxy()) 
 ```
 
 #### Completion Callbacks
-Handle transducer completion with type-safe callbacks that are called when the transducer successfully completes:
+Handle transducer completion with type-safe callbacks that are called when the transducer finishes:
 
 ```swift
 TransducerView(
     of: MyTransducer.self,
     initialState: .initial,
-    completion: { output in
-        print("Transducer completed with output: \(output)")
+    completion: { result in
+        switch result {
+        case .success(let output):
+            print("Transducer completed successfully with output: \(output)")
+        case .failure(let error):
+            print("Transducer failed with error: \(error)")
+        }
     }
 ) { state, input in
     // UI content
 }
 ```
 
-> **Note**: Completion callbacks are only invoked on successful completion. They are not called if the transducer encounters an error or is cancelled.
+> **Note**: Completion callbacks are always invoked when the transducer finishes, whether it completes successfully or encounters an error. The callback receives a `Result` that contains either the success value or the error.
 
 #### Architecture
 
