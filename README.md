@@ -1,4 +1,4 @@
-# OAK - Swift Finite State Machine Library
+# Oak - Swift Finite State Machine Library
 
 [![Oak Framework](https://img.shields.io/badge/🌳-Oak%20FSM-oak?color=8B4513)](https://github.com/couchdeveloper/Oak) [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
 [![Platforms](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS%20%7C%20macCatalyst-brightgreen.svg)](https://swift.org)
@@ -7,35 +7,17 @@
 [![Swift Package Manager](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-brightgreen.svg)](https://github.com/apple/swift-package-manager)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-
-
 A type-safe, asynchronous finite state machine implementation for Swift, with powerful effect handling and SwiftUI integration.
 
-## 🚧 Development Status
+## Development Status
 
-**Oak is currently in early development** and is actively evolving. While the library is well-tested and functional, please consider the following before using it in production:
+Oak is actively developed and evolving. The library is well-tested and functional, with a stable core API. While we maintain backward compatibility where possible, the API may evolve as we incorporate community feedback and add new features.
 
-- **API Stability**: The public API may change between versions as we refine the design.
-- **Breaking Changes**: Expect potential breaking changes in minor version updates until v1.0.
-- **Documentation**: API documentation and guides are continuously being improved.
-- **Community**: We're building the ecosystem - your feedback and contributions are highly valued!
-
-**Perfect for:**
-- ✅ Prototyping and experimentation
-- ✅ Learning finite state machine concepts
-- ✅ Contributing to an innovative Swift library
-- ✅ Early adoption and providing feedback
-
-**Consider carefully for:**
-- ⚠️ Production applications requiring API stability
-- ⚠️ Projects with tight deadlines
-- ⚠️ Teams needing extensive documentation and tutorials
-
-We encourage developers to try Oak, provide feedback, and contribute to its evolution. Follow the repository for updates and join discussions in Issues!
+**Contributions welcome!** We encourage developers to try Oak, provide feedback, and contribute to its evolution. Follow the repository for updates and join discussions in Issues.
 
 ## Overview
 
-OAK provides a robust implementation of finite state machines (FSM), also known as finite state transducers (FST) for Swift applications. It enables you to model complex state transitions and side effects in a type-safe, testable, and maintainable way.
+Oak provides a robust implementation of finite state machines (FSM), also known as finite state transducers (FST) for Swift applications. It enables you to model complex state transitions and side effects in a type-safe, testable, and maintainable way.
 
 
 ```swift
@@ -119,25 +101,22 @@ enum CounterTransducer: EffectTransducer {
 
 ## Features
 
-- **Type-safety**: Leverage Swift's type system to catch invalid usage at compile time.
-- **Actor isolation**: Safe execution across different isolation contexts with automatic inference.
-- **Side effect management**: Structured handling of asynchronous side effects with proper cancellation.
-- **Environment support**: Provide typed environment to effects for dependencies and configuration.
-- **Async/await support**: Built on Swift's structured concurrency model.
+- **Type-safety**: Leverage Swift's type system to catch invalid usage at compile time
+- **Actor isolation**: Safe execution across different isolation contexts with automatic inference
+- **Side effect management**: Structured handling of asynchronous side effects with proper cancellation
+- **Environment support**: Provide typed environment to effects for dependencies and configuration
+- **Async/await support**: Built on Swift's structured concurrency model
+- **SwiftUI integration**: Reactive bindings with `TransducerView`
+- **Composability**: Pipe transducer outputs into other transducer inputs
+- **Effect composition**: Combine multiple effects sequentially or in parallel
+- **Back pressure support**: In compositions, a connected output awaits readiness of the consumer
+- **Completion callbacks**: Handle transducer completion with type-safe callbacks
+- **Optional proxy parameters**: Simplified API with automatic proxy creation
 
-## Advanced Features
-
-- **SwiftUI integration**: Reactive bindings with `TransducerView`.
-- **Composability**: Pipe transducer outputs into other transducer inputs.
-- **Effect composition**: Combine multiple effects sequentially or in parallel.
-- **Supports back pressure:** In compositions, a connected output awaits readiness of the consumer.
-- **Completion callbacks**: Handle transducer completion with type-safe callbacks.
-- **Optional proxy parameters**: Simplified API with automatic proxy creation.
-
-### TransducerView Enhancements
+### TransducerView
 
 #### Optional Proxy Parameters
-`TransducerView` now supports optional proxy parameters. When no proxy is provided, it automatically creates a default proxy:
+`TransducerView` supports optional proxy parameters. When no proxy is provided, it automatically creates a default proxy:
 
 ```swift
 // Simplified - no explicit proxy needed
@@ -168,39 +147,32 @@ TransducerView(
 
 > **Note**: Completion callbacks are only invoked on successful completion. They are not called if the transducer encounters an error or is cancelled.
 
-### TransducerView Architecture
+#### Architecture
 
 `TransducerView` can replace conventional ViewModel implementations using `ObservableObject` or the Observation framework. It directly uses the view's `@State` as the transducer's state and utilizes SwiftUI's built-in diffing facility for efficient updates.
 
 This supports a **"View only architecture"** where traditional artifacts like Model, ViewModel, Router, and Interactor are consolidated and implemented directly as SwiftUI views.
 
 
+## Installation
+
 ### Swift Package Manager
 
+In Xcode, select **File → Add Packages…** and enter:
+```
+https://github.com/couchdeveloper/Oak.git
+```
+
+Or add to your `Package.swift`:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/username/Oak.git", from: "1.0.0")
+    .package(url: "https://github.com/couchdeveloper/Oak.git", from: "0.15.0")
 ]
 ```
 
 ## Quick Start
 
-### Install via Swift Package Manager
-In Xcode, select **File → Add Packages…** and enter:
-```
-https://github.com/couchdeveloper/Oak.git
-```
-or in your `Package.swift`:
-```swift
-dependencies: [
-  .package(url: "https://github.com/couchdeveloper/Oak.git", from: "0.15.0"),
-],
-targets: [
-  .target(name: "MyApp", dependencies: ["Oak"]),
-]
-```
-
-OAK uses **transducers** - finite state machines that process events and produce outputs. Here's how to create one in just a few steps:
+Oak uses **transducers** - finite state machines that process events and produce outputs. Here's how to create one:
 
 ### 1. Define Your Transducer
 
@@ -237,14 +209,12 @@ enum SimpleCounter: EffectTransducer {
 
 ```swift
 let proxy = SimpleCounter.Proxy()
+
 let task = Task {
     try await SimpleCounter.run(
         initialState: SimpleCounter.initialState,
         proxy: proxy,
-        env: SimpleCounter.Env(),
-        output: Callback { count in 
-            print("Count updated to: \(count)")
-        }
+        env: SimpleCounter.Env()
     )
 }
 
@@ -303,9 +273,9 @@ proxy.cancel()
 ```
 
 ### State
-The state of the finite state machine that must conform to `Terminable`.
+The state of the finite state machine must conform to `Terminable`.
 
-A transducer can be run with strictly encapsulated state or with shared state defined in an actor. For strictly encapsulated state the initial state value needs to be passed to the `run` function. If the state is shared, a binding is used, allowing external components to observe the state changes. In this case, the initial state is the current value when passed to the run function.
+A transducer can run with strictly encapsulated state or with shared state defined in an actor. For strictly encapsulated state, the initial state value is passed to the `run` function. If the state is shared, a binding is used, allowing external components to observe state changes.
 
 ```swift
 struct State: Terminable {
@@ -314,17 +284,10 @@ struct State: Terminable {
 }
 ```
 
-A shorthand to define a non-terminal state is to conform `State` to `NonTerminal`:
+For non-terminal states, conform to `NonTerminal`:
 ```swift
 struct State: NonTerminal {
     var value: Int = 0
-}
-```
-which is equivalent to
-```swift
-struct State: Terminable {
-    var value: Int = 0
-    var isTerminal: Bool { false }
 }
 ```
 
@@ -344,9 +307,9 @@ enum Event {
 
 ### Input
 
-Represents the input of a proxy and thus the input of a transducer. A proxy has a property `input` which returns the input of the proxy. There's no other way to obtain an Input.
+Represents the input channel of a transducer. A proxy has an `input` property which provides access to the transducer's input channel.
 
-An input is solely used to send events into the transducer. It's passed as a parameter to effect operations, but can be passed freely to other components. Other components only see the input interface. Thus, they cannot forcibly cancel the transducer.
+An input is used to send events into the transducer. It's passed as a parameter to effect operations and can be shared with other components. Components that only have access to the input interface cannot forcibly cancel the transducer.
 
 ```swift
 Effect(isolatedOperation: { _, input, _ in
@@ -367,7 +330,7 @@ static func update(_ state: inout State, event: Event) -> Output {
 ```
 
 ### Effect
-An effect is a special kind of an output of an effect transducer. It encapsulates an asynchronous operation or action which can perform side effects and can send events back to the transducer.
+An effect is a special output of an effect transducer. It encapsulates an asynchronous operation that can perform side effects and send events back to the transducer.
 
 ```swift
 typealias Env {}
@@ -377,8 +340,8 @@ static func update(_ state: inout State, event: Event) -> Self.Effect? {
 ```
 
 Effects come in two forms:
-- **Actions**: An async function which returns events synchronously to the system when finished.
-- **Operations**: A cancellable, long running task which sends one or more events asynchronously via the `Input` parameter, while the system can process other events.
+- **Actions**: Synchronous functions that return events immediately 
+- **Operations**: Long-running, cancellable tasks that send events asynchronously
 
 **Action Effect:**
 
@@ -389,24 +352,22 @@ static func createDelegate(param: Param) -> Effect {
 }
 ```
 
-**Operation effect:**
-
-Parameter "isolatedOperation" is a closure that will be executed on the isolation where function `run` has been executed. The isolation is provided as the third parameter "systemActor" in the closure. The parameter will rarely be used by implementations of the effect. Its purpose is for the compiler to be able to check the isolation statically and during runtime.
+**Operation Effect:**
 
 ```swift
 static func incrementEffect() -> Effect {
-    Effect(isolatedOperation: { _, input, _ /*systemActor*/ in
+    Effect(isolatedOperation: { _, input, _ in
         try await Task.sleep(nanoseconds: 1_000_000_000)
         try input.send(.incrementReady)
     })
 }
 ```
 
-An "operation" is a closure that will be executed either non-isolated or isolated to a global actor.
+For global actor isolation:
 
 ```swift
 static func incrementEffect() -> Effect {
-    Effect(operation: {@MyGlobalActor _, input in
+    Effect(operation: { @MyGlobalActor _, input in
         try await Task.sleep(nanoseconds: 1_000_000_000)
         try input.send(.incrementReady)
     })
@@ -433,14 +394,12 @@ try await CounterTransducer.run(
 ```swift
 // Create a proxy and run the transducer
 let proxy = CounterTransducer.Proxy()
+
 let task = Task {
     try await CounterTransducer.run(
         initialState: CounterTransducer.State(),
         proxy: proxy,
-        env: (),
-        output: Callback { value in
-            print("Counter value: \(value)")
-        }
+        env: CounterTransducer.Env()
     )
 }
 
