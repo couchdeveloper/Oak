@@ -2,6 +2,19 @@
 /// state machine. It's the base type for all transducers that can be used
 /// in a finite state machine. It defines the types of events, states, outputs,
 /// and proxies that the transducer can use.
+///
+/// BaseTransducer serves as a type container for composition without requiring an 
+/// implementation of `update` or `run` functions. This makes it ideal for:
+///
+/// - Composing multiple transducers together where implementing an `update` function
+///   wouldn't make sense for the composite
+/// - Creating adapter or wrapper transducers that delegate to other transducers
+/// - Building hierarchical state machines where leaf nodes implement full `Transducer`
+///   conformance while parent nodes only compose and coordinate
+///
+/// This separation between type definitions and behavior allows for more flexible
+/// composition patterns, as composite transducers can focus on orchestration and delegation
+/// rather than state mutation.
 public protocol BaseTransducer<Event> {
 
     /// The type of events that the transducer can process, aka the _Input_ of

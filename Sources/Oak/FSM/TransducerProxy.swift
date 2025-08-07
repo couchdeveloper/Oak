@@ -6,7 +6,7 @@ import struct Foundation.UUID
 public protocol TransducerProxy<Event>: TransducerProxyInternal, Identifiable, Equatable {
     associatedtype Event
     associatedtype Input
-    associatedtype AutoCancellation: Equatable
+    associatedtype AutoCancellation: Equatable & Sendable
 
     /// A proxy is default-constructible.
     init()
