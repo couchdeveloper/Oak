@@ -112,6 +112,29 @@ enum CounterTransducer: EffectTransducer {
 - **Back pressure support**: In compositions, a connected output awaits readiness of the consumer
 - **Completion callbacks**: Handle transducer completion with type-safe callbacks
 - **Optional proxy parameters**: Simplified API with automatic proxy creation
+- **Transducer composition**: Experimental support for composing transducers at the type level
+
+### Transducer Composition
+
+Oak includes experimental support for composing transducers at the type level. This advanced feature allows for the creation of composite state machines that maintain the type-safety guarantees of the component transducers.
+
+```swift
+// Define transducer types
+typealias NavigationTransducer = MyNavigationTransducer
+typealias ContentTransducer = MyContentTransducer
+
+// Compose them at the type level
+let AppTransducer = NavigationTransducer.compose(with: ContentTransducer.self)
+
+// Use the composed type
+let initialState = AppTransducer.State(
+    stateA: NavigationTransducer.State.initial,
+    stateB: ContentTransducer.State.initial
+)
+let proxy = AppTransducer.Proxy()
+```
+
+This composition mechanism is still evolving, but it shows promise for building complex state management solutions with clean architectural boundaries. Various composition strategies (parallel, sequential, custom) are being explored to determine the most effective patterns for different use cases.
 
 ### TransducerView
 
