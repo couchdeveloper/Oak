@@ -2,6 +2,238 @@ import Oak
 import Testing
 
 struct TransducerTests {
+    
+    @Suite
+    struct BasicInitializationTests {
+        // MARK: - Test Types
+
+        enum VoidTransducer: Transducer {
+            enum State: NonTerminal { case start }
+            enum Event { case start }
+            static func update(_ state: inout State, event: Event) {}
+        }
+
+        enum OutputTransducer: Transducer {
+            enum State: NonTerminal { case start }
+            enum Event { case start }
+            static func update(_ state: inout State, event: Event) -> Int { 1 }
+        }
+
+        enum EffectTransducer: Oak.EffectTransducer {
+            enum State: NonTerminal { case start }
+            enum Event { case start }
+            static func update(_ state: inout State, event: Event) -> Self.Effect? { nil }
+        }
+
+        enum EffectOutputTransducer: Oak.EffectTransducer {
+            enum State: NonTerminal { case start }
+            enum Event { case start }
+            typealias Output = Int
+            static func update(_ state: inout State, event: Event) -> (Self.Effect?, Output) {
+                (nil, 1)
+            }
+        }
+
+        @MainActor
+        @Test func createVoidTransducer() async throws {
+            typealias T = VoidTransducer
+            let proxy = T.Proxy()
+            let task1 = Task {
+                try await T.run(initialState: .start)
+            }
+            let task2 = Task {
+                try await T.run(initialState: .start, proxy: proxy, env: Void(), output: Callback { _ in })
+            }
+            task1.cancel()
+            task2.cancel()
+            #expect(T.Output.self == Void.self)
+            #expect(T.Proxy.self == Oak.Proxy<T.Event>.self)
+            #expect(T.Env.self == Void.self)
+            #expect(T.Effect.self == Never.self)
+        }
+
+        @MainActor
+        @Test func createOutputTransducer() async throws {
+            typealias T = OutputTransducer
+            let proxy = T.Proxy()
+            let task1 = Task {
+                try await T.run(initialState: .start)
+            }
+            let task2 = Task {
+                try await T.run(initialState: .start, proxy: proxy, env: Void(), output: Callback { _ in })
+            }
+            task1.cancel()
+            task2.cancel()
+            #expect(T.Output.self == Int.self)
+            #expect(T.Proxy.self == Oak.Proxy<T.Event>.self)
+            #expect(T.Env.self == Void.self)
+            #expect(T.Effect.self == Never.self)
+        }
+
+        @MainActor
+        @Test func createEffectTransducer() async throws {
+            typealias T = EffectTransducer
+            let proxy = T.Proxy()
+            let task1 = Task {
+                try await T.run(initialState: .start, env: T.Env())
+            }
+            let task2 = Task {
+                try await T.run(initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in })
+            }
+            task1.cancel()
+            task2.cancel()
+            #expect(T.Output.self == Void.self)
+            #expect(T.Proxy.self == Oak.Proxy<T.Event>.self)
+            #expect(T.Env.self == Void.self)
+            #expect(T.Effect.self == Oak.Effect<T>.self)
+        }
+
+        @MainActor
+        @Test func createEffectOutputTransducer() async throws {
+            typealias T = EffectOutputTransducer
+            let proxy = T.Proxy()
+            let task1 = Task {
+                try await T.run(initialState: .start, env: T.Env())
+            }
+            let task2 = Task {
+                try await T.run(initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in })
+            }
+            task1.cancel()
+            task2.cancel()
+            #expect(T.Output.self == Int.self)
+            #expect(T.Proxy.self == Oak.Proxy<T.Event>.self)
+            #expect(T.Env.self == Void.self)
+            #expect(T.Effect.self == Oak.Effect<T>.self)
+        }
+    }
+
+    @Suite
+    struct TerminalCompletionTests {
+        // MARK: - Test Types
+
+        enum VoidTransducer: Transducer {
+            enum State: Terminable {
+                case start, finished
+                var isTerminal: Bool { self == .finished }
+            }
+            enum Event { case start }
+            static func update(_ state: inout State, event: Event) {
+                state = .finished
+            }
+        }
+
+        enum OutputTransducer: Transducer {
+            enum State: Terminable {
+                case start, finished
+                var isTerminal: Bool { self == .finished }
+            }
+            enum Event { case start }
+            static func update(_ state: inout State, event: Event) -> Int {
+                state = .finished
+                return 1
+            }
+        }
+
+        enum EffectTransducer: Oak.EffectTransducer {
+            enum State: Terminable {
+                case start, finished
+                var isTerminal: Bool { self == .finished }
+            }
+            enum Event { case start }
+            static func update(_ state: inout State, event: Event) -> Self.Effect? {
+                state = .finished
+                return nil
+            }
+        }
+
+        enum EffectOutputTransducer: Oak.EffectTransducer {
+            enum State: Terminable {
+                case start, finished
+                var isTerminal: Bool { self == .finished }
+            }
+            enum Event { case start }
+            typealias Output = Int
+            static func update(_ state: inout State, event: Event) -> (Self.Effect?, Output) {
+                state = .finished
+                return (nil, 1)
+            }
+        }
+
+        @MainActor
+        @Test func testRunReturnsWithVoidTransducer() async throws {
+            typealias T = VoidTransducer
+            let expectCompletionCalled = Expectation()
+            let expectCallbackCalled = Expectation()
+            let proxy = T.Proxy()
+            Task {
+                try await T.run(initialState: .start, proxy: proxy, output: Callback { _ in
+                    expectCallbackCalled.fulfill()
+                })
+                expectCompletionCalled.fulfill()
+            }
+            try proxy.send(.start)
+            try await expectCallbackCalled.await(nanoseconds: 1_000_000_000)
+            try await expectCompletionCalled.await(nanoseconds: 1_000_000_000)
+        }
+
+        @MainActor
+        @Test func testRunReturnsWithOutputTransducer() async throws {
+            typealias T = OutputTransducer
+            let expectCompletionCalled = Expectation()
+            let expectCallbackCalled = Expectation()
+            let proxy = T.Proxy()
+            Task {
+                try await T.run(initialState: .start, proxy: proxy, output: Callback { _ in
+                    expectCallbackCalled.fulfill()
+                })
+                expectCompletionCalled.fulfill()
+            }
+            try proxy.send(.start)
+            try await expectCallbackCalled.await(nanoseconds: 1_000_000_000)
+            try await expectCompletionCalled.await(nanoseconds: 1_000_000_000)
+        }
+
+        @MainActor
+        @Test func testRunReturnsWithEffectTransducer() async throws {
+            typealias T = EffectTransducer
+            let expectCompletionCalled = Expectation()
+            // let expectCallbackCalled = Expectation()
+            let proxy = T.Proxy()
+            Task {
+                try await T.run(initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in
+                    // Note: our current implementation does not call a callback
+                    // handler when the output type equals Void.
+                    // TODO: This subtle behaviour is currently not sufficently documented.
+                    // The better solution should only choose the version which
+                    // handles output, when an output parameter is given. Other-
+                    // wise it might choose a faster implementation. However,
+                    // the compiler *might* optimise this anyway sufficiently.
+                    // expectCallbackCalled.fulfill()
+                })
+                expectCompletionCalled.fulfill()
+            }
+            try proxy.send(.start)
+            // try await expectCallbackCalled.await(nanoseconds: 1000_000_000_000)
+            try await expectCompletionCalled.await(nanoseconds: 1000_000_000_000)
+        }
+
+        @MainActor
+        @Test func testRunReturnsWithEffectOutputTransducer() async throws {
+            typealias T = EffectOutputTransducer
+            let expectCompletionCalled = Expectation()
+            let expectCallbackCalled = Expectation()
+            let proxy = T.Proxy()
+            Task {
+                try await T.run(initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in
+                    expectCallbackCalled.fulfill()
+                })
+                expectCompletionCalled.fulfill()
+            }
+            try proxy.send(.start)
+            try await expectCallbackCalled.await(nanoseconds: 1_000_000_000)
+            try await expectCompletionCalled.await(nanoseconds: 1_000_000_000)
+        }
+    }
 
     @MainActor
     @Test

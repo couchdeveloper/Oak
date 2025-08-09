@@ -62,8 +62,7 @@ public protocol BaseTransducer<Event> {
     ///
     /// > Note:  For non-effect transducers, its type is always `Void`.
     associatedtype Env
-    
-    
+        
     /// The type of the transducer proxy.
     ///
     /// A proxy is required to execute a transducer to provide the input
@@ -172,14 +171,14 @@ public protocol BaseTransducer<Event> {
     ///     for example, when events could not be enqueued because of a full event buffer,
     ///     when the func `terminate()` is called on the proxy, or when the output value cannot be sent.
     ///
-    // @discardableResult
-    // static func run(
-    //     initialState: State,
-    //     proxy: Proxy,
-    //     env: Env,
-    //     output: some Subject<Output>,
-    //     systemActor: isolated any Actor
-    // ) async throws -> Output
+    @discardableResult
+    static func run(
+        initialState: State,
+        proxy: Proxy,
+        env: Env,
+        output: some Subject<Output>,
+        systemActor: isolated any Actor
+    ) async throws -> Output
 }
 
 extension BaseTransducer {
