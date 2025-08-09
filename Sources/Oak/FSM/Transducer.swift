@@ -110,8 +110,8 @@
 /// In the example above, once the FSM receives an event `start` it also
 /// will terminate and the asynchronous `run()` will return.
 
-public protocol Transducer: BaseTransducer {
-
+public protocol Transducer: BaseTransducer where Effect == Never, Env == Void {
+    
     associatedtype Event
     associatedtype State
     associatedtype Output = Void
@@ -130,13 +130,20 @@ public protocol Transducer: BaseTransducer {
 }
 
 extension Transducer {
+    
+    @inline(__always)
+    static func compute(_ state: inout State, event: Event) -> (Effect?, Output) {
+        (.none, update(&state, event: event))
+    }
 
-    package static func run(
+    @discardableResult
+    public static func run(
         storage: some Storage<State>,
         proxy: Proxy,
+        env: Env = (),
         output: some Subject<Output>,
         systemActor: isolated any Actor = #isolation
-    ) async throws -> Output where Proxy.Event == Event {
+    ) async throws -> Output {
         try proxy.checkInUse()
         try Task.checkCancellation()
         let stream = proxy.stream
@@ -156,7 +163,7 @@ extension Transducer {
         do {
             loop: for try await event in stream {
                 try Task.checkCancellation()
-                let outputValue = Self.update(&storage.value, event: event)
+                let (_, outputValue) = Self.compute(&storage.value, event: event)
                 try await output.send(outputValue, isolated: systemActor)
                 try Task.checkCancellation()
                 if storage.value.isTerminal {
@@ -233,6 +240,9 @@ extension Transducer {
     /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
+    /// - Parameter env: The environment used for the transducer. For non-effect
+    ///   transducers, its type is always `Void`. This parameter exists for consistency
+    ///   with `EffectTransducer` and to support composition patterns.
     /// - Parameter output: The subject to which the transducer's output will be
     ///   sent.
     /// - Parameter systemActor: The isolation of the caller.
@@ -253,12 +263,14 @@ extension Transducer {
     public static func run(
         initialState: State,
         proxy: Proxy,
+        env: Env = (),
         output: some Subject<Output>,
         systemActor: isolated any Actor = #isolation
     ) async throws -> Output {
         return try await Self.run(
             storage: LocalStorage(value: initialState),
             proxy: proxy,
+            env: env,
             output: output,
             systemActor: systemActor
         )
@@ -277,6 +289,9 @@ extension Transducer {
     /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
+    /// - Parameter env: The environment used for the transducer. For non-effect
+    ///   transducers, its type is always `Void`. This parameter exists for consistency
+    ///   with `EffectTransducer` and to support composition patterns.
     /// - Parameter systemActor: The isolation of the caller.
     ///
     /// > Note: State observation is not supported in this implementation of the
@@ -291,11 +306,13 @@ extension Transducer {
     public static func run(
         initialState: State,
         proxy: Proxy,
+        env: Env = (),
         systemActor: isolated any Actor = #isolation
     ) async throws where Output == Void {
         try await Self.run(
             storage: LocalStorage(value: initialState),
             proxy: proxy,
+            env: env,
             output: NoCallback<Void>(),
             systemActor: systemActor
         )
@@ -318,6 +335,9 @@ extension Transducer {
     /// - Parameter host: The host providing the backing store for the state.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
+    /// - Parameter env: The environment used for the transducer. For non-effect
+    ///   transducers, its type is always `Void`. This parameter exists for consistency
+    ///   with `EffectTransducer` and to support composition patterns.
     /// - Parameter output: The subject to which the transducer's output will be
     ///   sent.
     /// - Parameter systemActor: The isolation of the caller.
@@ -333,12 +353,14 @@ extension Transducer {
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy,
+        env: Env = (),
         output: some Subject<Output>,
         systemActor: isolated any Actor = #isolation
     ) async throws -> Output {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
+            env: env,
             output: output,
             systemActor: systemActor
         )
@@ -357,6 +379,9 @@ extension Transducer {
     ///   - state: A reference-writeable key path to the state.
     ///   - host: The host providing the backing store for the state.
     ///   - proxy: The proxy, that will be associated to the transducer as its agent.
+    ///   - env: The environment used for the transducer. For non-effect
+    ///   transducers, its type is always `Void`. This parameter exists for consistency
+    ///   with `EffectTransducer` and to support composition patterns.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
     /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
     /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
@@ -367,11 +392,13 @@ extension Transducer {
         state: ReferenceWritableKeyPath<Host, State>,
         host: Host,
         proxy: Proxy,
+        env: Env = (),
         isolated: isolated any Actor = #isolation,
     ) async throws -> Output {
         try await run(
             storage: ReferenceKeyPathStorage(host: host, keyPath: state),
             proxy: proxy,
+            env: env,
             output: NoCallback<Output>()
         )
     }

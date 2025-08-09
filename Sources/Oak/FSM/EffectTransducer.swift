@@ -71,21 +71,19 @@
 /// to represent the transducer. The transducer is a pure function that can be
 /// executed in an asynchronous context, and it can be used to process events and
 /// produce output.
-public protocol EffectTransducer: BaseTransducer {
-
-    associatedtype Output = Void
-
+public protocol EffectTransducer: BaseTransducer where Effect == Oak.Effect<Self> {
+    
+    /// The _Output_ of the FSM, which may include an optional
+    /// effect and a value type, `Output`. Typically, for Effect-
+    /// Transducers it is either `Effect?` or the tuple `(Effect?, Output)`.
+    /// For non-effect transducers, it is simply `Output`.
+    associatedtype TransducerOutput
+    
+    associatedtype Output
+    
     /// The type of the environment in which the transducer operates and which
     /// provides the necessary context for executing effects.
     associatedtype Env = Void
-
-    /// The _Output_ of the FSM, which may include an optional
-    /// effect and a value type, `Output`. Typically, it it is either
-    /// `Effect?` or the tuple `(Effect?, Output)`.
-    associatedtype TransducerOutput
-
-    /// The concrete type of the effect which performs side effects.
-    typealias Effect = Oak.Effect<Self>
 
     /// A pure function that combines the _transition_ and the _output_ function
     /// of the finite state machine (FSM) into a single function.
@@ -101,15 +99,22 @@ public protocol EffectTransducer: BaseTransducer {
     static func update(_ state: inout State, event: Event) -> TransducerOutput
 }
 
-extension EffectTransducer {
 
-    package static func run(
+extension EffectTransducer where TransducerOutput == (Effect?, Output) {
+    
+    @inline(__always)
+    public static func compute(_ state: inout State, event: Event) -> (Effect?, Output) {
+        update(&state, event: event)
+    }
+
+    @discardableResult
+    public static func run(
         storage: some Storage<State>,
         proxy: Proxy,
         env: Env,
         output: some Subject<Output>,
         systemActor: isolated any Actor = #isolation
-    ) async throws -> Output where TransducerOutput == (Effect?, Output) {
+    ) async throws -> Output {
         try proxy.checkInUse()
         try Task.checkCancellation()
         let stream = proxy.stream
@@ -139,7 +144,7 @@ extension EffectTransducer {
                 var nextEvent: Event? = event
                 while let event = nextEvent {
                     let effect: Effect?
-                    (effect, outputValue) = Self.update(&storage.value, event: event)
+                    (effect, outputValue) = Self.compute(&storage.value, event: event)
                     try await output.send(outputValue!, isolated: systemActor)
                     if let effect {
                         let moreEvents = try await execute(
@@ -227,14 +232,20 @@ extension EffectTransducer {
     }
 }
 
-extension EffectTransducer {
+extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
 
-    package static func run(
+    @inline(__always)
+    public static func compute(_ state: inout State, event: Event) -> (Effect?, Output) {
+        (update(&state, event: event), Void())
+    }
+
+    public static func run(
         storage: some Storage<State>,
         proxy: Proxy,
         env: Env,
+        output: some Subject<Output> = NoCallback<Void>(),
         systemActor: isolated any Actor = #isolation
-    ) async throws where TransducerOutput == Effect?, Output == Void {
+    ) async throws {
         try proxy.checkInUse()
         try Task.checkCancellation()
         let stream = proxy.stream
@@ -252,7 +263,7 @@ extension EffectTransducer {
                 try Task.checkCancellation()
                 var nextEvent: Event? = event
                 while let event = nextEvent {
-                    let effect = Self.update(&storage.value, event: event)
+                    let (effect, _) = Self.compute(&storage.value, event: event)
                     if let effect {
                         let moreEvents = try await execute(
                             effect,
@@ -376,6 +387,7 @@ extension EffectTransducer {
     /// This overload is the public entry point for running a transducer with output emission.
     /// - Note: The constraint `TransducerOutput == (Effect?, Output)` is required for this overload.
     /// - See documentation above for details on this specialization.
+    @discardableResult
     public static func run(
         initialState: State,
         proxy: Proxy,
