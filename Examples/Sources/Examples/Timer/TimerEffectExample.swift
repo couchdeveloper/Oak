@@ -90,7 +90,6 @@ enum TimerCounter: EffectTransducer {
 // MARK: - View
 
 struct TimerEffectExample: View {
-    // ObservableTransducer already conforms to ObservableObject
     let transducer: ObservableTransducer<TimerCounter> = .init(
         initialState: .idle(0),
         env: TimerCounter.Env()
