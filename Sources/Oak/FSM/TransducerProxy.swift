@@ -6,7 +6,6 @@ import struct Foundation.UUID
 public protocol TransducerProxy<Event>: TransducerProxyInternal, Identifiable, Equatable {
     associatedtype Event
     associatedtype Input
-    associatedtype AutoCancellation: Equatable & Sendable
 
     /// A proxy is default-constructible.
     init()
@@ -14,9 +13,6 @@ public protocol TransducerProxy<Event>: TransducerProxyInternal, Identifiable, E
     /// The input interface for the transducer.
     /// This is used to send events to the transducer.
     var input: Input { get }
-
-    /// An object which cancels the proxy when deinitialised.
-    var autoCancellation: AutoCancellation { get }
 
     /// Terminates the proxy, preventing any further events from being sent and causing
     /// the `run` function to throw an error.
