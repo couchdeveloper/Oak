@@ -24,6 +24,10 @@ struct EffectUsageTests {
     func createEffectWithActionInitialiser() async throws {
 
         enum T: EffectTransducer {
+            static func run(initialState: State, proxy: Oak.Proxy<Event>, env: Env, output: some Oak.Subject<Self.Output>, systemActor: isolated any Actor) async throws -> () {
+                
+            }
+            
             class Env { var value: Int = 0 }
             class Payload { var value: Int = 0 }
             enum State: Terminable {

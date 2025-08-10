@@ -7,6 +7,7 @@ public protocol Storage<Value> {
     associatedtype Value
 
     var value: Value { get nonmutating set }
+
 }
 
 internal struct LocalStorage<Value>: Storage {

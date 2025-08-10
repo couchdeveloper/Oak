@@ -27,6 +27,9 @@ struct EffectInternalUsageTests {
     func createEffectWithPrimaryInitialiser() async throws {
 
         enum T: EffectTransducer {
+            typealias Output = Void
+            
+            
             class Env { var value: Int = 0 }
             class Payload { var value: Int = 0 }
             enum State: Terminable {
@@ -35,7 +38,7 @@ struct EffectInternalUsageTests {
             }
             enum Event { case start, payload(Payload) }
 
-            static func update(_ state: inout State, event: Event) -> T.Effect? {
+            static func update(_ state: inout State, event: Event) -> Self.Effect? {
                 switch event {
                 case .start:
                     let effect = T.Effect { env, input, context, systemActor in
