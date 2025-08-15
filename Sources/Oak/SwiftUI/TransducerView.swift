@@ -33,6 +33,7 @@ where Transducer: BaseTransducer, Content: View {
     public typealias Proxy = Transducer.Proxy
     public typealias Input = Transducer.Proxy.Input
     public typealias Storage = Binding<State>
+    public typealias StateInitialising = Binding<State>
 
     public struct Completion: @MainActor Oak.Completable {
         public typealias Value = Output
@@ -51,7 +52,7 @@ where Transducer: BaseTransducer, Content: View {
         }
     }
 
-    @SwiftUI.State private var state: State
+    @SwiftUI.Binding var state: State
     @SwiftUI.State private var taskHolder: TaskHolder?
 
     public let proxy: Proxy
@@ -88,7 +89,7 @@ where Transducer: BaseTransducer, Content: View {
     ///  provide an interface and controls.
     ///
     public init(
-        initialState: State,
+        initialState: Binding<State>,
         proxy: Proxy,
         completion: Completion?,
         runTransducer: @escaping (
@@ -98,7 +99,7 @@ where Transducer: BaseTransducer, Content: View {
         ) -> Task<Void, Never>,
         content: @escaping (State, Input) -> Content
     ) {
-        self._state = SwiftUI.State(wrappedValue: initialState)
+        self._state = initialState
         self.proxy = proxy
         self.completion = completion ?? Completion()
         self.runTransducerClosure = runTransducer
@@ -107,20 +108,20 @@ where Transducer: BaseTransducer, Content: View {
 
     public var body: some View {
         content(state, proxy.input)
-            .onAppear {
-                if taskHolder == nil {
-                    // TODO: in the completion, reset the taskHolder
-                    let transducerTask = runTransducerClosure(
-                        $state, proxy, completion, MainActor.shared)
-                    self.taskHolder = TaskHolder(transducerTask)
-                    Task {
-                        _ = await transducerTask.value
-                        self.taskHolder = nil
-                    }
+        .onAppear {
+            if taskHolder == nil {
+                // TODO: in the completion, reset the taskHolder
+                let transducerTask = runTransducerClosure(
+                    $state, proxy, completion, MainActor.shared)
+                self.taskHolder = TaskHolder(transducerTask)
+                Task {
+                    _ = await transducerTask.value
+                    self.taskHolder = nil
                 }
             }
+        }
     }
-
+        
     public func cancel() {
         proxy.cancel()
         taskHolder?.task.cancel()
@@ -139,22 +140,7 @@ extension TransducerView {
     }
 }
 
-// MARK: - Shared TransducerActor Protocol Extensions
-//
-// Both ObservableTransducer and ActorTransducerView leverage the same protocol extensions:
-//
-// For Transducer types:
-// - init(initialState:proxy:completion:failure:)
-// - init(initialState:proxy:output:completion:failure:)
-//
-// For EffectTransducer types:
-// - init(initialState:proxy:env:output:completion:failure:)
-// - init(initialState:proxy:env:completion:failure:)
-//
-// This demonstrates the power of protocol-oriented design - both ObservableTransducer
-// and ActorTransducerView share the same initialization logic through protocol extensions.
-
-#if DEBUG
+#if DEBUG // Previews
 
 // MARK: - Demo
 
@@ -185,18 +171,29 @@ private enum A: Transducer {
             state = .start(events: events)
         }
     }
-
 }
 
-#Preview("Basic TransducerView") {
-
-    TransducerView(of: A.self, initialState: .init()) { state, input in
+@available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+#Preview("A") {
+    
+    @Previewable @State var state: A.State = .init()
+    
+    TransducerView(
+        of: A.self,
+        initialState: $state
+    ) { state, input in
         Text("TransducerView A")
     }
+}
+
+@available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+#Preview("B") {
+
+    @Previewable @State var state: A.State = .init()
 
     TransducerView(
         of: A.self,
-        initialState: .init()
+        initialState: $state
     ) { state, input in
         Text("TransducerView B")
         VStack {
@@ -205,7 +202,7 @@ private enum A: Transducer {
             }
             .buttonStyle(.borderedProminent)
             .padding(32)
-
+            
             let events = state.events.map { "\($0)" }.joined(separator: ", ")
             TextEditor(text: .constant(events))
                 .padding()
@@ -290,14 +287,18 @@ extension Counters: Transducer {
 extension Counters { enum Views {} }
 
 extension Counters.Views {
+    
     fileprivate struct ComponentView: View {
-        @SwiftUI.State private var output: Counters.Output = 0
+        @State private var state = Counters.initialState
+        
         var body: some View {
             TransducerView(
                 of: Counters.self,
-                initialState: Counters.initialState,
+                initialState: $state,
                 proxy: Counters.Proxy(),
-                output: $output,
+                output: Callback { output in
+                    print("output: \(output)")
+                }
             ) { state, input in
                 ContentView(
                     state: state,
@@ -380,13 +381,14 @@ private struct RepeatView: View {
     }
 
     @State private var proxy: T.Proxy? = nil
+    @State private var state = T.initialState
 
     var body: some View {
         VStack {
             if let proxy = self.proxy {
                 TransducerView(
                     of: T.self,
-                    initialState: T.initialState,
+                    initialState: $state,
                     proxy: proxy,
                 ) { state, input in
                     let _ = Self._printChanges()
@@ -446,5 +448,5 @@ private struct RepeatViewInSheet: View {
 #Preview("RepeatViewInSheet") {
     RepeatViewInSheet()
 }
-#endif
+#endif // DEBUG
 #endif
