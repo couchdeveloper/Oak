@@ -838,7 +838,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                         let outputValue = try await Transducer.run(
                             storage: storage,
                             proxy: proxy,
-                            output: NoCallback(),
+                            output: output,
                             systemActor: systemActor
                         )
                         result = .success(outputValue)

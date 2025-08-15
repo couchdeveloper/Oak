@@ -24,6 +24,23 @@ import AppKit
 /// This provides the proper SwiftUI hosting environment for realistic testing.
 @MainActor
 struct TransducerViewTests {
+    
+    struct TestView<State, Content: View>: View {
+        @SwiftUI.State private var state: State
+        private let content: (Binding<State>) -> Content
+
+        init(
+            initialState: State,
+            @ViewBuilder content: @escaping (Binding<State>) -> Content
+        ) {
+            self._state = .init(initialValue: initialState)
+            self.content = content
+        }
+        
+        var body: some View {
+            content($state)
+        }
+    }
 
     // MARK: - Platform Abstractions
     
@@ -100,9 +117,9 @@ struct TransducerViewTests {
         var bodyExecutionCount = 0
         let proxy = TestTransducer.Proxy()
 
-        let view = TransducerView.init(
+        let view = TestView(initialState: TestTransducer.State.start) { TransducerView(
             of: TestTransducer.self,
-            initialState: .start,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor output in
                 Issue.record("Unexpected callback execution")
@@ -112,7 +129,7 @@ struct TransducerViewTests {
                 .onAppear {
                     bodyExecutionCount += 1
                 }
-        }
+        }}
 
         // Wrap in hosting controller to provide SwiftUI environment
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -163,9 +180,9 @@ struct TransducerViewTests {
 
         let proxy = TestTransducer.Proxy()
 
-        let view = TransducerView(
+        let view = TestView(initialState: TestTransducer.State.start) { TransducerView(
             of: TestTransducer.self,
-            initialState: .start,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor output in
                 switch output {
@@ -178,7 +195,7 @@ struct TransducerViewTests {
             }
         ) { state, input in
             Text(verbatim: "Test - Body executed \(tracker.increment()) times, state: \(state)")
-        }
+        }}
 
         // Wrap in hosting controller to provide SwiftUI environment
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -227,9 +244,9 @@ struct TransducerViewTests {
 
         let expectation = Expectation()
 
-        let view = TransducerView(
+        let view = TestView(initialState: TestTransducer.State.start) { TransducerView(
             of: TestTransducer.self,
-            initialState: .start,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor output in
                 switch output {
@@ -246,7 +263,7 @@ struct TransducerViewTests {
                     bodyExecutionCount += 1
                     capturedInput = input
                 }
-        }
+        }}
 
         // Wrap in hosting controller to provide SwiftUI environment
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -295,9 +312,9 @@ struct TransducerViewTests {
         let expectation = Expectation()
         var observedStateValues: [Int] = []
 
-        let view = TransducerView(
+        let view = TestView(initialState: CounterTransducer.State.count(0)) { TransducerView(
             of: CounterTransducer.self,
-            initialState: .count(0),
+            initialState: $0,
             proxy: proxy
         ) { state, input in
             Text("\(state.value)")
@@ -315,7 +332,7 @@ struct TransducerViewTests {
                         expectation.fulfill()
                     }
                 }
-        }
+        }}
 
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -347,16 +364,16 @@ struct TransducerViewTests {
         let customInitialState = TestTransducer.State.custom("custom")
         var capturedState: TestTransducer.State?
 
-        let view = TransducerView(
+        let view = TestView(initialState: customInitialState) { TransducerView(
             of: TestTransducer.self,
-            initialState: customInitialState,
+            initialState: $0,
             proxy: TestTransducer.Proxy()
         ) { state, input in
             Text("Test")
                 .onAppear {
                     capturedState = state
                 }
-        }
+        }}
 
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -400,13 +417,13 @@ struct TransducerViewTests {
         }
         let updateTracker = ViewUpdateTracker()
 
-        let view = TransducerView(
+        let view = TestView(initialState: ToggleTransducer.State.off) { TransducerView(
             of: ToggleTransducer.self,
-            initialState: .off,
+            initialState: $0,
             proxy: proxy
         ) { state, input in
             let currentCount = updateTracker.increment()
-
+            
             // Fulfill expectation when we see the .on state
             Text(state == .on ? "ON (\(currentCount))" : "OFF (\(currentCount))")
                 .onChange(of: state) { newState in
@@ -414,7 +431,7 @@ struct TransducerViewTests {
                         expectation.fulfill()
                     }
                 }
-        }
+        }}
 
         // Host the view properly for initial render
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -470,9 +487,9 @@ struct TransducerViewTests {
         var capturedInput: EventTransducer.Proxy.Input?
         let expectation = Expectation(minFulfillCount: expectedCount)
 
-        let view = TransducerView(
+        let view = TestView(initialState: EventTransducer.State.idle) { TransducerView (
             of: EventTransducer.self,
-            initialState: .idle,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor output in
                 if case .receivedEvent(let message) = output, !message.isEmpty {
@@ -489,7 +506,7 @@ struct TransducerViewTests {
                 .onChange(of: state) { newValue in
                     observedStates.append(state)
                 }
-        }
+        }}
 
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -550,9 +567,9 @@ struct TransducerViewTests {
         var capturedInput: EventTransducer.Proxy.Input?
         let expectation = Expectation(minFulfillCount: 10)
 
-        let view = TransducerView(
+        let view = TestView(initialState: EventTransducer.State.idle) { TransducerView(
             of: EventTransducer.self,
-            initialState: .idle,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor output in
                 if case .receivedEvent(let message) = output, !message.isEmpty {
@@ -565,7 +582,7 @@ struct TransducerViewTests {
                 .onAppear {
                     capturedInput = input
                 }
-        }
+        }}
 
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -626,9 +643,9 @@ struct TransducerViewTests {
         var capturedInput: SequenceTransducer.Proxy.Input?
         let expectation = Expectation()
 
-        let view = TransducerView(
+        let view = TestView(initialState: SequenceTransducer.State.idle) { TransducerView(
             of: SequenceTransducer.self,
-            initialState: .idle,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor output in
                 if case .receivedNumber(let num) = output, num != 0 {
@@ -643,7 +660,7 @@ struct TransducerViewTests {
                 .onAppear {
                     capturedInput = input
                 }
-        }
+        }}
 
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -691,9 +708,9 @@ struct TransducerViewTests {
         var capturedInput: OutputTransducer.Proxy.Input?
         let expectation = Expectation()
 
-        let view = TransducerView(
+        let view = TestView(initialState: OutputTransducer.State.idle) { TransducerView(
             of: OutputTransducer.self,
-            initialState: .idle,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor in
                 receivedOutput = $0
@@ -704,7 +721,7 @@ struct TransducerViewTests {
                 .onAppear {
                     capturedInput = input
                 }
-        }
+        }}
 
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -742,9 +759,9 @@ struct TransducerViewTests {
 
         let expectation = Expectation()
 
-        let view = TransducerView(
+        let view = TestView(initialState: TestTransducer.State.idle) { TransducerView(
             of: TestTransducer.self,
-            initialState: .idle,
+            initialState: $0,
             proxy: TestTransducer.Proxy(),
             output: Callback { @MainActor in
                 receivedOutput = $0
@@ -754,7 +771,7 @@ struct TransducerViewTests {
             }
         ) { state, input in
             Text("Test")
-        }
+        }}
 
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -790,9 +807,9 @@ struct TransducerViewTests {
         var capturedInput: MultiOutputTransducer.Proxy.Input?
         let expectation = Expectation()
 
-        let view = TransducerView(
+        let view = TestView(initialState: MultiOutputTransducer.State.idle) { TransducerView(
             of: MultiOutputTransducer.self,
-            initialState: .idle,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor in
                 outputs.append($0)
@@ -805,7 +822,7 @@ struct TransducerViewTests {
                 .onAppear {
                     capturedInput = input
                 }
-        }
+        }}
 
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
@@ -854,9 +871,9 @@ struct TransducerViewTests {
         let proxy = CompletionTransducer.Proxy()
         var capturedInput: CompletionTransducer.Proxy.Input?
 
-        let view = TransducerView(
+        let view = TestView(initialState: CompletionTransducer.State.ready) { TransducerView(
             of: CompletionTransducer.self,
-            initialState: .ready,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor output in
                 if output == "completed" {
@@ -878,7 +895,7 @@ struct TransducerViewTests {
                 .onAppear {
                     capturedInput = input
                 }
-        }
+        }}
 
         let (_, window) = await embedInWindowAndMakeKey(view)
 
@@ -931,9 +948,9 @@ struct TransducerViewTests {
 
         let proxy = TestTransducer.Proxy()
 
-        let view = TransducerView(
+        let view = TestView(initialState: TestTransducer.State.idle) { TransducerView(
             of: TestTransducer.self,
-            initialState: .idle,
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor output in
                 // Normal output processing
@@ -944,7 +961,7 @@ struct TransducerViewTests {
             })
         ) { state, input in
             Text("Test")
-        }
+        }}
 
         let (_, window) = await embedInWindowAndMakeKey(view)
 
@@ -992,9 +1009,9 @@ struct TransducerViewTests {
         var capturedInput: SimpleTransducer.Proxy.Input?
 
         // Test with nil proxy (should create default)
-        let view = TransducerView(
+        let view = TestView(initialState: SimpleTransducer.State.idle) { TransducerView(
             of: SimpleTransducer.self,
-            initialState: .idle,
+            initialState: $0,
             proxy: nil,  // Explicitly nil
             output: Callback { @MainActor output in
                 receivedOutput = output
@@ -1005,7 +1022,7 @@ struct TransducerViewTests {
                 .onAppear {
                     capturedInput = input
                 }
-        }
+        }}
 
         let (_, window) = await embedInWindowAndMakeKey(view)
 
@@ -1037,9 +1054,9 @@ struct TransducerViewTests {
         var capturedInput: SimpleTransducer.Proxy.Input?
 
         // Test with omitted proxy parameter (should use default)
-        let view = TransducerView(
+        let view = TestView(initialState: SimpleTransducer.State.idle) { TransducerView(
             of: SimpleTransducer.self,
-            initialState: .idle,
+            initialState: $0,
             output: Callback { @MainActor output in
                 receivedOutput = output
                 expectation.fulfill()
@@ -1049,7 +1066,7 @@ struct TransducerViewTests {
                 .onAppear {
                     capturedInput = input
                 }
-        }
+        }}
 
         let (_, window) = await embedInWindowAndMakeKey(view)
 
@@ -1077,7 +1094,7 @@ struct TransducerViewTests {
             }
             enum Event { case increment }
             typealias Output = Int
-
+            
             static func update(_ state: inout State, event: Event) -> Int {
                 switch (state, event) {
                 case (.count(let current), .increment):
@@ -1085,27 +1102,27 @@ struct TransducerViewTests {
                     return state.value
                 }
             }
-
+            
             static func initialOutput(initialState: State) -> Int? {
                 initialState.value
             }
         }
-
+        
         let initialState = CounterTransducer.State.count(5)  // Start with 5
-
+        
         var outputs: [Int] = []
         var capturedInput: CounterTransducer.Proxy.Input?
         var observedStates: [CounterTransducer.State] = []
-
+        
         let initialOutputExpectation = Expectation()
         let incrementExpectation = Expectation()
         let proxyChangeExpectation = Expectation()
-
+        
         var currentProxy = CounterTransducer.Proxy()
-
-        let view = TransducerView(
+        
+        let view = TestView(initialState: initialState) { TransducerView(
             of: CounterTransducer.self,
-            initialState: initialState,
+            initialState: $0,
             proxy: currentProxy,
             output: Callback { @MainActor output in
                 outputs.append(output)
@@ -1134,27 +1151,27 @@ struct TransducerViewTests {
             .onChange(of: state) { newValue in
                 observedStates.append(newValue)
             }
-        }
-
+        }}
+        
         let (hostingController, window) = await embedInWindowAndMakeKey(view)
-
+        
         // Wait for initial output
         try await initialOutputExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(outputs == [5])  // Initial state value
         #expect(observedStates.last?.value == 5)
-
+        
         // Increment counter
         try capturedInput?.send(.increment)
         try await incrementExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(outputs == [5, 6])
         #expect(observedStates.last?.value == 6)
-
+        
         // Change proxy - this should restart transducer and reset state
         currentProxy = CounterTransducer.Proxy()
         hostingController.rootView = AnyView(
-            TransducerView(
+            TestView(initialState: initialState) { TransducerView(
                 of: CounterTransducer.self,
-                initialState: initialState,
+                initialState: $0,
                 proxy: currentProxy,
                 output: Callback { @MainActor output in
                     outputs.append(output)
@@ -1172,7 +1189,8 @@ struct TransducerViewTests {
                     .onChange(of: state) { newValue in
                         observedStates.append(state)
                     }
-            })
+            }}
+        )
         try await proxyChangeExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
 
         // Verify state was reset to initial state after proxy change
@@ -1212,9 +1230,9 @@ struct TransducerViewTests {
 
         var currentProxy = proxy1
 
-        let view = TransducerView(
+        let view = TestView(initialState: LongRunningTransducer.State.running) { TransducerView(
             of: LongRunningTransducer.self,
-            initialState: .running,
+            initialState: $0,
             proxy: currentProxy,
             output: Callback { @MainActor output in
                 if !output.isEmpty {
@@ -1234,7 +1252,7 @@ struct TransducerViewTests {
             .onAppear {
                 capturedInput = input
             }
-        }
+        }}
 
         let (hostingController, window) = await embedInWindowAndMakeKey(view)
 
@@ -1244,9 +1262,9 @@ struct TransducerViewTests {
         // Change proxy by updating the view
         proxy2 = LongRunningTransducer.Proxy()
         hostingController.rootView = AnyView(
-            TransducerView(
+            TestView(initialState: LongRunningTransducer.State.running) { TransducerView(
                 of: LongRunningTransducer.self,
-                initialState: .running,
+                initialState: $0,
                 proxy: proxy2,
                 output: Callback { @MainActor output in
                     if !output.isEmpty {
@@ -1258,7 +1276,8 @@ struct TransducerViewTests {
                     .onAppear {
                         capturedInput = input
                     }
-            })
+            }}
+        )
 
         // Allow time for proxy change to take effect
         try? await Task.sleep(nanoseconds: 50_000_000)  // 50ms
@@ -1307,9 +1326,9 @@ struct TransducerViewTests {
         let proxy = EffectTestTransducer.Proxy()
         let input = proxy.input
 
-        let view = TransducerView.init(
+        let view = TestView(initialState: EffectTestTransducer.State.ready) { TransducerView(
             of: EffectTestTransducer.self,
-            initialState: .ready,
+            initialState: $0,
             proxy: proxy,
             env: (),
             output: Callback { @MainActor output in
@@ -1329,7 +1348,7 @@ struct TransducerViewTests {
             }
         ) { state, input in
             Text(verbatim: "State: \(state)")
-        }
+        }}
 
         let (_, window) = await embedInWindowAndMakeKey(view)
 
@@ -1378,9 +1397,9 @@ struct TransducerViewTests {
 
         let receicedStateExpectation = Expectation()
 
-        let view = TransducerView(
+        let view = TestView(initialState: CounterTransducer.State.count(0)) { TransducerView(
             of: CounterTransducer.self,
-            initialState: .count(0),
+            initialState: $0,
             proxy: proxy,
             output: Callback { @MainActor value in
                 MainActor.assertIsolated()
@@ -1397,7 +1416,7 @@ struct TransducerViewTests {
                     observedStateValues.append(newValue)
                     receicedStateExpectation.fulfill()
                 }
-        }
+        }}
 
         let (_, window) = await embedInWindowAndMakeKey(view)
 

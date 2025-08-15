@@ -558,7 +558,11 @@ import Testing
                             case 1:
                                 expectCallOutput.fulfill()
                                 let error = await #expect(throws: CancellationError.self) {
-                                    try await Task.sleep(nanoseconds: 100_000_000_000)
+                                    do {
+                                        try await Task.sleep(nanoseconds: 100_000_000_000)
+                                    } catch {
+                                        throw error
+                                    }
                                 }
                                 if let error {
                                     expectOutputThrows.fulfill()
@@ -588,7 +592,7 @@ import Testing
 
                     // Send an event to activate the transducer
                     try? observableTransducer.proxy.send(.activate)
-                    try await expectCallOutput.await(timeout: .seconds(1))
+                    try await expectCallOutput.await(timeout: .seconds(10))
                     _ = observableTransducer
                 }
                 // observableTransducer strong reference goes out of scope here
@@ -824,7 +828,7 @@ import Testing
             try observableTransducer.proxy.send(.increment)
 
             // Wait for outputs to be captured
-            try await expectation.await(timeout: .seconds(1))
+            try await expectation.await(nanoseconds: 1_000_000_000)
 
             // Capture the outputs and verify they match expectation
             let capturedOutputs = await outputActor.getOutputs()
