@@ -159,6 +159,7 @@ struct TransducerTests {
             }
         }
 
+        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) // Expectation
         @MainActor
         @Test func testRunReturnsWithVoidTransducer() async throws {
             typealias T = VoidTransducer
@@ -176,6 +177,7 @@ struct TransducerTests {
             try await expectCompletionCalled.await(nanoseconds: 1_000_000_000)
         }
 
+        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) // Expectation
         @MainActor
         @Test func testRunReturnsWithOutputTransducer() async throws {
             typealias T = OutputTransducer
@@ -193,6 +195,7 @@ struct TransducerTests {
             try await expectCompletionCalled.await(nanoseconds: 1_000_000_000)
         }
 
+        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) // Expectation
         @MainActor
         @Test func testRunReturnsWithEffectTransducer() async throws {
             typealias T = EffectTransducer
@@ -217,6 +220,7 @@ struct TransducerTests {
             try await expectCompletionCalled.await(nanoseconds: 1000_000_000_000)
         }
 
+        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) // Expectation
         @MainActor
         @Test func testRunReturnsWithEffectOutputTransducer() async throws {
             typealias T = EffectOutputTransducer

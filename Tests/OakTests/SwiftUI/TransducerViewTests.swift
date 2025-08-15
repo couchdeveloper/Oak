@@ -1,8 +1,13 @@
-#if canImport(SwiftUI) && canImport(AppKit)
+#if canImport(SwiftUI) && (canImport(UIKit) || canImport(AppKit))
 import Testing
 import SwiftUI
-import AppKit
 import Oak
+
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// Comprehensive unit tests for TransducerView to verify:
 /// - Lifecycle management (initialization, termination)
@@ -14,37 +19,57 @@ import Oak
 ///
 /// Testing Strategy:
 /// SwiftUI views cannot be tested in isolation as they lack the necessary environment
-/// and lifecycle. Therefore, we wrap each TransducerView in a UIHostingController
+/// and lifecycle. Therefore, we wrap each TransducerView in a hosting controller
 /// following conventional wisdom for testing UIViewController functional parts.
 /// This provides the proper SwiftUI hosting environment for realistic testing.
 @MainActor
 struct TransducerViewTests {
+
+    // MARK: - Platform Abstractions
+    
+#if canImport(UIKit)
+    typealias HostingController = UIHostingController<AnyView>
+    typealias PlatformWindow = UIWindow
+#elseif canImport(AppKit)
+    typealias HostingController = NSHostingController<AnyView>
+    typealias PlatformWindow = NSWindow
+#endif
 
     // MARK: - Test Helpers
 
     /// Helper function to properly host a SwiftUI view for testing
     func embedInWindowAndMakeKey<V: View>(
         _ view: V
-    ) async -> (
-        NSHostingController<AnyView>, NSWindow
-    ) {
-        var hostingController: NSHostingController<AnyView>?
-        var window: NSWindow?
+    ) async -> (HostingController, PlatformWindow) {
+        var hostingController: HostingController?
+        var window: PlatformWindow?
+        
         await withCheckedContinuation({ continuation in
-            hostingController = NSHostingController(
+            hostingController = HostingController(
                 rootView: AnyView(
                     view.onAppear {
                         continuation.resume()
                     })
             )
+            
+#if canImport(UIKit)
+            window = UIWindow()
+            window!.rootViewController = hostingController
+            window!.makeKeyAndVisible()
+#elseif canImport(AppKit)
             window = NSWindow(contentViewController: hostingController!)
             window!.makeKeyAndOrderFront(nil)
+#endif
         })
         return (hostingController!, window!)
     }
 
-    func cleanupView(_ window: NSWindow) {
+    func cleanupView(_ window: PlatformWindow) {
+#if canImport(UIKit)
+        window.isHidden = true
+#elseif canImport(AppKit)
         window.orderOut(nil)
+#endif
     }
 
     // MARK: - Lifecycle Management Tests
@@ -89,7 +114,7 @@ struct TransducerViewTests {
                 }
         }
 
-        // Wrap in UIHostingController to provide SwiftUI environment
+        // Wrap in hosting controller to provide SwiftUI environment
         let (_, window) = await embedInWindowAndMakeKey(view)
 
         // Verify that the view's body was executed
@@ -101,7 +126,6 @@ struct TransducerViewTests {
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func updateFunctionExecutesOnEventSendFromProxy() async throws {
 
@@ -156,13 +180,13 @@ struct TransducerViewTests {
             Text(verbatim: "Test - Body executed \(tracker.increment()) times, state: \(state)")
         }
 
-        // Wrap in UIHostingController to provide SwiftUI environment
+        // Wrap in hosting controller to provide SwiftUI environment
         let (_, window) = await embedInWindowAndMakeKey(view)
 
         // Now send an event to trigger the update function (using proxy):
         try proxy.send(.start)
 
-        try await receivedStartedEvent.await(timeout: .seconds(10))
+        try await receivedStartedEvent.await(nanoseconds: 10_000_000_000) // 10 secs
 
         // Verify that the view's body was executed twice (initial + state change)
         #expect(
@@ -173,7 +197,6 @@ struct TransducerViewTests {
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func updateFunctionExecutesOnEventSendFromInput() async throws {
 
@@ -225,7 +248,7 @@ struct TransducerViewTests {
                 }
         }
 
-        // Wrap in UIHostingController to provide SwiftUI environment
+        // Wrap in hosting controller to provide SwiftUI environment
         let (_, window) = await embedInWindowAndMakeKey(view)
 
         // Verify that the view's body was executed
@@ -238,7 +261,7 @@ struct TransducerViewTests {
 
         // Now send an event to trigger the update function first time (using input):
         try capturedInput?.send(.start)
-        try await expectation.await(timeout: .seconds(10))
+        try await expectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(isOutputValueSent)
 
         // Clean up
@@ -247,7 +270,7 @@ struct TransducerViewTests {
 
     // MARK: - State Management Tests
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) // Expectation
     @Test
     func stateUpdatesReflectInView() async throws {
         enum CounterTransducer: Transducer {
@@ -270,7 +293,7 @@ struct TransducerViewTests {
         let proxy = CounterTransducer.Proxy()
         var capturedInput: CounterTransducer.Proxy.Input?
         let expectation = Expectation()
-        var observedStates: [CounterTransducer.State] = []
+        var observedStateValues: [Int] = []
 
         let view = TransducerView(
             of: CounterTransducer.self,
@@ -280,14 +303,15 @@ struct TransducerViewTests {
             Text("\(state.value)")
                 .onAppear {
                     capturedInput = input
-                    observedStates.append(state)
+                    observedStateValues.append(state.value)
                     if state.value == 1 {
                         expectation.fulfill()
                     }
                 }
-                .onChange(of: state) {
-                    observedStates.append(state)
-                    if state.value == 1 {
+                .onChange(of: state.value) { newValue in
+                    print("onChange: state.value newValue: \(newValue)")
+                    observedStateValues.append(newValue)
+                    if newValue == 1 {
                         expectation.fulfill()
                     }
                 }
@@ -297,13 +321,13 @@ struct TransducerViewTests {
         let (_, window) = await embedInWindowAndMakeKey(view)
 
         // Verify initial state capture
-        #expect(observedStates.first?.value == 0)
+        #expect(observedStateValues.first == 0)
         #expect(capturedInput != nil)
 
         // Send event and verify state update
         try capturedInput?.send(.increment)
-        try await expectation.await(timeout: .seconds(10))
-        #expect(observedStates.last?.value == 1)
+        try await expectation.await(nanoseconds: 10_000_000_000)
+        #expect(observedStateValues.last == 1)
 
         // Clean up
         cleanupView(window)
@@ -347,7 +371,6 @@ struct TransducerViewTests {
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func stateChangesTriggersViewUpdate() async throws {
         enum ToggleTransducer: Transducer {
@@ -386,7 +409,7 @@ struct TransducerViewTests {
 
             // Fulfill expectation when we see the .on state
             Text(state == .on ? "ON (\(currentCount))" : "OFF (\(currentCount))")
-                .onChange(of: state) { oldState, newState in
+                .onChange(of: state) { newState in
                     if case .on = newState {
                         expectation.fulfill()
                     }
@@ -398,7 +421,7 @@ struct TransducerViewTests {
         let initialCount = updateTracker.count
 
         try proxy.input.send(.toggle)
-        try await expectation.await(timeout: .seconds(10))
+        try await expectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(
             updateTracker.count > initialCount,
             "View should have been updated after state change")
@@ -412,7 +435,6 @@ struct TransducerViewTests {
 
     // MARK: - Input Handling Tests
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func inputEventsReachTransducer() async throws {
         enum Output {
@@ -464,7 +486,7 @@ struct TransducerViewTests {
                     capturedInput = input
                     observedStates.append(state)
                 }
-                .onChange(of: state) {
+                .onChange(of: state) { newValue in
                     observedStates.append(state)
                 }
         }
@@ -488,11 +510,11 @@ struct TransducerViewTests {
         for i in 0 ..< 10 {
             await #expect(throws: Never.self) {
                 try capturedInput?.send(.test("\(i)"))
-                try await Task.sleep(for: .milliseconds(10))
+                try await Task.sleep(nanoseconds: 10_000_000)
             }
         }
 
-        try await expectation.await(timeout: .seconds(10))
+        try await expectation.await(nanoseconds: 10_000_000_000) // 10 secs
         // Clean up
         cleanupView(window)
 
@@ -500,7 +522,6 @@ struct TransducerViewTests {
         #expect(receivedEvents == accepted)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func inputEventsReachTransducerUsingSyncSuspendingProxy() async throws {
         enum Output {
@@ -579,7 +600,6 @@ struct TransducerViewTests {
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func multipleEventsProcessedInOrder() async throws {
         enum Output {
@@ -639,7 +659,7 @@ struct TransducerViewTests {
         }
         await Task.yield()
 
-        try await expectation.await(timeout: .seconds(10))
+        try await expectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(receivedEvents == [1, 2, 3, 4, 5, 6, 7, 8, 9])
 
         // Clean up
@@ -648,7 +668,6 @@ struct TransducerViewTests {
 
     // MARK: - Output Subject Tests
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func outputsSentToSubject() async throws {
         enum OutputTransducer: Transducer {
@@ -693,14 +712,13 @@ struct TransducerViewTests {
         #expect(capturedInput != nil)
 
         try capturedInput?.send(.produce(42))
-        try await expectation.await(timeout: .seconds(10))
+        try await expectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(receivedOutput == 42)
 
         // Clean up
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func initialOutputSent() async throws {
         var receivedOutput: String = ""
@@ -741,14 +759,13 @@ struct TransducerViewTests {
         // Host the view properly
         let (_, window) = await embedInWindowAndMakeKey(view)
 
-        try await expectation.await(timeout: .seconds(10000))
+        try await expectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(receivedOutput == "initial")
 
         // Clean up
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func multipleOutputsDelivered() async throws {
         var outputs: [String] = []
@@ -795,7 +812,7 @@ struct TransducerViewTests {
 
         try capturedInput?.send(.emit("first"))
         try capturedInput?.send(.emit("second"))
-        try await expectation.await(timeout: .seconds(10))
+        try await expectation.await(nanoseconds: 10_000_000_000) // 10 secs
 
         #expect(outputs.contains("first"))
         #expect(outputs.contains("second"))
@@ -806,7 +823,6 @@ struct TransducerViewTests {
 
     // MARK: - Completion Callback Tests
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func completionCallbackInvokedOnSuccess() async throws {
         enum CompletionTransducer: Transducer {
@@ -869,8 +885,8 @@ struct TransducerViewTests {
         // Trigger completion
         try capturedInput?.send(.finish)
 
-        try await outputExpectation.await(timeout: .seconds(10))
-        try await completionExpectation.await(timeout: .seconds(10))
+        try await outputExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
+        try await completionExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
 
         #expect(completionCalled)
         #expect(completionValue == "completed")
@@ -878,7 +894,6 @@ struct TransducerViewTests {
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func completionCallbackInvokedOnError() async throws {
         // If a transducer works correctly and the connected
@@ -958,7 +973,6 @@ struct TransducerViewTests {
 
     // MARK: - Optional Proxy Tests
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func transducerViewWorksWithNilProxy() async throws {
         enum SimpleTransducer: Transducer {
@@ -998,13 +1012,12 @@ struct TransducerViewTests {
         #expect(capturedInput != nil)
         try capturedInput?.send(.test)
 
-        try await expectation.await(timeout: .seconds(10))
+        try await expectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(receivedOutput == "event_received")
 
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func transducerViewWorksWithOmittedProxy() async throws {
         enum SimpleTransducer: Transducer {
@@ -1043,7 +1056,7 @@ struct TransducerViewTests {
         #expect(capturedInput != nil)
         try capturedInput?.send(.test)
 
-        try await expectation.await(timeout: .seconds(10))
+        try await expectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(receivedOutput == "event_received")
 
         cleanupView(window)
@@ -1051,7 +1064,6 @@ struct TransducerViewTests {
 
     // MARK: - Proxy Change and State Reset Tests
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func proxyChangeRestartsTransducerAndResetsState() async throws {
         enum CounterTransducer: Transducer {
@@ -1119,21 +1131,21 @@ struct TransducerViewTests {
                 capturedInput = input
                 observedStates.append(state)
             }
-            .onChange(of: state) {
-                observedStates.append(state)
+            .onChange(of: state) { newValue in
+                observedStates.append(newValue)
             }
         }
 
         let (hostingController, window) = await embedInWindowAndMakeKey(view)
 
         // Wait for initial output
-        try await initialOutputExpectation.await(timeout: .seconds(10))
+        try await initialOutputExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(outputs == [5])  // Initial state value
         #expect(observedStates.last?.value == 5)
 
         // Increment counter
         try capturedInput?.send(.increment)
-        try await incrementExpectation.await(timeout: .seconds(10))
+        try await incrementExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
         #expect(outputs == [5, 6])
         #expect(observedStates.last?.value == 6)
 
@@ -1157,11 +1169,11 @@ struct TransducerViewTests {
                         capturedInput = input
                         observedStates.append(state)
                     }
-                    .onChange(of: state) {
+                    .onChange(of: state) { newValue in
                         observedStates.append(state)
                     }
             })
-        try await proxyChangeExpectation.await(timeout: .seconds(10))
+        try await proxyChangeExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
 
         // Verify state was reset to initial state after proxy change
         #expect(outputs == [5, 6, 5])  // Back to initial state
@@ -1170,7 +1182,6 @@ struct TransducerViewTests {
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func proxyChangeCancelsRunningTransducer() async throws {
         enum LongRunningTransducer: Transducer {
@@ -1258,7 +1269,6 @@ struct TransducerViewTests {
         cleanupView(window)
     }
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func completionCallbackWithEffectTransducer() async throws {
         enum EffectTestTransducer: EffectTransducer {
@@ -1327,8 +1337,8 @@ struct TransducerViewTests {
         try input.send(.start)
         try input.send(.process)
 
-        try await outputExpectation.await(timeout: .seconds(10))
-        try await completionExpectation.await(timeout: .seconds(10))
+        try await outputExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
+        try await completionExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
 
         #expect(completionCalled)
         #expect(completionValue == "work_completed")
@@ -1338,7 +1348,6 @@ struct TransducerViewTests {
 
     // MARK: - Integration Tests with Simple Examples
 
-    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
     @Test
     func simpleCounterIntegration() async throws {
         enum CounterTransducer: Transducer {
@@ -1364,7 +1373,7 @@ struct TransducerViewTests {
 
         let proxy = CounterTransducer.Proxy()
         var capturedInput: CounterTransducer.Proxy.Input?
-        var observedStates: [Int] = []
+        var observedStateValues: [Int] = []
         var outputs: [Int] = []
 
         let receicedStateExpectation = Expectation()
@@ -1381,11 +1390,11 @@ struct TransducerViewTests {
             Text("\(state.value)")
                 .onAppear {
                     capturedInput = input
-                    observedStates.append(state.value)
+                    observedStateValues.append(state.value)
                     receicedStateExpectation.fulfill()
                 }
-                .onChange(of: state) {
-                    observedStates.append(state.value)
+                .onChange(of: state.value) { newValue in
+                    observedStateValues.append(newValue)
                     receicedStateExpectation.fulfill()
                 }
         }
@@ -1393,40 +1402,40 @@ struct TransducerViewTests {
         let (_, window) = await embedInWindowAndMakeKey(view)
 
         // Simulate user actions
-        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        try await receicedStateExpectation.await(nanoseconds: 10_000_000_000) // 10 secs
         // onAppear: 0
-        #expect(observedStates == [0])
+        #expect(observedStateValues == [0])
 
         try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
         try capturedInput?.send(.increment)  // 1
-        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        try await receicedStateExpectation.await(nanoseconds: 10_000_000_000)
         // onChange: 1
-        #expect(observedStates == [0, 1])
+        #expect(observedStateValues == [0, 1])
 
         try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
         try capturedInput?.send(.increment)  // 2
-        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        try await receicedStateExpectation.await(nanoseconds: 10_000_000_000)
         // onChange: 2
-        #expect(observedStates == [0, 1, 2])
+        #expect(observedStateValues == [0, 1, 2])
 
         try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
         try capturedInput?.send(.increment)  // 3
-        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        try await receicedStateExpectation.await(nanoseconds: 10_000_000_000)
         // onChange: 3
-        #expect(observedStates == [0, 1, 2, 3])
+        #expect(observedStateValues == [0, 1, 2, 3])
 
         try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
         try capturedInput?.send(.decrement)  // 2
-        try await receicedStateExpectation.await(timeout: .seconds(10_000))
+        try await receicedStateExpectation.await(nanoseconds: 10_000_000_000)
         // onChange: 2
-        #expect(observedStates == [0, 1, 2, 3, 2])
+        #expect(observedStateValues == [0, 1, 2, 3, 2])
         #expect(outputs == [0, 1, 2, 3, 2])
 
         cleanupView(window)
     }
 }
 
-#else
+#else // !(canImport(SwiftUI) && (canImport(UIKit) || canImport(AppKit)))
 // SwiftUI not available - TransducerView tests skipped
 
 import Testing
@@ -1438,9 +1447,9 @@ struct TransducerViewTestsFallback {
     func swiftUINotAvailable() async throws {
         #expect(
             Bool(false),
-            "TransducerView tests require SwiftUI and AppKit. Run from Xcode with a run destination which has UIKit to execute full TransducerView test suite. This skip is expected when testing from command line."
+            "TransducerView tests require SwiftUI and either UIKit (iOS) or AppKit (macOS). Run from Xcode with a run destination that supports SwiftUI to execute the full TransducerView test suite. This skip is expected when testing from command line."
         )
     }
 }
 
-#endif  // canImport(SwiftUI)
+#endif  // canImport(SwiftUI) && (canImport(UIKit) || canImport(AppKit))
