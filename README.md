@@ -111,49 +111,77 @@ enum CounterTransducer: EffectTransducer {
 - **Effect composition**: Combine multiple effects sequentially or in parallel
 - **Back pressure support**: In compositions, a connected output awaits readiness of the consumer
 - **Completion callbacks**: Handle transducer completion with type-safe callbacks
-- **Optional proxy parameters**: Simplified API with automatic proxy creation
-- **Transducer composition**: Experimental support for composing transducers at the type level
-
-### Transducer Composition
-
-Oak includes experimental support for composing transducers at the type level. This advanced feature allows for the creation of composite state machines that maintain the type-safety guarantees of the component transducers.
-
-```swift
-// Define transducer types
-typealias NavigationTransducer = MyNavigationTransducer
-typealias ContentTransducer = MyContentTransducer
-
-// Compose them at the type level
-let AppTransducer = NavigationTransducer.compose(with: ContentTransducer.self)
-
-// Use the composed type
-let initialState = AppTransducer.State(
-    stateA: NavigationTransducer.State.initial,
-    stateB: ContentTransducer.State.initial
-)
-let proxy = AppTransducer.Proxy()
-```
-
-This composition mechanism is still evolving, but it shows promise for building complex state management solutions with clean architectural boundaries. Various composition strategies (parallel, sequential, custom) are being explored to determine the most effective patterns for different use cases.
 
 ### TransducerView
 
-#### Optional Proxy Parameters
-`TransducerView` supports optional proxy parameters. When no proxy is provided, it automatically creates a default proxy:
+`TransducerView` is a SwiftUI view that integrates transducers directly into your view hierarchy. It manages the transducer's lifecycle, automatically starting it when the view appears and cleaning up when the view disappears. The view reactively updates whenever the transducer's state changes. A `TransducerView` directly uses a view's `@State` as the transducer's state and utilizes SwiftUI's built-in diffing facility for efficient updates. 
+
+As a **Transducer Actor**, `TransducerView` combines the power of transducers with effect handling and the composability of SwiftUI views, enabling hierarchical transducer architectures where parent and child views can each manage their own state machines while participating in a coordinated view hierarchy.
+
+
+> Note: `TransducerView` can replace conventional ViewModel implementations using `ObservableObject` or the Observation framework. This supports a **"View only architecture"** where traditional artifacts like Model, ViewModel, Router, and Interactor are consolidated and implemented directly as SwiftUI views.
+
+
+#### Basic Usage
 
 ```swift
-// Simplified - no explicit proxy needed
-TransducerView(of: MyTransducer.self, initialState: .initial) { state, input in
-    // UI content
-}
-
-// Still supported - explicit proxy
-TransducerView(of: MyTransducer.self, initialState: .initial, proxy: MyProxy()) { state, input in
-    // UI content
+struct CounterView: View {
+    @State private var state = CounterTransducer.State()
+    
+    var body: some View {
+        TransducerView(
+            of: CounterTransducer.self,
+            initialState: $state,
+            env: CounterTransducer.Env()
+        ) { state, input in
+            VStack {
+                Text("Count: \(state.count)")
+                Button("Increment") { 
+                    try? input.send(.increment) 
+                }
+                Button("Decrement") { 
+                    try? input.send(.decrement) 
+                }
+            }
+        }
+    }
 }
 ```
 
+#### With Output Handling
+
+<details>
+<summary>Example</summary>
+
+```swift
+struct CounterView: View {
+    @State private var state = CounterTransducer.State()
+    @State private var lastOutput: String = ""
+    
+    var body: some View {
+        TransducerView(
+            of: CounterTransducer.self,
+            initialState: $state,
+            env: CounterTransducer.Env(),
+            output: Callback { output in
+                lastOutput = "Last action: \(output)"
+            }
+        ) { state, input in
+            VStack {
+                Text("Count: \(state.count)")
+                Text(lastOutput)
+                Button("Increment") { try? input.send(.increment) }
+            }
+        }
+    }
+}
+```
+</details>
+
+
 #### Completion Callbacks
+<details>
+<summary>Example</summary>
 Handle transducer completion with type-safe callbacks that are called when the transducer finishes:
 
 ```swift
@@ -175,11 +203,45 @@ TransducerView(
 
 > **Note**: Completion callbacks are always invoked when the transducer finishes, whether it completes successfully or encounters an error. The callback receives a `Result` that contains either the success value or the error.
 
-#### Architecture
+</details>
 
-`TransducerView` can replace conventional ViewModel implementations using `ObservableObject` or the Observation framework. It directly uses the view's `@State` as the transducer's state and utilizes SwiftUI's built-in diffing facility for efficient updates.
+### ObservableTransducer
 
-This supports a **"View only architecture"** where traditional artifacts like Model, ViewModel, Router, and Interactor are consolidated and implemented directly as SwiftUI views.
+`ObservableTransducer` is an `@Observable` class that wraps a transducer for use outside of SwiftUI views or when you need to share transducer state across multiple views. It provides reactive state management using the Observation framework, making it perfect for ViewModels or standalone state management.
+
+#### Direct Usage in SwiftUI
+
+All you need to do to support this pattern is to instantiate the Observable from the generic type `ObservableTransducer` and assign it a property in the view. You don't need to create the Observable class yourself anymore.
+
+```swift
+struct CounterView: View {
+    @State private var counter = ObservableTransducer(
+        of: CounterTransducer.self,
+        initialState: CounterTransducer.State(),
+        env: CounterTransducer.Env()
+    )
+    
+    var body: some View {
+        VStack {
+            Text("Count: \(counter.state.count)")
+            Button("Increment") { 
+                try? counter.proxy.send(.increment) 
+            }
+            Button("Decrement") { 
+                try? counter.proxy.send(.decrement) 
+            }
+        }
+    }
+}
+```
+
+> Note: The same Transducer definition, that is a type conforming to either `Transducer` or `EffectTransducer`, can be used for a `TransducerView` and/or for an `ObservableTransducer`.
+
+### Transducer Composition
+
+Oak includes experimental support for composing transducers at the type level. This advanced feature allows for the creation of composite state machines that maintain the type-safety guarantees of the component transducers.
+
+This composition mechanism is still evolving, but it shows promise for building complex state management solutions with clean architectural boundaries. Various composition strategies (parallel, sequential, custom) are being explored to determine the most effective patterns for different use cases.
 
 
 ## Installation
@@ -194,7 +256,7 @@ https://github.com/couchdeveloper/Oak.git
 Or add to your `Package.swift`:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/couchdeveloper/Oak.git", from: "0.15.0")
+    .package(url: "https://github.com/couchdeveloper/Oak.git", from: "0.28.0")
 ]
 ```
 
@@ -221,7 +283,10 @@ enum SimpleCounter: EffectTransducer {
         case decrement
     }
     
-    static func update(_ state: inout State, event: Event) -> TransducerOutput {
+    static func update(
+        _ state: inout State, 
+        event: Event
+    ) -> TransducerOutput {
         switch event {
         case .increment:
             state.count += 1
@@ -263,8 +328,12 @@ struct ContentView: View {
         ) { state, input in
             VStack {
                 Text("Count: \(state.count)")
-                Button("Increment") { try? input.send(.increment) }
-                Button("Decrement") { try? input.send(.decrement) }
+                Button("Increment") { 
+                    try? input.send(.increment) 
+                }
+                Button("Decrement") { 
+                    try? input.send(.decrement) 
+                }
             }
         }
     }
