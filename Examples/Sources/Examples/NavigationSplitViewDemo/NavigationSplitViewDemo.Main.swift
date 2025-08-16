@@ -1,21 +1,10 @@
 import SwiftUI
 import Oak
 
+// MARK: - View 
+
+
 extension NavigationSplitViewDemo.Main.Views {
-    
-    struct ToDo: Identifiable, Equatable {
-        enum State {
-            case open
-            case closed
-        }
-        
-        let id: UUID
-        let creationDate: Date
-        let dueDate: Date?
-        let titel: String
-        let description: String
-    }
-    
     
     struct ContentNavigationView: View {
         var body: some View {
@@ -25,39 +14,54 @@ extension NavigationSplitViewDemo.Main.Views {
         }
     }
     
-    typealias DetailProxy = Proxy<String>
-    typealias MainProxy = Proxy<String>
 
     struct MainDetailView: View {
-        
-        typealias DetailCallback = Callback<String>
-        
-        @State private var detailProxy: DetailProxy?
-        @State private var mainProxy: MainProxy?
-        
 
-        var body: some View {
-            NavigationSplitView {
-                
-                List(model.employees, selection: $employeeIds) { employee in
-                    Text(employee.name)
-                }
-            } detail: {
-                EmployeeDetails(for: employeeIds)
+        typealias List = NavigationSplitViewDemo.List
+        typealias Detail = NavigationSplitViewDemo.Detail        
+        typealias DetailCallback = Callback<String>
+
+        @State private var listState: List.State = .start
+        @State private var listProxy: List.Proxy = .init()
+
+        let detailCallback: Callback<Detail.Output> = .init { output in
+            switch output {
+            case .loadSuccess(let itemId):
+                // Handle successful loading of item
+                print("Loaded item: \(itemId)")
+            case .loadFailed(let error, let itemId):
+                // Handle failed loading of item
+                print("Failed to load item \(itemId): \(error)")
+            case .message(let message):
+                // Handle message from detail view
+                print("Message from detail view: \(message)")
+            case .none:
+                break
             }
         }
-        
-        func wireup(mainProxy: MainProxy, detailProxy: DetailProxy) {
-            
+
+        let listCallback: Callback<List.Output> = .init { output in
+            switch output {
+            case .itemSelected(let itemId):
+                break
+            case .none:
+                break
+            }
         }
-    }
-    
-    
-    struct DetailView: View {
-        let proxy: DetailProxy
-        
-        var body: some View {
-            
+
+        var body: some View {            
+            NavigationSplitView {
+                List.Views.ContentView(
+                    state: $listState,
+                    proxy: listProxy,
+                    output: listCallback
+                )
+            } detail: {
+                Detail.Views.ContentView(
+                    itemId: listState.selectedItemId,
+                    output: detailCallback
+                )
+            }
         }
     }
     

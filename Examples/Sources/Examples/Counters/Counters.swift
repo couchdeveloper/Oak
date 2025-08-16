@@ -42,10 +42,12 @@ enum Counters: Transducer {
 }
 
 struct CounterTransducerView: View {
+    @State private var state: Counters.State = .idle(value: 0)
+    
     var body: some View {
         TransducerView(
             of: Counters.self,
-            initialState: .idle(value: 0)
+            initialState: $state
         ) { state, input in
             VStack(spacing: 20) {
                 Text("Count: \(state.value)")

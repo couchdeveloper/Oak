@@ -74,12 +74,11 @@ import Oak
 //    the API for the modal.
 
 
-
-// MARK: - List List Transducer
-
+// MARK: - List Transducer
 
 extension NavigationSplitViewDemo.List: EffectTransducer {
-// MARK: - Model
+
+    // MARK: - Model
 
     // The item model for the main view.
     // 
@@ -210,7 +209,7 @@ extension NavigationSplitViewDemo.List: EffectTransducer {
 
     struct Env {
         var serviceLoadItems: () async throws -> [Item]
-        var transducerInput: Input
+        var transducerInput: Input? = nil
     }
 
     enum Output {
@@ -381,45 +380,6 @@ extension NavigationSplitViewDemo.List.Effects {
 
 }
 
-// MARK: - Detail Transducer
-#if false
-extension NavigationSplitViewDemo.Detail: EffectTransducer {
-
-    struct Context {        
-        let input: Input
-    }
-
-    struct Env {
-        var loadItem: (Item.ID) async throws -> Item  
-        var transducerInput: Input
-    }
-
-    struct Data {
-        var item: Item
-    }
-
-    typealias Item = NavigationSplitViewDemo.Item
-
-    enum Event {
-        case start
-        case initContext(Context)
-        case intentEdit(id: Item.ID)
-        case intentNew
-        case intentDelete(Item.ID)
-        case serviceDidUpdateItem(Item)
-        case serviceDidFailWithError(Swift.Error)
-    }
-
-    typealias State = NavigationSplitViewUtilities.State<Data, Sheet, Error, Context>
-
-    static func updateState(_ state: inout State, with event: Event) {
-        switch (state,event) {
-        }
-    }   
-}
-#endif
-
-
 // MARK: State Mutation Helpers
 extension NavigationSplitViewDemo.List.State {
     
@@ -555,5 +515,130 @@ extension Array where Element: Identifiable {
                 self.append(newValue)
             }
         }
+    }
+}
+
+
+import SwiftUI
+
+// MARK: - ENV
+ extension EnvironmentValues {
+    @Entry var navigationSplitViewDemoListEnv: NavigationSplitViewDemo.List.Env = NavigationSplitViewDemo.List.Env(
+        serviceLoadItems: {
+            // Mock implementation with 3 sample items
+            try await Task.sleep(for: .milliseconds(500)) // Simulate network delay
+            return [
+                NavigationSplitViewDemo.List.Item(
+                    id: UUID(),
+                    name: "Complete project documentation",
+                    detail: "Write comprehensive documentation for the Oak framework including examples and API reference"
+                ),
+                NavigationSplitViewDemo.List.Item(
+                    id: UUID(),
+                    name: "Review pull requests",
+                    detail: "Review pending PRs and provide feedback on code quality and implementation"
+                ),
+                NavigationSplitViewDemo.List.Item(
+                    id: UUID(),
+                    name: "Update dependencies",
+                    detail: "Update all project dependencies to their latest stable versions and test compatibility"
+                )
+            ]
+        },
+        transducerInput: nil 
+    )
+}
+
+extension NavigationSplitViewDemo.List.Views {
+
+    typealias Item = NavigationSplitViewDemo.List.Item
+    typealias Output = NavigationSplitViewDemo.List.Output
+    typealias Transducer = NavigationSplitViewDemo.List
+
+    struct ContentView: View {
+        @Binding private var state: Transducer.State
+        @Environment(\.navigationSplitViewDemoListEnv) private var env
+        let proxy: Transducer.Proxy
+        let output: Callback<Output>
+
+        init(
+            state: Binding<Transducer.State>, 
+            proxy: Transducer.Proxy, 
+            output: Callback<Output>
+        ) {
+            self._state = state
+            self.proxy = proxy
+            self.output = output
+        }
+
+        var body: some View {
+            TransducerView(
+                of: Transducer.self,
+                initialState: $state,
+                proxy: proxy,
+                env: env
+            ) { state, input in
+                ItemListView(state: state, input: input)
+            }
+        }
+    }
+
+
+    struct ItemListView: View {
+        let state: Transducer.State
+        let input: Transducer.Input
+
+        var body: some View {
+            Text(verbatim: "State: \(state)")
+            Text(verbatim: "Events: \(Transducer.Event.self)")
+        }
+    }
+
+}
+
+
+// MARK: - Debugging 
+
+extension NavigationSplitViewDemo.List.Event: CustomStringConvertible {
+    var description: String {
+        switch self {
+        case .start:
+            return "Start"
+        case .initContext(let context):
+            return "Init Context: \(context)"
+        case .intentLoadItems:
+            return "Intent Load Items"
+        case .intentSelect(let id):
+            return "Intent Select: \(id?.uuidString ?? "nil")"
+        case .intentNewItem:
+            return "Intent New Item"
+        case .intentEditItem(let item):
+            return "Intent Edit Item: \(item)"
+        case .intentDeleteItem(let id):
+            return "Intent Delete Item: \(id.uuidString)"
+        case .intentConfirmError(let actionId):
+            return "Intent Confirm Error: \(actionId.map { String(describing: $0) } ?? "nil")"
+        case .serviceDidSendItems(let items):
+            return "Service Did Send Items: \(items)"
+        case .serviceDidFailWithError(let error, let action):
+            return "Service Did Fail With Error: \(error), Action: \(String(describing: action))"
+        case .modalDidDismiss:
+            return "Modal Did Dismiss"
+        case .modalIntentCancelModal:
+            return "Modal Intent Cancel Modal"
+        case .modalDidCreateItem(let item):
+            return "Modal Did Create Item: \(item)"
+        case .modalDidUpdateItem(let item):
+            return "Modal Did Update Item: \(item)"
+        case .modalDidDeleteItem(let id):
+            return "Modal Did Delete Item: \(id.uuidString)"
+        }
+    }
+}
+
+extension NavigationSplitViewDemo.List.Data: CustomStringConvertible {
+    var description: String {
+        let itemsDesc = items.map { "\($0.name) (\($0.id.uuidString))" }.joined(separator: ", ")
+        return "Items: [\(itemsDesc)], Sort Order: \(sortOrder), Current: \(current?.uuidString ?? "nil")"
     }
 }

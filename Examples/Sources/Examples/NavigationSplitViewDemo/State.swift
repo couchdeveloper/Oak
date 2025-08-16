@@ -18,23 +18,23 @@ enum NavigationSplitViewUtilities {
         
         public enum Empty {
             case blank
-            case filled(title: String, description: String, actions: [Intent])
+            case filled(title: String, subTitle: String, actions: [Intent])
         }
         
         public struct Intent {
-            init(title: String, description: String? = nil, action: @escaping () -> Void) {
+            init(title: String, subTitle: String? = nil, action: @escaping () -> Void) {
                 self.title = title
-                self.description = description
+                self.subTitle = subTitle
                 self.action = action
             }
             let title: String
-            let description: String?
+            let subTitle: String?
             let action: () -> Void
         }
         
         public struct Activity {
             public let title: String = "Loading…"
-            public let description: String = ""
+            public let subTitle: String = ""
             public let cancelAction: Intent? = nil
         }
         
@@ -105,9 +105,9 @@ enum NavigationSplitViewUtilities {
                 switch self {
                 case .start:
                     break // cannot set content, we need a context!
-                case .idle(let content, let context):
+                case .idle(_, let context):
                     self = .idle(newValue, context: context)
-                case .modal(let modal, let content, let context):
+                case .modal(let modal, _, let context):
                     self = .modal(modal, content: newValue, context: context)
                 }
             }
@@ -131,5 +131,74 @@ enum NavigationSplitViewUtilities {
             }
         }
         
+    }
+}
+
+
+extension NavigationSplitViewUtilities.State: CustomStringConvertible {
+    var description: String {
+        switch self {
+        case .start:
+            return "start"
+            
+        case .idle(let content, _):
+            return "idle(\(content))"
+            
+        case .modal(let modal, let content, _):
+            return "modal(\(modal), \(content))"
+        }
+    }
+}
+
+extension NavigationSplitViewUtilities.State.Content: CustomStringConvertible {
+    var description: String {
+        switch self {
+        case .none(let empty):
+            return "empty(\(empty))"
+        case .some:
+            return "data"
+        }
+    }
+}
+
+extension NavigationSplitViewUtilities.State.Empty: CustomStringConvertible {
+    var description: String {
+        switch self {
+        case .blank:
+            return "blank"
+        case .filled(let title, _, let actions):
+            let actionCount = actions.isEmpty ? "" : ", \(actions.count) actions"
+            return "filled(\"\(title)\"\(actionCount))"
+        }
+    }
+}
+
+extension NavigationSplitViewUtilities.State.Modal: CustomStringConvertible {
+    var description: String {
+        switch self {
+        case .activity(let activity):
+            return "activity(\(activity))"
+        case .error:
+            return "error"
+        case .sheet:
+            return "sheet"
+        }
+    }
+}
+
+extension NavigationSplitViewUtilities.State.Activity: CustomStringConvertible {
+    var description: String {
+        let cancelDesc = cancelAction != nil ? ", cancellable" : ""
+        return "\"\(title)\"\(cancelDesc)"
+    }
+}
+
+extension NavigationSplitViewUtilities.State.Intent: CustomStringConvertible {
+    var description: String {
+        if let subTitle = subTitle {
+            return "\"\(title)\": \"\(subTitle)\""
+        } else {
+            return "\"\(title)\""
+        }
     }
 }
