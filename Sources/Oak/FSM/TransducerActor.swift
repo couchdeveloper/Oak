@@ -397,8 +397,8 @@ extension TransducerActor where StateInitialising == State {
         content: @escaping (State, Input) -> Content
     )
     where
-    Transducer: Oak.EffectTransducer,
-    Transducer.TransducerOutput == (Transducer.Effect?, Output)
+        Transducer: Oak.EffectTransducer,
+        Transducer.TransducerOutput == (Transducer.Effect?, Output)
     {
         nonisolated(unsafe) let env = env  // TODO: have to silence compiler error: Sending 'env' risks causing data races
         // IMHO, the compiler's error is not justified: `env` will only ever be

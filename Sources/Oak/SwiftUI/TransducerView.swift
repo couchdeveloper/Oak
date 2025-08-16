@@ -52,7 +52,7 @@ where Transducer: BaseTransducer, Content: View {
         }
     }
 
-    @SwiftUI.Binding var state: State
+    @SwiftUI.Binding private var state: State
     @SwiftUI.State private var taskHolder: TaskHolder?
 
     public let proxy: Proxy
@@ -138,6 +138,10 @@ extension TransducerView {
             task.cancel()
         }
     }
+}
+
+extension TransducerView where Transducer: EffectTransducer {
+    public typealias Env = Transducer.Env
 }
 
 #if DEBUG // Previews
