@@ -1,8 +1,7 @@
-import os
+import Mutex
 
 // Possibly use: https://github.com/swhitty/swift-mutex/blob/main/Sources/Mutex.swift
 
-@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 final class Expectation: Sendable {
 
     enum Error: Swift.Error {
@@ -29,10 +28,10 @@ final class Expectation: Sendable {
         case rejected(any Swift.Error)
     }
 
-    let lock: OSAllocatedUnfairLock<State>
+    let lock: Mutex<State>
 
     init(minFulfillCount: Int = 1) {
-        lock = .init(initialState: .start(minFulfillCount: minFulfillCount))
+        lock = .init(.start(minFulfillCount: minFulfillCount))
     }
 
     var isFulfilled: Bool {
@@ -102,6 +101,7 @@ final class Expectation: Sendable {
         }
     }
 
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     func await<C: Clock>(
         timeout duration: C.Instant.Duration,
         tolerance: C.Instant.Duration? = nil,
@@ -321,7 +321,6 @@ final class Expectation: Sendable {
     }
 }
 
-@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 extension Expectation: CustomStringConvertible {
     public var description: String {
         enum State {

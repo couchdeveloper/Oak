@@ -11,19 +11,42 @@ A type-safe, asynchronous finite state machine implementation for Swift, with po
 
 ## Development Status
 
-Oak is actively developed and evolving. The library is well-tested and functional, with a stable core API. While we maintain backward compatibility where possible, the API may evolve as we incorporate community feedback and add new features.
+Oak is actively developed and evolving. The library is well-tested and functional, with a stable core API. 
 
-**Contributions welcome!** We encourage developers to try Oak, provide feedback, and contribute to its evolution. Follow the repository for updates and join discussions in Issues.
+We encourage developers to try Oak, provide feedback, and contribute to its evolution.
 
 ## Overview
 
-Oak provides a robust implementation of finite state machines (FSM), also known as finite state transducers (FST) for Swift applications. It enables you to model complex state transitions and side effects in a type-safe, testable, and maintainable way.
+**What Oak is:**
 
+  - A Swift library for modeling application logic as finite-state machines (transducers).
+  - A unidirectional, event-driven, state-and-effect system with strong type safety.
+  - Clear separation of pure state transition logic from side effects (via Effects).
+  - A composable architecture that integrates with SwiftUI.
+  - A runtime that manages async work (managed tasks) and cancellation in a lifecycle-aware manner.
+
+#### An advanced Example: Effect Counter Transducer
+
+The example demonstrates how to define a state machine which uses effects:
+
+<details>
+<summary>Show Example</summary>
 
 ```swift
-// Simple, non-terminating counter state machine with async effects
-enum CounterTransducer: EffectTransducer {    
+import Oak
+
+// Simple, non-terminating counter state machine with 
+// async effects
+enum EffectCounter: EffectTransducer {
+    // State holds counter value and tracks operation 
+    // progress
     struct State: NonTerminal {
+        enum Pending {
+            case none
+            case increment
+            case decrement
+        }    
+
         var value: Int = 0
         var pending: Pending = .none
         var isPending: Bool { pending != .none }
@@ -31,10 +54,21 @@ enum CounterTransducer: EffectTransducer {
     
     static var initialState: State { State() }
     
-    typealias TransducerOutput = Self.Effect?
-
-    struct Env {}
+    // Dependencies needed by effects
+    struct Env: Sendable {
+        init() {
+            self.serviceIncrement = { 
+                try await Task.sleep(for: .seconds(1)) 
+            }
+            self.serviceDecrement = { 
+                try await Task.sleep(for: .seconds(1)) 
+            }
+        }
+        var serviceIncrement: @Sendable () async throws -> Void
+        var serviceDecrement: @Sendable () async throws -> Void
+    }
     
+    // Events that trigger state transitions
     enum Event {
         case increment
         case decrement
@@ -43,31 +77,29 @@ enum CounterTransducer: EffectTransducer {
         case decrementReady
     }
     
-    enum Pending {
-        case none
-        case increment
-        case decrement
-    }
-    
     // Effect for increment: creates an operation effect
     static func incrementEffect() -> Self.Effect {
-        Effect(
-            operation: { env, input in
-                try input.send(.incrementReady)
-            }
-        )
+        Effect { env, input in
+            try await env.serviceIncrement()
+            try input.send(.incrementReady) 
+        }       
     }
     
     // Effect for decrement: creates an operation effect
     static func decrementEffect() -> Self.Effect {
-        Effect(
-            operation: { env, input in
-                try input.send(.decrementReady)
-            }
-        )
+        Effect(id: "decrement") { env, input in
+            try await env.serviceDecrement()
+            try input.send(.decrementReady)
+        }
     }
     
-    static func update(_ state: inout State, event: Event) -> TransducerOutput {
+    // Core state transition logic: a pure function that 
+    // handles events and returns effects
+    static func update(
+        _ state: inout State, 
+        event: Event
+    ) -> Self.Effect? {
+
         switch (state.pending, event) {
         case (.none, .increment):
             state.pending = .increment
@@ -86,7 +118,8 @@ enum CounterTransducer: EffectTransducer {
             state.value -= 1
             state.pending = .none
             return nil
-            // Ignore increment/decrement events during pending operation
+            // Ignore increment/decrement events during 
+            // pending operation
         case (_, .increment), (_, .decrement):
             return nil
         case (_, .reset):
@@ -99,7 +132,10 @@ enum CounterTransducer: EffectTransducer {
 }
 ```
 
+</details>
+
 ## Features
+
 
 - **Type-safety**: Leverage Swift's type system to catch invalid usage at compile time
 - **Actor isolation**: Safe execution across different isolation contexts with automatic inference
@@ -111,75 +147,151 @@ enum CounterTransducer: EffectTransducer {
 - **Effect composition**: Combine multiple effects sequentially or in parallel
 - **Back pressure support**: In compositions, a connected output awaits readiness of the consumer
 - **Completion callbacks**: Handle transducer completion with type-safe callbacks
-- **Optional proxy parameters**: Simplified API with automatic proxy creation
-- **Transducer composition**: Experimental support for composing transducers at the type level
 
-### Transducer Composition
-
-Oak includes experimental support for composing transducers at the type level. This advanced feature allows for the creation of composite state machines that maintain the type-safety guarantees of the component transducers.
-
-```swift
-// Define transducer types
-typealias NavigationTransducer = MyNavigationTransducer
-typealias ContentTransducer = MyContentTransducer
-
-// Compose them at the type level
-let AppTransducer = NavigationTransducer.compose(with: ContentTransducer.self)
-
-// Use the composed type
-let initialState = AppTransducer.State(
-    stateA: NavigationTransducer.State.initial,
-    stateB: ContentTransducer.State.initial
-)
-let proxy = AppTransducer.Proxy()
-```
-
-This composition mechanism is still evolving, but it shows promise for building complex state management solutions with clean architectural boundaries. Various composition strategies (parallel, sequential, custom) are being explored to determine the most effective patterns for different use cases.
+## SwiftUI Integration
 
 ### TransducerView
 
-#### Optional Proxy Parameters
-`TransducerView` supports optional proxy parameters. When no proxy is provided, it automatically creates a default proxy:
+`TransducerView` is a SwiftUI view that integrates transducers directly into your view hierarchy. It manages the transducer's lifecycle, automatically starting it when the view appears and cleaning up when the view disappears. The view reactively updates whenever the transducer's state changes. A `TransducerView` directly uses a view's `@State` as the transducer's state and utilizes SwiftUI's built-in diffing facility for efficient updates. 
+
+As a **Transducer Actor**, `TransducerView` combines the power of transducers with effect handling and the composability of SwiftUI views, enabling hierarchical transducer architectures where parent and child views can each manage their own state machines while participating in a coordinated view hierarchy.
+
+
+> Note: `TransducerView` can replace conventional ViewModel implementations using `ObservableObject` or the Observation framework. This supports a **"View only architecture"** where traditional artifacts like Model, ViewModel, Router, and Interactor are consolidated and implemented directly as SwiftUI views.
+
+
+#### Basic Usage
 
 ```swift
-// Simplified - no explicit proxy needed
-TransducerView(of: MyTransducer.self, initialState: .initial) { state, input in
-    // UI content
-}
-
-// Still supported - explicit proxy
-TransducerView(of: MyTransducer.self, initialState: .initial, proxy: MyProxy()) { state, input in
-    // UI content
+struct CounterView: View {
+    @State private var state = SimpleCounter.State()
+    
+    var body: some View {
+        TransducerView(
+            of: SimpleCounter.self,
+            initialState: $state
+        ) { state, input in
+            VStack {
+                Text("Count: \(state.count)")
+                Button("Increment") { 
+                    try? input.send(.increment) 
+                }
+                Button("Decrement") { 
+                    try? input.send(.decrement) 
+                }
+            }
+        }
+    }
 }
 ```
 
+#### With Output Handling and Environment for Effects
+
+<details>
+<summary>Show Example</summary>
+
+```swift
+
+extension EnvironmentValues {
+    @Entry var effectCounterEnv: EffectCounter.Env = .init()
+}   
+
+struct ContentView: View {
+    @Environment(\.effectCounterEnv) var env
+    @State private var state = EffectCounter.initialState
+    @State private var lastOutput: String = ""
+    
+    var body: some View {
+        TransducerView(
+            of: EffectCounter.self,
+            initialState: $state,
+            env: env,
+            output: Callback { output in
+                lastOutput = "Last action: \(output)"
+            }
+        ) { state, input in
+            VStack {
+                Text("Count: \(state.count)")
+                Text(lastOutput)
+                Button("Increment") { try? input.send(.increment) }
+            }
+        }
+    }
+}
+```
+</details>
+
+
 #### Completion Callbacks
+
+<details>
+<summary>Show Example</summary>
 Handle transducer completion with type-safe callbacks that are called when the transducer finishes:
 
 ```swift
-TransducerView(
-    of: MyTransducer.self,
-    initialState: .initial,
-    completion: { result in
-        switch result {
-        case .success(let output):
-            print("Transducer completed successfully with output: \(output)")
-        case .failure(let error):
-            print("Transducer failed with error: \(error)")
+struct ContentView: View {
+    @SwiftUI.State private var state = MyTransducer.State()
+
+    var body: some View {
+        TransducerView(
+            of: MyTransducer.self,
+            initialState: $state,
+            completion: { result in
+                switch result {
+                case .success(let output):
+                    print("Transducer completed successfully with output: \(output)")
+                case .failure(let error):
+                    print("Transducer failed with error: \(error)")
+                }
+            }
+        ) { state, input in
+            // UI content
         }
     }
-) { state, input in
-    // UI content
 }
 ```
 
 > **Note**: Completion callbacks are always invoked when the transducer finishes, whether it completes successfully or encounters an error. The callback receives a `Result` that contains either the success value or the error.
 
-#### Architecture
+</details>
 
-`TransducerView` can replace conventional ViewModel implementations using `ObservableObject` or the Observation framework. It directly uses the view's `@State` as the transducer's state and utilizes SwiftUI's built-in diffing facility for efficient updates.
+### ObservableTransducer
 
-This supports a **"View only architecture"** where traditional artifacts like Model, ViewModel, Router, and Interactor are consolidated and implemented directly as SwiftUI views.
+`ObservableTransducer` is an `@Observable` class that wraps a transducer for use outside of SwiftUI views or when you need to share transducer state across multiple views. It provides reactive state management using the Observation framework, making it perfect for ViewModels or standalone state management.
+
+#### Direct Usage in SwiftUI
+
+All you need to do to support this pattern is to instantiate the Observable from the generic type `ObservableTransducer` and assign it a property in the view. You don't need to create the Observable class yourself anymore.
+
+```swift
+struct CounterView: View {
+    @State private var counter = ObservableTransducer(
+        of: CounterTransducer.self,
+        initialState: CounterTransducer.State(),
+        env: CounterTransducer.Env()
+    )
+    
+    var body: some View {
+        VStack {
+            Text("Count: \(counter.state.count)")
+            Button("Increment") { 
+                try? counter.proxy.send(.increment) 
+            }
+            Button("Decrement") { 
+                try? counter.proxy.send(.decrement) 
+            }
+        }
+    }
+}
+```
+
+> Note: The same Transducer definition, that is a type conforming to either `Transducer` or `EffectTransducer`, can be used for a `TransducerView` and/or for an `ObservableTransducer`.
+
+### Transducer Composition
+
+Oak includes experimental support for composing transducers at the type level. This advanced feature allows for the creation of composite state machines that maintain the type-safety guarantees of the component transducers.
+
+This composition mechanism is still evolving, but it shows promise for building complex state management solutions with clean architectural boundaries. Various composition strategies (parallel, sequential, custom) are being explored to determine the most effective patterns for different use cases.
 
 
 ## Installation
@@ -194,44 +306,52 @@ https://github.com/couchdeveloper/Oak.git
 Or add to your `Package.swift`:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/couchdeveloper/Oak.git", from: "0.15.0")
+    .package(url: "https://github.com/couchdeveloper/Oak.git", from: "0.28.0")
 ]
 ```
 
 ## Quick Start
 
-Oak uses **transducers** - finite state machines that process events and produce outputs. Here's how to create one:
+Oak uses **transducers** - finite state machines that process events and produce outputs. Here's how to create a simple counter transducer returning the counter's value as its output:
 
 ### 1. Define Your Transducer
 
 ```swift
 import Oak
 
-enum SimpleCounter: EffectTransducer {
+// A basic counter transducer that outputs the current count.
+enum SimpleCounter: Transducer {
+    
     struct State: NonTerminal {
         var count: Int = 0
     }
     
     static var initialState: State { State() }
-    typealias TransducerOutput = Self.Effect?
-    struct Env {}
-    
+
     enum Event {
         case increment
         case decrement
     }
+
+    enum Output {
+        case none
+        case value(Int)
+    }
     
-    static func update(_ state: inout State, event: Event) -> TransducerOutput {
+    static func update(_ state: inout State, event: Event) -> Output {
         switch event {
         case .increment:
             state.count += 1
+            return .value(state.count)
         case .decrement:
             state.count -= 1
+            return .value(state.count)
         }
-        return nil
     }
 }
+
 ```
+
 
 ### 2. Run Your Transducer
 
@@ -241,8 +361,7 @@ let proxy = SimpleCounter.Proxy()
 let task = Task {
     try await SimpleCounter.run(
         initialState: SimpleCounter.initialState,
-        proxy: proxy,
-        env: SimpleCounter.Env()
+        proxy: proxy
     )
 }
 
@@ -253,25 +372,46 @@ try proxy.send(.decrement)
 
 ### 3. Use in SwiftUI
 
+To demonstrate the usage in SwiftUI, the counter transducer will be used using a `TransducerView`. The `TransducerView` has a `Content` view which receives the 
+current state and an "Input" for the transducer. The content view is responsible to render the state and send user intents to the transducer via the `input`.
+
+In addition, the counter value can be optionally observed with a `Callback` which calls a closure that receives the current counter value:
+
 ```swift
+import SwiftUI
+
 struct ContentView: View {
+    @SwiftUI.State private var state = SimpleCounter.initialState
+    
     var body: some View {
         TransducerView(
             of: SimpleCounter.self,
-            initialState: SimpleCounter.initialState,
-            env: SimpleCounter.Env()
+            initialState: $state,
+            output: Callback { output in
+                switch output {
+                case .none:
+                    break
+                case .value(let count):
+                    print("Count updated to: \(count)")
+                }
+            }
         ) { state, input in
             VStack {
                 Text("Count: \(state.count)")
-                Button("Increment") { try? input.send(.increment) }
-                Button("Decrement") { try? input.send(.decrement) }
+                Button("Increment") { 
+                    try? input.send(.increment) 
+                }
+                Button("Decrement") { 
+                    try? input.send(.decrement) 
+                }
             }
         }
     }
 }
 ```
+This design allows the enclosing view, that is the `ContentView` in this example, to observe the output and also the transducer's state to react on it. It also allows the ContentView to orchestrate more than one transducer views in more complex scenarios. 
 
-> **Note**: The `proxy` parameter is optional. If omitted, `TransducerView` creates a default proxy automatically.
+If orchestrating becomes more complex, the `ContentView` may itself utilize a transducer that handles the state transitions and it will become the content view of it. That way, complex hierarchies can be built to solve complex UI scenarios.
 
 Ready for more? Check out the [Core Concepts](#core-concepts) section below!
 
@@ -442,41 +582,42 @@ try proxy.send(.reset)
 import SwiftUI
 
 extension EnvironmentValues {
-    @Entry var myCounterEnv: CounterTransducer.Env = .init()
-}
+    @Entry var effectCounterEnv: EffectCounter.Env = .init()
+}   
 
-extension CounterExample.Views {
-    
-    typealias Counter = CounterTransducer
+struct EffectCounterView: View {
+    @Environment(\.effectCounterEnv) var env
+    @State private var state: EffectCounter.State = EffectCounter.initialState
 
-    struct CounterView: View {
-        @Environment(\.myCounterEnv) var env
-        
-        var body: some View {
-            TransducerView(
-                of: Counter.self,
-                initialState: Counter.initialState,
-                env: env
-            ) { state, input in
-                ZStack {
-                    VStack {
-                        Text(verbatim: "Counter Value: \(state.value)")
-                        Button("Increment") { try? input.send(.increment) }
-                            .buttonStyle(.bordered)
-                        Button("Decrement") { try? input.send(.decrement) }
-                            .buttonStyle(.bordered)
-                        Button("Reset") { try? input.send(.reset) }
-                            .buttonStyle(.bordered)
+    var body: some View {
+        TransducerView(
+            of: EffectCounter.self,
+            initialState: $state,
+            env: env
+        ) { state, input in
+            ZStack {
+                VStack {
+                    Text(verbatim: "Counter Value: \(state.value)")
+                    Button("Increment") { 
+                        try? input.send(.increment) 
                     }
-                    .disabled(state.isPending)
-                    if state.isPending {
-                        ProgressView()
+                    .buttonStyle(.bordered)
+                    Button("Decrement") { 
+                        try? input.send(.decrement) 
                     }
+                    .buttonStyle(.bordered)
+                    Button("Reset") { 
+                        try? input.send(.reset) 
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .disabled(state.isPending)
+                if state.isPending {
+                    ProgressView()
                 }
             }
         }
     }
-    
 }
 ```
 
@@ -503,9 +644,7 @@ enum CounterTransducer: EffectTransducer {
     }
     
     static var initialState: State { State() }
-    
-    typealias TransducerOutput = Self.Effect?
-    
+        
     enum Event {
         case increment
         case decrement
@@ -540,7 +679,10 @@ enum CounterTransducer: EffectTransducer {
         )
     }
     
-    static func update(_ state: inout State, event: Event) -> TransducerOutput {
+    static func update(
+        _ state: inout State, 
+        event: Event
+    ) ->  Self.Effect? {
         switch (state.pending, event) {
         case (.none, .increment):
             state.pending = .increment
@@ -559,7 +701,8 @@ enum CounterTransducer: EffectTransducer {
             state.value -= 1
             state.pending = .none
             return nil
-            // Ignore increment/decrement events during pending operation
+            // Ignore increment/decrement events during 
+            // pending operation
         case (_, .increment), (_, .decrement):
             return nil
         case (_, .reset):

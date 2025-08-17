@@ -7,7 +7,6 @@ public protocol Storage<Value> {
     associatedtype Value
 
     var value: Value { get nonmutating set }
-
 }
 
 internal struct LocalStorage<Value>: Storage {
@@ -34,5 +33,3 @@ internal struct LocalStorage<Value>: Storage {
         }
     }
 }
-
-// See also: https://forums.swift.org/t/keypath-performance/60487/2

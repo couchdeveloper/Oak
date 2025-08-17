@@ -1,7 +1,7 @@
 import SwiftUI
 
+// MARK: - Where Transducer: Oak.Transducer, Output == Void
 extension TransducerActor where Content: View {
-
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Void`.
     ///
@@ -16,27 +16,32 @@ extension TransducerActor where Content: View {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer.
-    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
-    ///   creates one.
-    ///   - completion: A completion handler which will be called once when the transducer
-    ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
-    ///   - viewContent: A closure which takes the current state and the input as parameters and
-    ///  returns a content. The content closure can be used to drive other components that
-    ///  provide an interface and controls.
+    ///   - initialState: The underlying storage of the state value, a `SwiftUI.Binding`.
+    ///   The intial state is given by the current state value.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
+    ///   actor creates one.
+    ///   - completion: An optional completion handler which will be called once when the transducer
+    ///   finishes, providing a `Result` that contains either the successful output value or
+    ///   an error if the transducer failed.
+    ///   - content: A `@ViewBuilder` closure which takes the current state and the input as
+    ///   parameters and returns a `SwiftUI.View`.
     ///
     /// ## Examples
     ///
     /// ### Using a TransducerView
     ///
     /// Given a transducer, `MyUseCase`, that conforms to `Transducer`, a transducer view can be
-    /// created by passing in the _type_ of the transducer and the content view can be created in the
-    /// traling closure as shown below:
+    /// created by using one of the initialiser overloads. This initialiser uses a `SwiftUI.Binding` as
+    /// the source of the state and the initial state value for the transducer.
     ///
     ///```swift
     /// struct ContentView: View {
+    ///     @State private var state: MyUseCase.State = .init()
     ///     var body: some View {
-    ///         TransducerView(of: MyUseCase.self) {
+    ///         TransducerView(
+    ///             of: MyUseCase.self,
+    ///             initialState: $state
+    ///         ) {
     ///             content: { state, input in
     ///                 GreetingView(
     ///                     greeting: state.greeting,
@@ -75,20 +80,37 @@ extension TransducerActor where Content: View {
     ///
     public init(
         of type: Transducer.Type = Transducer.self,
-        initialState: State,
+        initialState: StateInitialising,
         proxy: Proxy? = nil,
         completion: Completion? = nil,
-        @ViewBuilder viewContent: @escaping (State, Input) -> Content
+        @ViewBuilder content: @escaping (State, Input) -> Content
     ) where Transducer: Oak.Transducer, Output == Void {
         self.init(
-            of: type,
             initialState: initialState,
-            proxy: proxy,
+            proxy: proxy ?? Proxy(),
             completion: completion,
-            content: viewContent
+            runTransducer: { storage, proxy, completion, systemActor in
+                return Task {
+                    _ = systemActor
+                    let result: Result<Transducer.Output, Error>
+                    do {
+                        _ = try await Transducer.run(
+                            storage: storage,
+                            proxy: proxy,
+                            output: NoCallback(),
+                            systemActor: systemActor
+                        )
+                        result = .success(Void())
+                    } catch {
+                        result = .failure(error)
+                    }
+                    completion.completed(with: result)
+                }
+            },
+            content: content
         )
     }
-
+    
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
     ///
@@ -103,16 +125,16 @@ extension TransducerActor where Content: View {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer.
+    ///   - initialState: The underlying storage of the state value, a `SwiftUI.Binding`.
+    ///   The intial state is given by the current state value.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
     ///   actor creates one.
     ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
     ///   output it produces.
     ///   - completion: A completion handler which will be called once when the transducer
     ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
-    ///   - viewContent: A closure which takes the current state and the input as parameters and
-    ///  returns a content. The content closure can be used to drive other components that
-    ///  provide an interface and controls.
+    ///   - content: A `@ViewBuilder` closure which takes the current state and the input as
+    ///   parameters and returns a `SwiftUI.View`.
     ///
     /// ## Examples
     ///
@@ -121,71 +143,89 @@ extension TransducerActor where Content: View {
     ///
     public init(
         of type: Transducer.Type = Transducer.self,
-        initialState: sending State,
+        initialState: StateInitialising,
         proxy: Proxy? = nil,
         output: sending some Subject<Output>,
         completion: Completion? = nil,
-        @ViewBuilder viewContent: @escaping (State, Input) -> Content
+        @ViewBuilder content: @escaping (State, Input) -> Content
     ) where Transducer: Oak.Transducer {
         self.init(
-            of: type,
             initialState: initialState,
-            proxy: proxy,
-            output: output,
+            proxy: proxy ?? Proxy(),
             completion: completion,
-            content: viewContent
+            runTransducer: { storage, proxy, completion, systemActor in
+                return Task {
+                    _ = systemActor
+                    let result: Result<Transducer.Output, Error>
+                    do {
+                        let outputValue = try await Transducer.run(
+                            storage: storage,
+                            proxy: proxy,
+                            output: output,
+                            systemActor: systemActor
+                        )
+                        result = .success(outputValue)
+                    } catch {
+                        result = .failure(error)
+                    }
+                    completion.completed(with: result)
+                }
+            },
+            content: content
         )
-    }
-
-    /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
-    /// signature `(inout State, Event) -> Output`.
-    ///
-    /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
-    /// and an `Observable` (aka `ObservableTransducer`) which conform to protocol
-    /// `TransducerActor` and thus are _transducer actors_.
-    ///
-    /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
-    /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
-    /// the transducer will be ignored.
-    ///
-    /// - Parameters:
-    ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer.
-    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
-    ///   actor creates one.
-    ///   - completion: A completion handler which will be called once when the transducer
-    ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
-    ///   - viewContent: A closure which takes the current state and the input as parameters and
-    ///  returns a content. The content closure can be used to drive other components that
-    ///  provide an interface and controls.
-    ///
-    /// ## Examples
-    ///
-    /// ### Using a TransducerView
-    /// TODO
-    ///
-    public init(
-        of type: Transducer.Type = Transducer.self,
-        initialState: sending State,
-        proxy: Proxy? = nil,
-        completion: Completion? = nil,
-        @ViewBuilder viewContent: @escaping (State, Input) -> Content
-    ) where Transducer: Oak.Transducer {
-        self.init(
-            of: type,
-            initialState: initialState,
-            proxy: proxy,
-            completion: completion,
-            content: viewContent
-        )
-    }
-
+    }    
 }
 
+// MARK: - Where Transducer: Oak.Transducer
 extension TransducerActor where Content: View {
-
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
+    /// signature `(inout State, Event) -> Output`.
+    ///
+    /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
+    /// and an `Observable` (aka `ObservableTransducer`) which conform to protocol
+    /// `TransducerActor` and thus are _transducer actors_.
+    ///
+    /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
+    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
+    /// the transducer will be ignored.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the transducer.
+    ///   - initialState: The underlying storage of the state value, a `SwiftUI.Binding`.
+    ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
+    ///   actor creates one.
+    ///   - completion: A completion handler which will be called once when the transducer
+    ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
+    ///   - content: A `@ViewBuilder` closure which takes the current state and the input as
+    ///   parameters and returns a `SwiftUI.View`.
+    ///
+    /// ## Examples
+    ///
+    /// ### Using a TransducerView
+    /// TODO
+    ///
+    public init(
+        of type: Transducer.Type = Transducer.self,
+        initialState: StateInitialising,
+        proxy: Proxy? = nil,
+        completion: Completion? = nil,
+        @ViewBuilder content: @escaping (State, Input) -> Content
+    ) where Transducer: Oak.Transducer {
+        self.init(
+            of: type,
+            initialState: initialState,
+            proxy: proxy,
+            output: NoCallback(),
+            completion: completion,
+            content: content
+        )
+    }
+}
+
+// MARK: - Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output)
+extension TransducerActor where Content: View {
+    /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
     ///
     /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
@@ -199,7 +239,7 @@ extension TransducerActor where Content: View {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer.
+    ///   - initialState: The underlying storage of the state value, a `SwiftUI.Binding`.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
@@ -208,9 +248,8 @@ extension TransducerActor where Content: View {
     ///   output it produces.
     ///   - completion: A completion handler which will be called once when the transducer
     ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
-    ///   - viewContent: A closure which takes the current state and the input as parameters and
-    ///  returns a content. The content closure can be used to drive other components that
-    ///  provide an interface and controls.
+    ///   - content: A `@ViewBuilder` closure which takes the current state and the input as
+    ///   parameters and returns a `SwiftUI.View`.
     ///
     /// ## Examples
     ///
@@ -219,29 +258,57 @@ extension TransducerActor where Content: View {
     ///
     public init(
         of type: Transducer.Type = Transducer.self,
-        initialState: State,
+        initialState: StateInitialising,
         proxy: Proxy? = nil,
         env: Transducer.Env,
         output: sending some Subject<Output>,
         completion: Completion? = nil,
-        @ViewBuilder viewContent: @escaping (State, Input) -> Content
+        @ViewBuilder content: @escaping (State, Input) -> Content
     )
     where
         Transducer: Oak.EffectTransducer,
         Transducer.TransducerOutput == (Transducer.Effect?, Output)
     {
+        nonisolated(unsafe) let env = env  // TODO: have to silence compiler error: Sending 'env' risks causing data races
+        // IMHO, the compiler's error is not justified: `env` will only ever be
+        // mutated from `isolated`. And yes, it is allowed to mutated it, outside
+        // of the system (being isolated), but since it's isolated we cannot get
+        // data races. There might be potential *race conditions*, but this is
+        // expected, and in some cases it is actually intended to mutate the
+        // environment while the transducer is running.
+        // Note: adding `sending` to the parameter `env` will also silence the
+        // error. However IMHO, `sending` should not be a requirement.
         self.init(
-            of: type,
             initialState: initialState,
-            proxy: proxy,
-            env: env,
-            output: output,
+            proxy: proxy ?? Proxy(),
             completion: completion,
-            content: viewContent
+            runTransducer: { storage, proxy, completion, systemActor in
+                return Task {
+                    _ = systemActor
+                    let result: Result<Transducer.Output, Error>
+                    do {
+                        let outputValue = try await Transducer.run(
+                            storage: storage,
+                            proxy: proxy,
+                            env: env,
+                            output: output,
+                            systemActor: systemActor
+                        )
+                        result = .success(outputValue)
+                    } catch {
+                        result = .failure(error)
+                    }
+                    completion.completed(with: result)
+                }
+            },
+            content: content
         )
     }
+}
 
-    /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
+// MARK: - Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output)
+extension TransducerActor where Content: View {
+    /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
     ///
     /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
@@ -255,16 +322,15 @@ extension TransducerActor where Content: View {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer.
+    ///   - initialState: The underlying storage of the state value, a `SwiftUI.Binding`.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
     ///   `Effect`s' `invoke` function.
     ///   - completion: A completion handler which will be called once when the transducer
     ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
-    ///   - viewContent: A closure which takes the current state and the input as parameters and
-    ///  returns a content. The content closure can be used to drive other components that
-    ///  provide an interface and controls.
+    ///   - content: A `@ViewBuilder` closure which takes the current state and the input as
+    ///   parameters and returns a `SwiftUI.View`.
     ///
     /// ## Examples
     ///
@@ -273,11 +339,11 @@ extension TransducerActor where Content: View {
     ///
     public init(
         of type: Transducer.Type = Transducer.self,
-        initialState: State,
+        initialState: StateInitialising,
         proxy: Proxy? = nil,
         env: Transducer.Env,
         completion: Completion? = nil,
-        @ViewBuilder viewContent: @escaping (State, Input) -> Content
+        @ViewBuilder content: @escaping (State, Input) -> Content
     )
     where
         Transducer: Oak.EffectTransducer,
@@ -288,12 +354,16 @@ extension TransducerActor where Content: View {
             initialState: initialState,
             proxy: proxy,
             env: env,
+            output: NoCallback(),
             completion: completion,
-            content: viewContent
+            content: content
         )
     }
+}
 
-    /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
+// MARK: - Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?
+extension TransducerActor where Content: View {
+    /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> Self.Effect?`.
     ///
     /// - Note: The Oak library has implementations for a `SwiftUI View` (aka `TransducerView`)
@@ -307,16 +377,15 @@ extension TransducerActor where Content: View {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The start state of the transducer.
+    ///   - initialState: The underlying storage of the state value, a `SwiftUI.Binding`.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
     ///   `Effect`s' `invoke` function.
     ///   - completion: A completion handler which will be called once when the transducer
     ///   finishes, providing a Result that contains either the successful output value or an error if the transducer failed.
-    ///   - viewContent: A closure which takes the current state and the input as parameters and
-    ///  returns a content. The content closure can be used to drive other components that
-    ///  provide an interface and controls.
+    ///   - content: A `@ViewBuilder` closure which takes the current state and the input as
+    ///   parameters and returns a `SwiftUI.View`.
     ///
     /// ## Examples
     ///
@@ -325,23 +394,48 @@ extension TransducerActor where Content: View {
     ///
     public init(
         of type: Transducer.Type = Transducer.self,
-        initialState: State,
+        initialState: StateInitialising,
         proxy: Proxy? = nil,
         env: Transducer.Env,
         completion: Completion? = nil,
-        @ViewBuilder viewContent: @escaping (State, Input) -> Content
+        @ViewBuilder content: @escaping (State, Input) -> Content
     )
     where
         Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?,
         Output == Void
     {
+        nonisolated(unsafe) let env = env  // TODO: have to silence compiler error: Sending 'env' risks causing data races
+        // IMHO, the compiler's error is not justified: `env` will only ever be
+        // mutated from `isolated`. And yes, it is allowed to mutated it, outside
+        // of the system (being isolated), but since it's isolated we cannot get
+        // data races. There might be potential *race conditions*, but this is
+        // expected, and in some cases it is actually intended to mutate the
+        // environment while the transducer is running.
+        // Note: adding `sending` to the parameter `env` will also silence the
+        // error. However IMHO, `sending` should not be a requirement.
         self.init(
-            of: type,
             initialState: initialState,
-            proxy: proxy,
-            env: env,
+            proxy: proxy ?? Proxy(),
             completion: completion,
-            content: viewContent
+            runTransducer: { storage, proxy, completion, systemActor in
+                return Task {
+                    _ = systemActor
+                    let result: Result<Transducer.Output, Error>
+                    do {
+                        _ = try await Transducer.run(
+                            storage: storage,
+                            proxy: proxy,
+                            env: env,
+                            systemActor: systemActor
+                        )
+                        result = .success(Void())
+                    } catch {
+                        result = .failure(error)
+                    }
+                    completion.completed(with: result)
+                }
+            },
+            content: content
         )
     }
 }

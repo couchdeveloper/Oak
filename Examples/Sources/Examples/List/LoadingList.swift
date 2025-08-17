@@ -402,12 +402,13 @@ extension LoadingList.Views {
     
     struct MainView: View {
         @State private var proxy = LoadingList.Transducer.Proxy()
+        @State private var state: LoadingList.Transducer.State = .start
         @Environment(\.dataService) private var dataService
         
         var body: some View {
             TransducerView(
                 of: LoadingList.Transducer.self,
-                initialState: .start,
+                initialState: $state,
                 proxy: proxy,
                 env: LoadingList.Transducer.Env(
                     service: dataService,

@@ -13,6 +13,7 @@ where Transducer: BaseTransducer {
     public typealias Input = Transducer.Proxy.Input
     public typealias Content = Never
     public typealias Storage = UnownedReferenceKeyPathStorage<ObservableTransducer, State>
+    public typealias StateInitialising = State
 
     public struct Completion: @MainActor Oak.Completable {
         public typealias Value = Output
@@ -70,8 +71,8 @@ where Transducer: BaseTransducer {
         runTransducer: (Storage, Proxy, Completion, isolated any Actor) -> Task<Void, Never>,
         content: (State, Input) -> Content
     ) {
-        self.proxy = proxy
         self.state = initialState
+        self.proxy = proxy
         let completion =
             completion?.before { [weak self] in
                 self?.task = nil

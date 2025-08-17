@@ -66,7 +66,7 @@ struct TransducerCancellationTests {
                 static func update(_ state: inout State, event: Event) -> Self.Effect? {
                     guard state == .start && event == .start else { return nil }
                     return Effect(action: { _ in
-                        try await Task.sleep(for: .seconds(100))  // Long sleep
+                        try await Task.sleep(nanoseconds: 100_000_000_000)  // Long sleep
                         #expect(Bool(false), "Effect should have been cancelled")
                         return [.ready]
                     })
@@ -82,7 +82,7 @@ struct TransducerCancellationTests {
 
             // Cancel after a brief delay
             Task {
-                try await Task.sleep(for: .milliseconds(1))
+                try await Task.sleep(nanoseconds: 1_000_000) // 1 ms
                 proxy.cancel()
             }
 
@@ -521,7 +521,7 @@ struct TransducerCancellationTests {
             let task = Task {
                 try await T.run(initialState: .start, proxy: proxy, env: T.Env())
             }
-            try await Task.sleep(for: .milliseconds(100))
+            try await Task.sleep(nanoseconds: 100_000_000) // 100 ms
             task.cancel()
             await #expect(throws: CancellationError.self) {
                 try await task.value
