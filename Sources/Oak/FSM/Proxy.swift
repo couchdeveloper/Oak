@@ -278,7 +278,7 @@ extension Proxy: TransducerProxyInternal {
         // Note: this implementation cannot guarantee,
         // that a proxy can be attempted to be reused
         // when its former transducer has already been
-        // terminated. It ptotentially can also race
+        // terminated. It potentially can also race
         // with simultaneous attempts to use it.
         //
         // However, since the continuation is already
@@ -287,6 +287,7 @@ extension Proxy: TransducerProxyInternal {
         //
         // A better implementation would utilise
         // an atomic boolean value.
+        assert(continuation.onTermination == nil, "proxy \(id) already in use")
         guard continuation.onTermination == nil else {
             throw TransducerError.proxyAlreadyInUse
         }

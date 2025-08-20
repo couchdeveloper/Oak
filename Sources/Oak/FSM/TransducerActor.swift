@@ -88,8 +88,6 @@ public protocol TransducerActor<Transducer> {
     associatedtype Storage: Oak.Storage<State>
     associatedtype Completion: Oak.Completable<Output, Error>
 
-    var proxy: Proxy { get }
-
     /// Returns a transducer actor.
     ///
     /// > Warning: Do not call this initialiser directly. It's called internally by the other initialiser
@@ -109,12 +107,12 @@ public protocol TransducerActor<Transducer> {
     ///
     init(
         initialState: StateInitialising,
-        proxy: Proxy,
+        proxy: Proxy?,
         completion: Completion?,
         runTransducer: @escaping (
             Storage,
-            Proxy,
-            Completion,
+            Proxy?,
+            Completion?,
             isolated any Actor
         ) -> Task<Void, Never>,
         content: @escaping (State, Input) -> Content
@@ -214,7 +212,7 @@ extension TransducerActor where StateInitialising == State {
     ) where Transducer: Oak.Transducer, Output == Void {
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -223,7 +221,7 @@ extension TransducerActor where StateInitialising == State {
                     do {
                         _ = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             output: NoCallback(),
                             systemActor: systemActor
                         )
@@ -231,7 +229,7 @@ extension TransducerActor where StateInitialising == State {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content
@@ -287,7 +285,7 @@ extension TransducerActor where StateInitialising == State {
                     do {
                         let outputValue = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             output: output,
                             systemActor: systemActor
                         )
@@ -295,7 +293,7 @@ extension TransducerActor where StateInitialising == State {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content
@@ -411,7 +409,7 @@ extension TransducerActor where StateInitialising == State {
         // error. However IMHO, `sending` should not be a requirement.
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -420,7 +418,7 @@ extension TransducerActor where StateInitialising == State {
                     do {
                         let outputValue = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             env: env,
                             output: output,
                             systemActor: systemActor
@@ -429,7 +427,7 @@ extension TransducerActor where StateInitialising == State {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content
@@ -548,7 +546,7 @@ extension TransducerActor where StateInitialising == State {
         // error. However IMHO, `sending` should not be a requirement.
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -557,7 +555,7 @@ extension TransducerActor where StateInitialising == State {
                     do {
                         _ = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             env: env,
                             systemActor: systemActor
                         )
@@ -565,7 +563,7 @@ extension TransducerActor where StateInitialising == State {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content
@@ -633,7 +631,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
         // error. However IMHO, `sending` should not be a requirement.
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -642,7 +640,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     do {
                         let outputValue = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             env: env,
                             output: output,
                             systemActor: systemActor
@@ -651,7 +649,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content
@@ -763,7 +761,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
         // error. However IMHO, `sending` should not be a requirement.
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -772,7 +770,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     do {
                         try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             env: env,
                             systemActor: systemActor
                         )
@@ -780,7 +778,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content
@@ -828,7 +826,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     ) where Transducer: Oak.Transducer {
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Transducer.Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -837,7 +835,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     do {
                         let outputValue = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Transducer.Proxy(),
                             output: output,
                             systemActor: systemActor
                         )
@@ -845,7 +843,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: { _, _ in fatalError("No content") }
@@ -886,7 +884,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     ) where Transducer: Oak.Transducer, Output == Void {
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Transducer.Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -895,7 +893,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     do {
                         _ = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Transducer.Proxy(),
                             output: NoCallback(),
                             systemActor: systemActor
                         )
@@ -903,7 +901,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: { _, _ in fatalError("No content") }
@@ -944,7 +942,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     ) where Transducer: Oak.Transducer {
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Transducer.Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -953,7 +951,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     do {
                         let outputValue = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Transducer.Proxy(),
                             output: NoCallback(),
                             systemActor: systemActor
                         )
@@ -961,7 +959,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: { _, _ in fatalError("No content") }
@@ -1023,7 +1021,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
         // error. However IMHO, `sending` should not be a requirement.
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -1032,7 +1030,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     do {
                         let outputValue = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             env: env,
                             output: output,
                             systemActor: systemActor
@@ -1041,7 +1039,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: { _, _ in fatalError("No content") }
@@ -1144,7 +1142,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
         // error. However IMHO, `sending` should not be a requirement.
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -1153,7 +1151,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     do {
                         try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             env: env,
                             systemActor: systemActor
                         )
@@ -1161,7 +1159,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: { _, _ in fatalError("No content") }

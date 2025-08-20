@@ -87,7 +87,7 @@ extension TransducerActor where Content: View {
     ) where Transducer: Oak.Transducer, Output == Void {
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -96,7 +96,7 @@ extension TransducerActor where Content: View {
                     do {
                         _ = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             output: NoCallback(),
                             systemActor: systemActor
                         )
@@ -104,7 +104,7 @@ extension TransducerActor where Content: View {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content
@@ -151,7 +151,7 @@ extension TransducerActor where Content: View {
     ) where Transducer: Oak.Transducer {
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -160,7 +160,7 @@ extension TransducerActor where Content: View {
                     do {
                         let outputValue = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             output: output,
                             systemActor: systemActor
                         )
@@ -168,7 +168,7 @@ extension TransducerActor where Content: View {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content
@@ -280,7 +280,7 @@ extension TransducerActor where Content: View {
         // error. However IMHO, `sending` should not be a requirement.
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -289,7 +289,7 @@ extension TransducerActor where Content: View {
                     do {
                         let outputValue = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             env: env,
                             output: output,
                             systemActor: systemActor
@@ -298,7 +298,7 @@ extension TransducerActor where Content: View {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content
@@ -415,7 +415,7 @@ extension TransducerActor where Content: View {
         // error. However IMHO, `sending` should not be a requirement.
         self.init(
             initialState: initialState,
-            proxy: proxy ?? Proxy(),
+            proxy: proxy,
             completion: completion,
             runTransducer: { storage, proxy, completion, systemActor in
                 return Task {
@@ -424,7 +424,7 @@ extension TransducerActor where Content: View {
                     do {
                         _ = try await Transducer.run(
                             storage: storage,
-                            proxy: proxy,
+                            proxy: proxy ?? Proxy(),
                             env: env,
                             systemActor: systemActor
                         )
@@ -432,7 +432,7 @@ extension TransducerActor where Content: View {
                     } catch {
                         result = .failure(error)
                     }
-                    completion.completed(with: result)
+                    completion?.completed(with: result)
                 }
             },
             content: content

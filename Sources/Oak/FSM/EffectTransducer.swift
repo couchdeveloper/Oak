@@ -363,8 +363,8 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
         output: some Subject<Output>,
         systemActor: isolated any Actor = #isolation
     ) async throws -> Output {
-        try proxy.checkInUse()
         try Task.checkCancellation()
+        try proxy.checkInUse()
         let stream = proxy.stream
         let input = proxy.input
         if storage.value.isTerminal {

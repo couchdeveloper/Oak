@@ -27,6 +27,7 @@ import SwiftUI
 @MainActor
 public struct TransducerView<Transducer, Content>: View, @MainActor TransducerActor
 where Transducer: BaseTransducer, Content: View {
+    
     public typealias State = Transducer.State
     public typealias Event = Transducer.Event
     public typealias Output = Transducer.Output
@@ -54,16 +55,15 @@ where Transducer: BaseTransducer, Content: View {
 
     @SwiftUI.Binding private var state: State
     @SwiftUI.State private var taskHolder: TaskHolder?
+    @SwiftUI.State private var proxy: Proxy?
 
-    public let proxy: Proxy
-
-    private let completion: Completion
+    private let completion: Completion?
     private let content: (State, Input) -> Content
     private let runTransducerClosure:
         (
             Storage,
-            Proxy,
-            Completion,
+            Proxy?,
+            Completion?,
             isolated any Actor
         ) -> Task<Void, Never>
 
@@ -90,51 +90,73 @@ where Transducer: BaseTransducer, Content: View {
     ///
     public init(
         initialState: Binding<State>,
-        proxy: Proxy,
+        proxy: Proxy?,
         completion: Completion?,
         runTransducer: @escaping (
             Binding<State>,
-            Proxy,
-            Completion, isolated any Actor
+            Proxy?,
+            Completion?,
+            isolated any Actor
         ) -> Task<Void, Never>,
         content: @escaping (State, Input) -> Content
     ) {
         self._state = initialState
-        self.proxy = proxy
-        self.completion = completion ?? Completion()
+        self._proxy = .init(initialValue: proxy)
+        self.completion = completion
         self.runTransducerClosure = runTransducer
         self.content = content
     }
-
+    
     public var body: some View {
-        content(state, proxy.input)
-        .onAppear {
+        IfLet(proxy) { proxy in
+            let _ = print("\(Transducer.self)View render state with proxy: \(proxy.id)")
+            return content(state, proxy.input)
+        }
+        .task {
             if taskHolder == nil {
-                // TODO: in the completion, reset the taskHolder
-                let transducerTask = runTransducerClosure(
-                    $state, proxy, completion, MainActor.shared)
-                self.taskHolder = TaskHolder(transducerTask)
-                Task {
-                    _ = await transducerTask.value
-                    self.taskHolder = nil
+                let _ = print("\(Transducer.self)View task modifier: with proxy: \(self.proxy?.id)")
+                if self.proxy == nil {
+                    self.proxy = Proxy()
                 }
+                let proxy = self.proxy!
+                let _ = print("\(Transducer.self)View task modifier: new proxy: \(proxy.id)")
+                let completion = self.completion
+                let transducerTask = runTransducerClosure(
+                    $state,
+                    proxy,
+                    completion,
+                    MainActor.shared
+                )
+                self.taskHolder = TaskHolder(
+                    transducerTask,
+                    proxyId: proxy.id
+                )
             }
+        }
+        .onAppear {
+            print("\(Transducer.self)View.onDisappear: \(proxy?.id)")
+        }
+        .onDisappear {
+            print("\(Transducer.self)View.onDisappear: \(proxy?.id)")
         }
     }
         
     public func cancel() {
-        proxy.cancel()
+        proxy?.cancel()
         taskHolder?.task.cancel()
     }
 }
 
 extension TransducerView {
     final class TaskHolder {
-        init(_ task: Task<Void, Never>) {
+        init(_ task: Task<Void, Never>, proxyId: UUID) {
             self.task = task
+            self.proxyId = proxyId
         }
         let task: Task<Void, Never>
+        let proxyId: UUID
         deinit {
+            print("TaskHolder with proxy \(proxyId) deinit")
             task.cancel()
         }
     }
@@ -142,6 +164,25 @@ extension TransducerView {
 
 extension TransducerView where Transducer: EffectTransducer {
     public typealias Env = Transducer.Env
+}
+
+fileprivate struct IfLet<T, Content: View>: View {
+    
+    let value: T?
+    let content: (T) -> Content
+    
+    init(_ value: T?, content: @escaping (T) -> Content) {
+        self.value = value
+        self.content = content
+    }
+    
+    var body: some View {
+        if let value {
+            content(value)
+        } else {
+            EmptyView()
+        }
+    }
 }
 
 #if DEBUG // Previews
@@ -395,7 +436,6 @@ private struct RepeatView: View {
                     initialState: $state,
                     proxy: proxy,
                 ) { state, input in
-                    let _ = Self._printChanges()
                     Text(verbatim: "\(state)")
                 }
                 .id(proxy.id)
