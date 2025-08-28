@@ -109,17 +109,14 @@ where Transducer: BaseTransducer, Content: View {
     
     public var body: some View {
         IfLet(proxy) { proxy in
-            let _ = print("\(Transducer.self)View render state with proxy: \(proxy.id)")
             return content(state, proxy.input)
         }
         .task {
             if taskHolder == nil {
-                let _ = print("\(Transducer.self)View task modifier: with proxy: \(self.proxy?.id)")
                 if self.proxy == nil {
                     self.proxy = Proxy()
                 }
                 let proxy = self.proxy!
-                let _ = print("\(Transducer.self)View task modifier: new proxy: \(proxy.id)")
                 let completion = self.completion
                 let transducerTask = runTransducerClosure(
                     $state,
@@ -132,12 +129,6 @@ where Transducer: BaseTransducer, Content: View {
                     proxyId: proxy.id
                 )
             }
-        }
-        .onAppear {
-            print("\(Transducer.self)View.onDisappear: \(proxy?.id)")
-        }
-        .onDisappear {
-            print("\(Transducer.self)View.onDisappear: \(proxy?.id)")
         }
     }
         
@@ -156,7 +147,6 @@ extension TransducerView {
         let task: Task<Void, Never>
         let proxyId: UUID
         deinit {
-            print("TaskHolder with proxy \(proxyId) deinit")
             task.cancel()
         }
     }
