@@ -11,3 +11,8 @@ DerivedData/
 /docs/
 /generated-docs/
 *.doccarchive
+
+COMMIT_DIFF.txt
+  *.diff.txt
+  *.patch.txt
+  Scripts/*.log
