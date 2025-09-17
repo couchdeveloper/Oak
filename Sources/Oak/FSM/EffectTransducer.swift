@@ -41,8 +41,11 @@
 /// cancellation event from within the update function. Effects can also spawn new
 /// transducers expanding the FSM's capabilities. The life-cycle of effects is
 /// managed by the transducer itself, which keeps track of all active effects.
-/// When a transducer reaches a terminal state, it will automatically cancel all
-/// active effects, ensuring that no further operations are performed.
+/// When a transducer reaches a terminal state, any effect returned by the 
+/// transition that caused the terminal state will still execute (allowing for 
+/// cleanup, logging, or other side effects), but no further events will be 
+/// processed. All other active effects are automatically cancelled, ensuring 
+/// that the FSM processing stops while still allowing final effects to complete.
 ///
 /// The terminology of the protocol `Transducer` uses the name `Event` instead of
 /// "Input" to better reflect the nature of the input of the FSM in a software
@@ -147,6 +150,15 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
                     let effect: Effect?
                     (effect, outputValue) = Self.compute(&storage.value, event: event)
                     try await output.send(outputValue!, isolated: systemActor)
+                    
+                    // Check if the state became terminal after processing this event
+                    let isTerminated = storage.value.isTerminal
+                    if isTerminated {
+                        result = outputValue!
+                        proxy.finish()
+                        // Continue to execute the effect if present, but will break after
+                    }
+                    
                     if let effect {
                         let moreEvents = try await execute(
                             effect,
@@ -154,6 +166,12 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
                             env: env,
                             context: context
                         )
+                        
+                        // If state became terminal, don't process any returned events
+                        if isTerminated {
+                            break loop
+                        }
+                        
                         switch moreEvents.count {
                         case 0:
                             break
@@ -163,6 +181,9 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
                         default:
                             events.append(contentsOf: moreEvents)
                         }
+                    } else if isTerminated {
+                        // No effect to execute, break immediately
+                        break loop
                     }
                     nextEvent = events.popLast()
                 }
@@ -381,6 +402,14 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
                 var nextEvent: Event? = event
                 while let event = nextEvent {
                     let (effect, _) = Self.compute(&storage.value, event: event)
+                    
+                    // Check if the state became terminal after processing this event
+                    let isTerminated = storage.value.isTerminal
+                    if isTerminated {
+                        proxy.finish()
+                        // Continue to execute the effect if present, but will break after
+                    }
+                    
                     if let effect {
                         let moreEvents = try await execute(
                             effect,
@@ -388,6 +417,12 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
                             env: env,
                             context: context
                         )
+                        
+                        // If state became terminal, don't process any returned events
+                        if isTerminated {
+                            break loop
+                        }
+                        
                         switch moreEvents.count {
                         case 0:
                             break
@@ -397,6 +432,9 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
                         default:
                             events.append(contentsOf: moreEvents)
                         }
+                    } else if isTerminated {
+                        // No effect to execute, break immediately
+                        break loop
                     }
                     nextEvent = events.popLast()
                 }

@@ -830,4 +830,60 @@ struct TransducerTests {
         // Should complete successfully with Void output
     }
 
+    @MainActor
+    @Test
+    func actionEventStopsProcessingWhenStateBecomesTerminal() async throws {
+        enum T: EffectTransducer {
+            struct Env {}
+
+            enum State: Terminable {
+                case start
+                case active
+                case finished
+
+                var isTerminal: Bool {
+                    switch self {
+                    case .finished: return true
+                    default: return false
+                    }
+                }
+            }
+
+            enum Event { case start, chain, shouldNotBeProcessed }
+
+            static func update(_ state: inout State, event: Event) -> Self.Effect? {
+                switch (state, event) {
+                case (.start, .start):
+                    state = .active
+                    // Return an action event that will make the state terminal
+                    return .event(.chain)
+                    
+                case (.active, .chain):
+                    state = .finished  // State becomes terminal
+                    // This action event should not be processed since state is now terminal
+                    return .event(.shouldNotBeProcessed)
+                    
+                case (_, .shouldNotBeProcessed):
+                    // This should never be called since state is terminal after .chain
+                    Issue.record("Event .shouldNotBeProcessed was processed when state should be terminal")
+                    return nil
+                    
+                default:
+                    return nil
+                }
+            }
+        }
+
+        let proxy = T.Proxy()
+        try proxy.send(.start)
+        
+        try await T.run(
+            initialState: .start,
+            proxy: proxy,
+            env: T.Env()
+        )
+        
+        // Test passes if no Issue.record was called
+    }
+
 }

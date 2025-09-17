@@ -280,6 +280,19 @@ enum State {
 - Don't ignore terminal states - always handle them explicitly
 - Don't mix UI state with business logic state
 
+## Documentation and Communication
+
+### Pull Request Descriptions
+When composing PR descriptions for Oak framework changes:
+
+- **Structure**: Use clear sections (Key Improvements, Breaking Changes) with descriptive headers
+- **Focus on impact**: Explain what problems are solved and benefits gained - the details are in the code
+- **Be concise**: Avoid implementation specifics, line counts, or file statistics
+- **Highlight breaking changes**: Clearly call out any API changes that could affect users
+- **Group related changes**: Organize commits into logical themes (error handling, terminal state management, etc.)
+- **Skip obvious details**: Don't mention that tests pass or include redundant technical notes
+- **Target audience**: Write for developers who will use the framework, not just maintainers
+
 ## Key Files for Reference
 
 - **`Sources/Oak/FSM/Transducer.swift`**: Core protocol definitions
