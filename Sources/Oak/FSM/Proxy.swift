@@ -288,7 +288,7 @@ extension Proxy: TransducerProxyInternal {
         // A better implementation would utilise
         // an atomic boolean value.
         guard continuation.onTermination == nil else {
-            fatalError("proxy \(id) already in use")
+            throw TransducerError.proxyAlreadyInUse
         }
         continuation.onTermination = { _ in }
     }
