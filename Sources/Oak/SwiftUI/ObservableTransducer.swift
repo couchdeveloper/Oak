@@ -66,13 +66,14 @@ where Transducer: BaseTransducer {
     ///
     public init(
         initialState: State,
-        proxy: Proxy,
+        proxy: Proxy? = nil,
         completion: Completion? = nil,
-        runTransducer: (Storage, Proxy, Completion, isolated any Actor) -> Task<Void, Never>,
+        runTransducer: (Storage, Proxy?, Completion?, isolated any Actor) -> Task<Void, Never>,
         content: (State, Input) -> Content
     ) {
         self.state = initialState
-        self.proxy = proxy
+        self.proxy = proxy ?? Proxy()
+        let proxy = self.proxy
         let completion =
             completion?.before { [weak self] in
                 self?.task = nil

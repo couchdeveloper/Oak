@@ -55,9 +55,9 @@ public struct Effect<T: EffectTransducer> {
     /// the closure should not capture values. Instead, you might want to access values
     /// provided in the `env` parameter.
     ///
-    /// > Caution: An event returned from an action will allways be processed
-    ///   in the update function, regardless whether the state became terminal.
-    ///   The logic needs to account for this case.
+    /// > Caution: Events returned from an action are processed synchronously
+    ///   in the update function. However, if the state becomes terminal during
+    ///   action event processing, no further events will be processed.
     ///
     /// The global actor usually matches the global actor where the environment `Env`
     /// is isolated on, so that `action` can access the environment on the specified
@@ -112,9 +112,9 @@ public struct Effect<T: EffectTransducer> {
     /// the closure should not capture values. Instead, you might want to access values
     /// provided in the `env` parameter.
     ///
-    /// > Caution: An event returned from an action will allways be processed
-    ///   in the update function, regardless whether the state became terminal.
-    ///   The logic needs to account for this case.
+    /// > Caution: Events returned from an action are processed synchronously
+    ///   in the update function. However, if the state becomes terminal during
+    ///   action event processing, no further events will be processed.
     ///
     /// The global actor usually matches the global actor where the environment `Env`
     /// is isolated on, so that `action` can access the environment on the specified
@@ -172,9 +172,9 @@ public struct Effect<T: EffectTransducer> {
     /// the closure should not capture values. Instead, you might want to access values
     /// provided in the `env` parameter.
     ///
-    /// > Caution: An event returned from an action will allways be processed
-    ///   in the update function, regardless whether the state became terminal.
-    ///   The logic needs to account for this case.
+    /// > Caution: Events returned from an action are processed synchronously
+    ///   in the update function. However, if the state becomes terminal during
+    ///   action event processing, no further events will be processed.
     ///
     /// The closure is always executed on the system actor, regardless of any global actor
     /// isolation on `Env`.
@@ -212,9 +212,9 @@ public struct Effect<T: EffectTransducer> {
     /// the closure should not capture values. Instead, you might want to access values
     /// provided in the `env` parameter.
     ///
-    /// > Caution: An event returned from an action will allways be processed
-    ///   in the update function, regardless whether the state became terminal.
-    ///   The logic needs to account for this case.
+    /// > Caution: Events returned from an action are processed synchronously
+    ///   in the update function. However, if the state becomes terminal during
+    ///   action event processing, no further events will be processed.
     ///
     /// The closure is always executed on the system actor, regardless of any global actor
     /// isolation on `Env`.
@@ -651,7 +651,6 @@ extension Effect {
             let events1 = try await f1(env, proxy, context, isolated)
             let events2 = try await f2(env, proxy, context, isolated)
             return events1 + events2
-
         })
     }
 

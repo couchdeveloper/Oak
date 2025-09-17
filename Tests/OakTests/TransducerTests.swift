@@ -366,154 +366,158 @@ struct TransducerTests {
     }
 
     // MARK: - Error Handling Tests
-
-    @MainActor
-    @Test
-    func testInitialStateIsTerminalError() async throws {
-        enum T: Transducer {
-            enum State: Terminable {
-                case finished
-                var isTerminal: Bool { true }
-            }
-            enum Event { case start }
-            static func update(_ state: inout State, event: Event) {}
-        }
-
-        let proxy = T.Proxy()
-
-        // When initial state is terminal and no initial output provided,
-        // it should throw noOutputProduced
-        let error = await #expect(throws: TransducerError.self) {
-            try await T.run(initialState: .finished, proxy: proxy)
-        }
-        #expect(error == TransducerError.noOutputProduced)
-    }
-
-    @MainActor
-    @Test
-    func testNoOutputProducedError() async throws {
-        enum T: Transducer {
-            enum State: Terminable {
-                case start, finished
-                var isTerminal: Bool {
-                    if case .finished = self { return true }
-                    return false
+    @Suite
+    struct ErrorHandlingTests {
+        
+        @MainActor
+        @Test
+        func testInitialStateIsTerminalError() async throws {
+            enum T: Transducer {
+                enum State: Terminable {
+                    case finished
+                    var isTerminal: Bool { true }
                 }
-            }
-            enum Event { case finish }
-            typealias Output = Int
-
-            static func update(_ state: inout State, event: Event) -> Int {
-                // Return 0 as the output when finishing
-                state = .finished
-                return 0
+                enum Event { case start }
+                static func update(_ state: inout State, event: Event) -> Int { 0 }
             }
 
+            let proxy = T.Proxy()
+
+            // When initial state is terminal and no initial output provided,
+            // it should throw noOutputProduced
+            let error = await #expect(throws: TransducerError.self) {
+                try await T.run(initialState: .finished, proxy: proxy)
+            }
+            #expect(error == TransducerError.noOutputProduced)
         }
 
-        let proxy = T.Proxy()
-        try proxy.send(.finish)
-
-        // This should not throw noOutputProduced because update was called
-        let result = try await T.run(initialState: .start, proxy: proxy, output: Callback { _ in })
-        #expect(result == 0)
-    }
-
-    @MainActor
-    @Test
-    func testProxyAlreadyInUseError() async throws {
-        enum T: Transducer {
-            enum State: Terminable {
-                case start, running, finished
-                var isTerminal: Bool {
-                    if case .finished = self { return true }
-                    return false
+        @MainActor
+        @Test
+        func testNoOutputProducedError() async throws {
+            enum T: Transducer {
+                enum State: Terminable {
+                    case start, finished
+                    var isTerminal: Bool {
+                        if case .finished = self { return true }
+                        return false
+                    }
                 }
-            }
-            enum Event { case start, finish }
-            static func update(_ state: inout State, event: Event) {
-                switch (state, event) {
-                case (.start, .start):
-                    state = .running
-                case (.running, .finish):
+                enum Event { case finish }
+                typealias Output = Int
+
+                static func update(_ state: inout State, event: Event) -> Int {
+                    // Return 0 as the output when finishing
                     state = .finished
-                default:
-                    break
+                    return 0
+                }
+
+            }
+
+            let proxy = T.Proxy()
+            try proxy.send(.finish)
+
+            // This should not throw noOutputProduced because update was called
+            let result = try await T.run(initialState: .start, proxy: proxy, output: Callback { _ in })
+            #expect(result == 0)
+        }
+
+        @MainActor
+        @Test
+        func testProxyAlreadyInUseError() async throws {
+            enum T: Transducer {
+                enum State: Terminable {
+                    case start, running, finished
+                    var isTerminal: Bool {
+                        if case .finished = self { return true }
+                        return false
+                    }
+                }
+                enum Event { case start, finish }
+                static func update(_ state: inout State, event: Event) {
+                    switch (state, event) {
+                    case (.start, .start):
+                        state = .running
+                    case (.running, .finish):
+                        state = .finished
+                    default:
+                        break
+                    }
                 }
             }
+
+            let proxy = T.Proxy()
+            try proxy.send(.start)  // This will transition to running state but not finish
+
+            // Start first transducer - it will be in running state, not finished
+            let task1 = Task {
+                try await T.run(initialState: .start, proxy: proxy)
+            }
+
+            // Wait a bit to ensure first transducer starts and processes the .start event
+            try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
+
+            // Try to start second transducer with same proxy - should throw error
+            let error = await #expect(throws: TransducerError.self) {
+                try await T.run(initialState: .start, proxy: proxy)
+            }
+            #expect(error == TransducerError.proxyAlreadyInUse)
+
+            // Now finish the first transducer
+            try proxy.send(.finish)
+            _ = try await task1.value
         }
 
-        let proxy = T.Proxy()
-        try proxy.send(.start)  // This will transition to running state but not finish
+        @MainActor
+        @Test
+        func testEffectTransducerProxyAlreadyInUseError() async throws {
+            // EffectTransducer now throws TransducerError.proxyAlreadyInUse instead of fatalError
+            enum T: EffectTransducer {
+                enum State: Terminable {
+                    case start, running, finished
+                    var isTerminal: Bool {
+                        if case .finished = self { return true }
+                        return false
+                    }
+                }
+                enum Event { case start, finish }
+                struct Env {}
 
-        // Start first transducer - it will be in running state, not finished
-        let task1 = Task {
-            try await T.run(initialState: .start, proxy: proxy)
-        }
-
-        // Wait a bit to ensure first transducer starts and processes the .start event
-        try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
-
-        // Try to start second transducer with same proxy - should throw error
-        let error = await #expect(throws: TransducerError.self) {
-            try await T.run(initialState: .start, proxy: proxy)
-        }
-        #expect(error == TransducerError.proxyAlreadyInUse)
-
-        // Now finish the first transducer
-        try proxy.send(.finish)
-        _ = try await task1.value
-    }
-
-    @MainActor
-    @Test
-    func testEffectTransducerProxyAlreadyInUseError() async throws {
-        // EffectTransducer now throws TransducerError.proxyAlreadyInUse instead of fatalError
-        enum T: EffectTransducer {
-            enum State: Terminable {
-                case start, running, finished
-                var isTerminal: Bool {
-                    if case .finished = self { return true }
-                    return false
+                static func update(_ state: inout State, event: Event) -> Self.Effect? {
+                    switch (state, event) {
+                    case (.start, .start):
+                        state = .running
+                        return nil
+                    case (.running, .finish):
+                        state = .finished
+                        return nil
+                    default:
+                        return nil
+                    }
                 }
             }
-            enum Event { case start, finish }
-            struct Env {}
 
-            static func update(_ state: inout State, event: Event) -> Self.Effect? {
-                switch (state, event) {
-                case (.start, .start):
-                    state = .running
-                    return nil
-                case (.running, .finish):
-                    state = .finished
-                    return nil
-                default:
-                    return nil
-                }
+            let proxy = T.Proxy()
+            try proxy.send(.start)  // This will transition to running state but not finish
+
+            // Start first transducer - it will be in running state, not finished
+            let task1 = Task {
+                try await T.run(initialState: .start, proxy: proxy, env: T.Env())
             }
+
+            // Wait a bit to ensure first transducer starts and processes the .start event
+            try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
+
+            // Try to start second transducer with same proxy - should throw error
+            let error = await #expect(throws: TransducerError.self) {
+                try await T.run(initialState: .start, proxy: proxy, env: T.Env())
+            }
+            #expect(error == TransducerError.proxyAlreadyInUse)
+
+            // Now finish the first transducer
+            try proxy.send(.finish)
+            _ = try await task1.value
         }
 
-        let proxy = T.Proxy()
-        try proxy.send(.start)  // This will transition to running state but not finish
-
-        // Start first transducer - it will be in running state, not finished
-        let task1 = Task {
-            try await T.run(initialState: .start, proxy: proxy, env: T.Env())
-        }
-
-        // Wait a bit to ensure first transducer starts and processes the .start event
-        try await Task.sleep(nanoseconds: 10_000_000)  // 10ms
-
-        // Try to start second transducer with same proxy - should throw error
-        let error = await #expect(throws: TransducerError.self) {
-            try await T.run(initialState: .start, proxy: proxy, env: T.Env())
-        }
-        #expect(error == TransducerError.proxyAlreadyInUse)
-
-        // Now finish the first transducer
-        try proxy.send(.finish)
-        _ = try await task1.value
     }
 
     // MARK: - Buffer Overflow Tests
@@ -824,6 +828,62 @@ struct TransducerTests {
 
         try await T.run(initialState: .start, proxy: proxy)
         // Should complete successfully with Void output
+    }
+
+    @MainActor
+    @Test
+    func actionEventStopsProcessingWhenStateBecomesTerminal() async throws {
+        enum T: EffectTransducer {
+            struct Env {}
+
+            enum State: Terminable {
+                case start
+                case active
+                case finished
+
+                var isTerminal: Bool {
+                    switch self {
+                    case .finished: return true
+                    default: return false
+                    }
+                }
+            }
+
+            enum Event { case start, chain, shouldNotBeProcessed }
+
+            static func update(_ state: inout State, event: Event) -> Self.Effect? {
+                switch (state, event) {
+                case (.start, .start):
+                    state = .active
+                    // Return an action event that will make the state terminal
+                    return .event(.chain)
+                    
+                case (.active, .chain):
+                    state = .finished  // State becomes terminal
+                    // This action event should not be processed since state is now terminal
+                    return .event(.shouldNotBeProcessed)
+                    
+                case (_, .shouldNotBeProcessed):
+                    // This should never be called since state is terminal after .chain
+                    Issue.record("Event .shouldNotBeProcessed was processed when state should be terminal")
+                    return nil
+                    
+                default:
+                    return nil
+                }
+            }
+        }
+
+        let proxy = T.Proxy()
+        try proxy.send(.start)
+        
+        try await T.run(
+            initialState: .start,
+            proxy: proxy,
+            env: T.Env()
+        )
+        
+        // Test passes if no Issue.record was called
     }
 
 }

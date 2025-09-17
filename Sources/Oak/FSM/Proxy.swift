@@ -278,7 +278,7 @@ extension Proxy: TransducerProxyInternal {
         // Note: this implementation cannot guarantee,
         // that a proxy can be attempted to be reused
         // when its former transducer has already been
-        // terminated. It ptotentially can also race
+        // terminated. It potentially can also race
         // with simultaneous attempts to use it.
         //
         // However, since the continuation is already

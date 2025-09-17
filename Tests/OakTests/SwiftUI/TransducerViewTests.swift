@@ -244,6 +244,7 @@ extension  TransducerViewTests {
         // MARK: - Test Helpers
         
         /// Helper function to properly host a SwiftUI view for testing
+        /// Returns when the view has been rendered and SwiftUI's onAppear lifecycle has been triggered
         func embedInWindowAndMakeKey<V: View>(
             _ view: V
         ) async -> (HostingController, PlatformWindow) {
@@ -254,8 +255,16 @@ extension  TransducerViewTests {
                 hostingController = HostingController(
                     rootView: AnyView(
                         view.onAppear {
-                            continuation.resume()
-                        })
+                            // We need to dispatch async here to ensure that
+                            // all child views have also appeared, because 
+                            // onAppear is called in breadth-first order, and we need
+                            // to wait for the next run loop cycle to ensure all levels
+                            // of the view hierarchy have completed their onAppear calls.
+                            DispatchQueue.main.async {
+                                continuation.resume()
+                            }
+                        }
+                    )
                 )
                 
 #if canImport(UIKit)
