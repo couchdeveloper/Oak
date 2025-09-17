@@ -85,12 +85,44 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
         case deinitialised
     }
 
+    /// Type alias for the event stream used by the transducer runtime.
+    /// 
+    /// > Warning: Framework-only API. Do not access directly from user code.
     public typealias Stream = AsyncThrowingStream<Event, Swift.Error>
     typealias Continuation = Stream.Continuation
 
+    /// An asynchronous, throwable sequence of events emitted by this proxy.
+    ///
+    /// >Caution: This property is intended for internal use by the Oak framework only.
+    /// Client code should not directly access this stream.
+    ///
+    /// - Type: `AsyncThrowingStream<Event, Swift.Error>`
+    ///
+    /// - Consumption: The associated transducer consumes this stream to receive
+    ///   events in FIFO order. You typically pass `stream` into the transducer's
+    ///   `run` loop, which iterates over incoming events as they are enqueued.
+    ///
+    /// - Error semantics: The stream finishes with:
+    ///   - no error when `finish()` is called (graceful shutdown), or
+    ///   - an error when `cancel(with:)` is invoked or when the proxy is
+    ///     deinitialized while still in use.
+    ///
+    /// - Termination: Once the stream is finished (gracefully or with error),
+    ///   further attempts to send events via this proxy or its `Input` will fail.
+    ///
+    /// - Buffering: Events are buffered internally according to the proxy's
+    ///   configured buffering policy (default: oldest-buffering with capacity 8).
+    ///   If the buffer is full, new events may be dropped and sending will throw.
     public let stream: Stream
     private let continuation: Continuation
 
+    /// A unique identifier for this proxy instance.
+    ///
+    /// - Used to distinguish proxies, for example when comparing two `Proxy` values
+    ///   via `Equatable` or when tracking them in collections keyed by identity.
+    /// - Generated once at initialization time using `UUID()`, and remains stable
+    ///   for the lifetime of the proxy.
+    /// - Conforms to `Identifiable` by serving as the `id` required by that protocol.
     public let id: UUID = UUID()
 
     /// The Input type provides a way to send events into the transducer.
@@ -122,23 +154,6 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
         /// terminated or the event buffer is full.
         public func send(_ event: sending Event) throws {
             try Proxy.send(continuation: self.continuation, event: event)
-        }
-    }
-
-    public final class AutoCancellation: Sendable, Equatable {
-        public static func == (lhs: AutoCancellation, rhs: AutoCancellation) -> Bool {
-            lhs.id == rhs.id
-        }
-
-        let continuation: Continuation
-        let id: Proxy.ID
-
-        init(proxy: Proxy) {
-            continuation = proxy.continuation
-            id = proxy.id
-        }
-        deinit {
-            continuation.finish(throwing: Error.deinitialised)
         }
     }
 
@@ -213,10 +228,6 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
         .init(continuation: self.continuation)
     }
 
-    public var autoCancellation: AutoCancellation {
-        AutoCancellation(proxy: self)
-    }
-
     /// Terminates the proxy, preventing any further events from being sent and causing
     /// the `run` function to throw an error.
     ///
@@ -237,9 +248,9 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
         continuation.finish(throwing: error ?? TransducerError.cancelled)
     }
 
-    public func finish() {
-        continuation.finish()
-    }
+}
+
+ extension Proxy {
 
     private static func send(
         continuation: Continuation,
@@ -274,6 +285,21 @@ extension Proxy: Sendable where Event: Sendable {}
 
 extension Proxy: TransducerProxyInternal {
 
+    /// Terminates the event stream gracefully. Framework-only method.
+    /// 
+    /// > Warning: This method is intended for internal framework use only.
+    /// > Do not call directly from user code.
+    public func finish() {
+        continuation.finish()
+    }
+
+    /// Validates that the proxy is not already in use by another transducer.
+    /// Framework-only method.
+    /// 
+    /// > Warning: This method is intended for internal framework use only.
+    /// > Do not call directly from user code.
+    /// 
+    /// - Throws: `TransducerError.proxyAlreadyInUse` if the proxy is already associated with a running transducer.
     public func checkInUse() throws(TransducerError) {
         // Note: this implementation cannot guarantee,
         // that a proxy can be attempted to be reused
