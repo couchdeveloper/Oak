@@ -1,12 +1,13 @@
 import Oak
+import SwiftUI
 
 // A basic counter transducer that outputs the current count.
 enum SimpleCounter: Transducer {
-    
+
     struct State: NonTerminal {
         var count: Int = 0
     }
-    
+
     static var initialState: State { State() }
 
     enum Event {
@@ -18,7 +19,7 @@ enum SimpleCounter: Transducer {
         case none
         case value(Int)
     }
-    
+
     static func update(_ state: inout State, event: Event) -> Output {
         switch event {
         case .increment:
@@ -31,11 +32,9 @@ enum SimpleCounter: Transducer {
     }
 }
 
-import SwiftUI
-
 struct ContentView: View {
     @SwiftUI.State private var state = SimpleCounter.initialState
-    
+
     var body: some View {
         TransducerView(
             of: SimpleCounter.self,
@@ -51,11 +50,11 @@ struct ContentView: View {
         ) { state, input in
             VStack {
                 Text("Count: \(state.count)")
-                Button("Increment") { 
-                    try? input.send(.increment) 
+                Button("Increment") {
+                    try? input.send(.increment)
                 }
-                Button("Decrement") { 
-                    try? input.send(.decrement) 
+                Button("Decrement") {
+                    try? input.send(.decrement)
                 }
             }
         }

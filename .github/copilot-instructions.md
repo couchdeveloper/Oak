@@ -1,5 +1,28 @@
 # Oak Framework - AI Coding Assistant Instructions
 
+This document provides Oak-specific patterns and examples.
+
+> Repository policy: For high-level, tool-agnostic guidance shared across assistants, see `AI_GUIDELINES.md`. Treat that file as the canonical repo policy; Also refer to [BasicSystemPrompt](BasicSystemPrompt.md) for platform rules, quality and best practices.
+
+## Purpose & Scope (For Agents)
+- Optimize for concise, correct changes; avoid large refactors unless requested.
+- Follow Oak’s FSM model: pure `update`, effects in `Effect`, Swift concurrency.
+- Respect terminal states and `Sendable` boundaries; do not add global state.
+- Keep edits surgical and in-repo; don’t invent APIs or move files unnecessarily.
+
+## Quick Rules For Agents
+- Safety: No side effects in `update`. Effects may send events; action effects process synchronously.
+- Concurrency: Honor isolation; use `@Sendable` where values cross boundaries.
+- State: Prefer enums; implement `isTerminal` precisely. Don’t ignore terminal transitions.
+- Testing: Use existing XCTest targets. Avoid real timers/networking in tests.
+- Docs: Update docs when changing effect/terminal behavior. Link to `AI_GUIDELINES.md`.
+
+## Workflows At A Glance
+- Run tests: `swift test` (targets: `OakTests`, `OakBenchmarks`).
+- Format: `./Scripts/formatCode.sh`.
+- Docs: `./Scripts/previewDocs.sh` or `./Scripts/generateDocs.sh`.
+- SwiftUI usage: Prefer `TransducerView` or `ObservableTransducer` over `ObservableObject`.
+
 ## Project Overview
 
 Oak is a Swift finite state machine (FSM) library built on structured concurrency, designed for type-safe, reactive application architecture with SwiftUI integration. It emphasizes pure functional state transitions separated from side effects.
@@ -38,7 +61,12 @@ enum SimpleCounter: Transducer {
             state = .idle(count: max(0, count - 1))
             return max(0, count - 1)
         default:
-            return 0 // Handle unexpected combinations
+            // When reaching in the `default` case , it may indicate 
+            // a violation of the assumptions about the system. You 
+            // may want to log or handle this case.
+
+            // Handle unexpected combinations
+            return 0
         }
     }
     
@@ -252,7 +280,7 @@ Parent transducers coordinate child transducers through output->input connection
 ```swift
 // Parent receives child output, forwards as events
 let childCallback = Callback<Child.Output> { output in
-    try? parentInput.send(.childResult(output))
+    try parentInput.send(.childResult(output))
 }
 ```
 
@@ -260,6 +288,7 @@ let childCallback = Callback<Child.Output> { output in
 Use state-driven modals where transducer state determines UI presentation:
 ```swift
 enum State {
+    case start
     case idle(Data)
     case modal(sheet: SheetItem, content: Data)
 }
@@ -275,10 +304,21 @@ enum State {
 ## Anti-Patterns to Avoid
 
 - Don't perform side effects directly in `update()` functions
-- Don't use `@StateObject` or `@ObservableObject` - use `TransducerView` instead
+- In the `update()` functions - always handle all cases explicitly
+- In the `update()` functions - do not use a `default` case to 
+  handle expected and valid transitions - it may mask unhandled 
+  states/events. `default` should only be used for truly unexpected 
+  cases and invalid assumptions - i.e. a state/event combination that
+  should never occur in normal operation. Always log this incident
+  or issue a fatal error.
+
+## General Do's and Don'ts
+- State should always have a `start` state, indicating an "uninitialized" condition
+- Event should have a `start` event.
 - Avoid complex nested state structures - prefer flat, normalized designs
-- Don't ignore terminal states - always handle them explicitly
 - Don't mix UI state with business logic state
+- Prefer `TransducerView` over "ViewModels"
+- If a Transducer has a user-defined output, always declare this type in the Transducer enum.
 
 ## Documentation and Communication
 

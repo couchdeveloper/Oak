@@ -2,7 +2,7 @@ import Oak
 import Testing
 
 struct TransducerTests {
-    
+
     @Suite
     struct BasicInitializationTests {
         // MARK: - Test Types
@@ -42,7 +42,8 @@ struct TransducerTests {
                 try await T.run(initialState: .start)
             }
             let task2 = Task {
-                try await T.run(initialState: .start, proxy: proxy, env: Void(), output: Callback { _ in })
+                try await T.run(
+                    initialState: .start, proxy: proxy, env: Void(), output: Callback { _ in })
             }
             task1.cancel()
             task2.cancel()
@@ -60,7 +61,8 @@ struct TransducerTests {
                 try await T.run(initialState: .start)
             }
             let task2 = Task {
-                try await T.run(initialState: .start, proxy: proxy, env: Void(), output: Callback { _ in })
+                try await T.run(
+                    initialState: .start, proxy: proxy, env: Void(), output: Callback { _ in })
             }
             task1.cancel()
             task2.cancel()
@@ -78,7 +80,8 @@ struct TransducerTests {
                 try await T.run(initialState: .start, env: T.Env())
             }
             let task2 = Task {
-                try await T.run(initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in })
+                try await T.run(
+                    initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in })
             }
             task1.cancel()
             task2.cancel()
@@ -96,7 +99,8 @@ struct TransducerTests {
                 try await T.run(initialState: .start, env: T.Env())
             }
             let task2 = Task {
-                try await T.run(initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in })
+                try await T.run(
+                    initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in })
             }
             task1.cancel()
             task2.cancel()
@@ -159,7 +163,7 @@ struct TransducerTests {
             }
         }
 
-        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) // Expectation
+        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)  // Expectation
         @MainActor
         @Test func testRunReturnsWithVoidTransducer() async throws {
             typealias T = VoidTransducer
@@ -167,9 +171,11 @@ struct TransducerTests {
             let expectCallbackCalled = Expectation()
             let proxy = T.Proxy()
             Task {
-                try await T.run(initialState: .start, proxy: proxy, output: Callback { _ in
-                    expectCallbackCalled.fulfill()
-                })
+                try await T.run(
+                    initialState: .start, proxy: proxy,
+                    output: Callback { _ in
+                        expectCallbackCalled.fulfill()
+                    })
                 expectCompletionCalled.fulfill()
             }
             try proxy.send(.start)
@@ -177,7 +183,7 @@ struct TransducerTests {
             try await expectCompletionCalled.await(nanoseconds: 1_000_000_000)
         }
 
-        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) // Expectation
+        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)  // Expectation
         @MainActor
         @Test func testRunReturnsWithOutputTransducer() async throws {
             typealias T = OutputTransducer
@@ -185,9 +191,11 @@ struct TransducerTests {
             let expectCallbackCalled = Expectation()
             let proxy = T.Proxy()
             Task {
-                try await T.run(initialState: .start, proxy: proxy, output: Callback { _ in
-                    expectCallbackCalled.fulfill()
-                })
+                try await T.run(
+                    initialState: .start, proxy: proxy,
+                    output: Callback { _ in
+                        expectCallbackCalled.fulfill()
+                    })
                 expectCompletionCalled.fulfill()
             }
             try proxy.send(.start)
@@ -195,7 +203,7 @@ struct TransducerTests {
             try await expectCompletionCalled.await(nanoseconds: 1_000_000_000)
         }
 
-        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) // Expectation
+        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)  // Expectation
         @MainActor
         @Test func testRunReturnsWithEffectTransducer() async throws {
             typealias T = EffectTransducer
@@ -203,16 +211,18 @@ struct TransducerTests {
             // let expectCallbackCalled = Expectation()
             let proxy = T.Proxy()
             Task {
-                try await T.run(initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in
-                    // Note: our current implementation does not call a callback
-                    // handler when the output type equals Void.
-                    // TODO: This subtle behaviour is currently not sufficently documented.
-                    // The better solution should only choose the version which
-                    // handles output, when an output parameter is given. Other-
-                    // wise it might choose a faster implementation. However,
-                    // the compiler *might* optimise this anyway sufficiently.
-                    // expectCallbackCalled.fulfill()
-                })
+                try await T.run(
+                    initialState: .start, proxy: proxy, env: T.Env(),
+                    output: Callback { _ in
+                        // Note: our current implementation does not call a callback
+                        // handler when the output type equals Void.
+                        // TODO: This subtle behaviour is currently not sufficently documented.
+                        // The better solution should only choose the version which
+                        // handles output, when an output parameter is given. Other-
+                        // wise it might choose a faster implementation. However,
+                        // the compiler *might* optimise this anyway sufficiently.
+                        // expectCallbackCalled.fulfill()
+                    })
                 expectCompletionCalled.fulfill()
             }
             try proxy.send(.start)
@@ -220,7 +230,7 @@ struct TransducerTests {
             try await expectCompletionCalled.await(nanoseconds: 1000_000_000_000)
         }
 
-        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) // Expectation
+        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)  // Expectation
         @MainActor
         @Test func testRunReturnsWithEffectOutputTransducer() async throws {
             typealias T = EffectOutputTransducer
@@ -228,9 +238,11 @@ struct TransducerTests {
             let expectCallbackCalled = Expectation()
             let proxy = T.Proxy()
             Task {
-                try await T.run(initialState: .start, proxy: proxy, env: T.Env(), output: Callback { _ in
-                    expectCallbackCalled.fulfill()
-                })
+                try await T.run(
+                    initialState: .start, proxy: proxy, env: T.Env(),
+                    output: Callback { _ in
+                        expectCallbackCalled.fulfill()
+                    })
                 expectCompletionCalled.fulfill()
             }
             try proxy.send(.start)
@@ -368,7 +380,7 @@ struct TransducerTests {
     // MARK: - Error Handling Tests
     @Suite
     struct ErrorHandlingTests {
-        
+
         @MainActor
         @Test
         func testInitialStateIsTerminalError() async throws {
@@ -417,7 +429,8 @@ struct TransducerTests {
             try proxy.send(.finish)
 
             // This should not throw noOutputProduced because update was called
-            let result = try await T.run(initialState: .start, proxy: proxy, output: Callback { _ in })
+            let result = try await T.run(
+                initialState: .start, proxy: proxy, output: Callback { _ in })
             #expect(result == 0)
         }
 
@@ -857,17 +870,18 @@ struct TransducerTests {
                     state = .active
                     // Return an action event that will make the state terminal
                     return .event(.chain)
-                    
+
                 case (.active, .chain):
                     state = .finished  // State becomes terminal
                     // This action event should not be processed since state is now terminal
                     return .event(.shouldNotBeProcessed)
-                    
+
                 case (_, .shouldNotBeProcessed):
                     // This should never be called since state is terminal after .chain
-                    Issue.record("Event .shouldNotBeProcessed was processed when state should be terminal")
+                    Issue.record(
+                        "Event .shouldNotBeProcessed was processed when state should be terminal")
                     return nil
-                    
+
                 default:
                     return nil
                 }
@@ -876,13 +890,13 @@ struct TransducerTests {
 
         let proxy = T.Proxy()
         try proxy.send(.start)
-        
+
         try await T.run(
             initialState: .start,
             proxy: proxy,
             env: T.Env()
         )
-        
+
         // Test passes if no Issue.record was called
     }
 

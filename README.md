@@ -568,3 +568,7 @@ Apache License (v2.0) - See LICENSE file for details
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## AI Guidelines
+
+For contributors using AI coding assistants, see `AI_GUIDELINES.md` for concise, tool-agnostic rules tailored to this repository. It complements `.github/copilot-instructions.md` with norms on effects, terminal states, concurrency, and testing. Start here: `AI_GUIDELINES.md`.

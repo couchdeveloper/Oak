@@ -28,8 +28,7 @@ struct EffectInternalUsageTests {
 
         enum T: EffectTransducer {
             typealias Output = Void
-            
-            
+
             class Env { var value: Int = 0 }
             class Payload { var value: Int = 0 }
             enum State: Terminable {

@@ -110,7 +110,7 @@ extension TransducerActor where Content: View {
             content: content
         )
     }
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
     ///
@@ -173,7 +173,7 @@ extension TransducerActor where Content: View {
             },
             content: content
         )
-    }    
+    }
 }
 
 // MARK: - Where Transducer: Oak.Transducer

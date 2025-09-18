@@ -8,7 +8,7 @@
 // @propertyWrapper
 @dynamicMemberLookup
 public struct Binding<Value> {
-    
+
     private let getValue: () -> Value
     private let setValue: (Value) -> Void
 
@@ -85,7 +85,6 @@ public struct Binding<Value> {
     }
 }
 
-
 extension Binding {
     func map<Subject>(_ keyPath: WritableKeyPath<Value, Subject>) -> Binding<Subject> {
         Binding<Subject>(
@@ -121,9 +120,8 @@ extension Binding: BindingConvertible {
 
 #endif
 
-
 #if false
-extension Binding : Sequence where Value : MutableCollection {
+extension Binding: Sequence where Value: MutableCollection {
 
     /// A type representing the sequence's elements.
     public typealias Element = Binding<Value.Element>
@@ -140,7 +138,7 @@ extension Binding : Sequence where Value : MutableCollection {
     public typealias SubSequence = Slice<Binding<Value>>
 }
 
-extension Binding : Collection where Value : MutableCollection {
+extension Binding: Collection where Value: MutableCollection {
 
     /// A type that represents a position in the collection.
     ///
@@ -237,7 +235,8 @@ extension Binding : Collection where Value : MutableCollection {
     }
 }
 
-extension Binding : BidirectionalCollection where Value : BidirectionalCollection, Value : MutableCollection {
+extension Binding: BidirectionalCollection
+where Value: BidirectionalCollection, Value: MutableCollection {
 
     /// Returns the position immediately before the given index.
     ///
@@ -253,6 +252,7 @@ extension Binding : BidirectionalCollection where Value : BidirectionalCollectio
     public func formIndex(before i: inout Binding<Value>.Index)
 }
 
-extension Binding : RandomAccessCollection where Value : MutableCollection, Value : RandomAccessCollection {
+extension Binding: RandomAccessCollection
+where Value: MutableCollection, Value: RandomAccessCollection {
 }
 #endif

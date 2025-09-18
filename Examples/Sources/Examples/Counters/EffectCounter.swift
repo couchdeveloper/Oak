@@ -1,24 +1,25 @@
 import Oak
+import SwiftUI
 
-// Simple, non-terminating counter state machine with 
+// Simple, non-terminating counter state machine with
 // async effects
 enum EffectCounter: EffectTransducer {
-    // State holds counter value and tracks operation 
+    // State holds counter value and tracks operation
     // progress
     struct State: NonTerminal {
         enum Pending {
             case none
             case increment
             case decrement
-        }    
+        }
 
         var value: Int = 0
         var pending: Pending = .none
         var isPending: Bool { pending != .none }
     }
-    
+
     static var initialState: State { State() }
-    
+
     // Dependencies needed by effects
     struct Env: Sendable {
         init() {
@@ -28,7 +29,7 @@ enum EffectCounter: EffectTransducer {
         var serviceIncrement: @Sendable () async throws -> Void
         var serviceDecrement: @Sendable () async throws -> Void
     }
-    
+
     // Events that trigger state transitions
     enum Event {
         case increment
@@ -37,15 +38,15 @@ enum EffectCounter: EffectTransducer {
         case incrementReady
         case decrementReady
     }
-    
+
     // Effect for increment: creates an operation effect
     static func incrementEffect() -> Self.Effect {
         Effect { env, input in
             try await env.serviceIncrement()
-            try input.send(.incrementReady) 
-        }       
+            try input.send(.incrementReady)
+        }
     }
-    
+
     // Effect for decrement: creates an operation effect
     static func decrementEffect() -> Self.Effect {
         Effect(id: "decrement") { env, input in
@@ -53,11 +54,11 @@ enum EffectCounter: EffectTransducer {
             try input.send(.decrementReady)
         }
     }
-    
-    // Core state transition logic: a pure function that 
+
+    // Core state transition logic: a pure function that
     // handles events and returns effects
     static func update(
-        _ state: inout State, 
+        _ state: inout State,
         event: Event
     ) -> Self.Effect? {
 
@@ -79,8 +80,8 @@ enum EffectCounter: EffectTransducer {
             state.value -= 1
             state.pending = .none
             return nil
-            // Ignore increment/decrement events during 
-            // pending operation
+        // Ignore increment/decrement events during
+        // pending operation
         case (_, .increment), (_, .decrement):
             return nil
         case (_, .reset):
@@ -92,14 +93,11 @@ enum EffectCounter: EffectTransducer {
     }
 }
 
-
-import SwiftUI
-
 extension EffectCounter { enum Views {} }
 
 extension EnvironmentValues {
     @Entry var effectCounterEnv: EffectCounter.Env = .init()
-}   
+}
 
 #if DEBUG
 
@@ -150,11 +148,11 @@ extension EffectCounter.Views {
                 .overlay(alignment: .bottom) {
                     OperationStatusIndicator(pending: state.pending)
                         .transition(.opacity)
-                        .zIndex(1) // show on top
+                        .zIndex(1)  // show on top
                         .opacity(state.isPending ? 1 : 0)
                         .offset(y: 40)
                 }
-                
+
             }
         }
 
@@ -214,7 +212,7 @@ extension EffectCounter.Views {
             ) { state, input in
                 CounterView(state: state, input: input)
             }
-        }        
+        }
     }
 }
 
@@ -222,11 +220,10 @@ extension EffectCounter.Views {
     EffectCounter.Views.ContentView()
 }
 
-
 #endif
 
 extension EffectCounter.Views {
-    
+
     struct CounterView: View {
         @Environment(\.effectCounterEnv) var env
         @State private var state: EffectCounter.State = EffectCounter.initialState
@@ -240,16 +237,16 @@ extension EffectCounter.Views {
                 ZStack {
                     VStack {
                         Text(verbatim: "Counter Value: \(state.value)")
-                        Button("Increment") { 
-                            try? input.send(.increment) 
+                        Button("Increment") {
+                            try? input.send(.increment)
                         }
                         .buttonStyle(.bordered)
-                        Button("Decrement") { 
-                            try? input.send(.decrement) 
+                        Button("Decrement") {
+                            try? input.send(.decrement)
                         }
                         .buttonStyle(.bordered)
-                        Button("Reset") { 
-                            try? input.send(.reset) 
+                        Button("Reset") {
+                            try? input.send(.reset)
                         }
                         .buttonStyle(.bordered)
                     }
@@ -261,7 +258,7 @@ extension EffectCounter.Views {
             }
         }
     }
-    
+
 }
 
 #Preview("Simple Counter View") {
