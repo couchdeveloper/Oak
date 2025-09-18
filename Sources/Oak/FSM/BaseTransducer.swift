@@ -1,31 +1,37 @@
-/// A type that partially defines the interface of a transducer in a finite
-/// state machine. It's the base type for all transducers that can be used
-/// in a finite state machine. It defines the types of events, states, outputs,
-/// and proxies that the transducer can use.
+/// **BaseTransducer - Type Composition Foundation**
 ///
-/// BaseTransducer serves as a type container for composition without requiring an 
-/// implementation of `update` or `run` functions. This makes it ideal for:
+/// Defines transducer type contracts without implementation requirements.
+/// Enables architectural flexibility through composition and delegation patterns.
 ///
-/// - Composing multiple transducers together where implementing an `update` function
-///   wouldn't make sense for the composite
-/// - Creating adapter or wrapper transducers that delegate to other transducers
-/// - Building hierarchical state machines where leaf nodes implement full `Transducer`
-///   conformance while parent nodes only compose and coordinate
+/// BaseTransducer serves as a type container for building sophisticated state machine 
+/// hierarchies. Unlike concrete transducers, it focuses on type composition rather
+/// than state mutation, making it ideal for coordinator and composite patterns.
 ///
-/// This separation between type definitions and behavior allows for more flexible
-/// composition patterns, as composite transducers can focus on orchestration and delegation
-/// rather than state mutation.
+/// ## Key Design Benefits
+/// - **Compositional Architecture**: Build complex systems from simpler parts
+/// - **Hierarchical State Machines**: Parent coordinators with leaf state machines  
+/// - **Type Safety**: Enforce contracts without forcing implementation details
+/// - **Delegation Patterns**: Route behavior to appropriate concrete transducers
+///
+/// ## Architecture Patterns
+/// ```swift
+/// // Coordinator that delegates to concrete transducers
+/// enum AppCoordinator: BaseTransducer {
+///     typealias State = AppState
+///     typealias Event = AppEvent
+///     // Delegates to LoginTransducer, DashboardTransducer, etc.
+/// }
+/// ```
+///
+/// > See `Oak Transducers.md` for composition patterns and architectural guidance.
 public protocol BaseTransducer<Event> {
     
-    /// The type of the _State_ of the FSM.
-    ///
-    /// This is a type that conforms to the `Terminable` protocol, which means
-    /// that it can be in a terminal state. The terminal state is a state in which
-    /// the FSM cannot process any more events and cannot produce any more output.
+    /// **State Type** - Machine state space with terminal detection.
+    /// Must conform to `Terminable` for proper lifecycle management.
     associatedtype State: Terminable
     
-    /// The type of events that the transducer can process, aka the _Input_ of
-    /// the FSM.
+    /// **Event Type** - Input alphabet that drives state transitions.
+    /// Represents all possible triggers the transducer can process.
     associatedtype Event
     
     // associatedtype TransducerOutput

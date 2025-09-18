@@ -1,18 +1,42 @@
-/// Represents a side effect that may interact with the environment.
+/// **Effect - Asynchronous Side Effect Management**
 ///
-/// The `Effect` struct encapsulates an asynchronous operation that will be executed by the transducer.
-/// The operation may interact with the environment, send events, or perform other actions as part of a state
-/// machine's transition logic. The operation obtains a value `Env` as an input parameter which can be
-/// useds to provide dependencies and configuration values from the environment.
+/// Encapsulates side effects that interact with the environment during state transitions.
+/// Effects execute asynchronously and can send events back to the transducer.
 ///
+/// Oak provides two fundamental effect types with distinct execution models:
 ///
-/// # Usage
-/// Effects will be created within a transducer's `update` method and returned to be executed
-/// by the state machine runtime.
+/// ## Action Effects - Structured Concurrency
+/// Execute synchronously during the computation cycle with immediate event processing.
+/// Events are processed before any Input buffer events, with state guarantees maintained.
 ///
-/// - Parameters:
-///   - Env: The environment type, which may be isolated or `Sendable`.
-///   - Event: The event type that the effect may send back to the state machine.
+/// **Choose when:** Need immediate processing, state consistency is critical, or work is CPU-bound and fast.
+///
+/// ## Operation Effects - Unstructured Tasks  
+/// Execute as managed Tasks concurrently with the transducer.
+/// Events are sent asynchronously via Input and support cancellation.
+///
+/// **Choose when:** Need async work, I/O operations, cancellation support, or long-running tasks.
+///
+/// ## Quick Decision Guide
+/// - **Immediate processing + state guarantees** → Action Effects
+/// - **Async work + cancellation** → Operation Effects  
+/// - **Single event immediately** → `.event()` static method
+/// - **Cancel running work** → `.cancelTask()` with Operation Effects
+///
+/// ## Example Usage
+/// ```swift
+/// // Action Effect - synchronous environment import
+/// Effect(isolatedAction: { env, isolated in
+///     return .configureContext(env.createContext())
+/// })
+///
+/// // Operation Effect - async network request
+/// Effect(id: "load", isolatedOperation: { env, input, isolated in
+///     let data = try await env.service.load()
+///     try input.send(.dataLoaded(data))
+/// })
+/// ```
+///
 public struct Effect<T: EffectTransducer> {
     public typealias Input = T.Input
     public typealias Event = T.Event
@@ -20,11 +44,14 @@ public struct Effect<T: EffectTransducer> {
 
     private let f: (Env, Input, Context, isolated any Actor) async throws -> [Event]
 
-    /// Initialises the effect.
-    /// - Parameter f: An async throwing function, that might cause side effects.
+    /// **Internal Effect Constructor**
+    /// 
+    /// Low-level initializer for creating custom effects. Used internally by public initializers.
+    /// External users should prefer the specific `action` or `operation` initializers.
     ///
-    /// For best performance, in very demanding scenarios, the given function should avoid to close over
-    /// state. That is, the closure should not capture values.
+    /// - Parameter f: Async function that implements the effect behavior and returns events.
+    /// 
+    /// > Tip: For best performance, avoid capturing values in the closure.
     internal init(
         f: @escaping (Env, Input, Context, isolated any Actor) async throws -> [Event],
     ) {
@@ -40,51 +67,27 @@ public struct Effect<T: EffectTransducer> {
         try await self.f(env, input, context, systemActor)
     }
 
-    /// Executes the closure `action` on the specified global actor provided by
-    /// the caller.
+    /// **Action Effect - Global Actor Execution**
+    /// 
+    /// Creates an action effect that executes on a specified global actor and returns multiple events.
+    /// Events are processed synchronously before any Input buffer events.
     ///
-    /// The action may return events provided in an array which gets processed
-    /// by the system. These events will be procesed _synchronously_ and in
-    /// order. The next processed event is alway the first event in the array
-    /// from the current action.
+    /// The action executes during the computation cycle with the caller-specified global actor isolation.
+    /// This enables safe access to environment values isolated to the same global actor.
     ///
-    /// Processing of the events send via the Input will be suspendend until after
-    /// all events returned from actions have been processed.
+    /// - Parameter action: Async closure that returns events for immediate processing.
+    /// 
+    /// > Tip: For best performance, avoid capturing values in the closure.
+    /// > Caution: Events process synchronously; terminal states halt further processing.
     ///
-    /// > Tip: For best performance, the action should avoid to close over state. That is,
-    /// the closure should not capture values. Instead, you might want to access values
-    /// provided in the `env` parameter.
+    /// ## Related Methods
+    /// - ``init(isolatedAction:)`` - For system actor isolation
+    /// - ``init(action:)-5f3jl`` - Single event variant
+    /// - ``init(id:operation:)`` - For async unstructured tasks
     ///
-    /// > Caution: Events returned from an action are processed synchronously
-    ///   in the update function. However, if the state becomes terminal during
-    ///   action event processing, no further events will be processed.
-    ///
-    /// The global actor usually matches the global actor where the environment `Env`
-    /// is isolated on, so that `action` can access the environment on the specified
-    /// global actor.
-    ///
-    /// `action(_:_:)` is an async throwing function. The processing of events will be
-    /// suspended until the action function returns. Throwing an error will terminate
-    /// the transducer and causing the`run` function to throw this error.
-    ///
-    /// Accesses to the environment parameter is safe if `Env` conforms to
-    /// `Sendable` or if `Env` is isolated to the same global actor.
-    ///
-    /// > Note:
-    ///   The use of `@isolated(any)` in the parameter list ensures that the closure
-    ///   is executed with the specified actor isolation, which is important for thread safety
-    ///   when accessing actor-isolated environments (`Env`).
-    ///
-    /// ## Example:
-    /// Given an Environment `Env` isolated to global actor `@MainActor`:
+    /// ## Example
     /// ```swift
-    /// @MainActor class Env { ... }
-    /// ```
-    /// An Action Effect, created in the `updated` function of the transducer, can safely
-    /// access the environment value when specifiying the same global actor for the action
-    /// closure:
-    /// ```swift
-    /// let effect = T.Effect(action: { @MainActor env in
+    /// Effect(action: { @MainActor env in
     ///     let delegate = env.createDelegate()
     ///     return [.delegate(delegate)]
     /// })
@@ -99,49 +102,27 @@ public struct Effect<T: EffectTransducer> {
         }
     }
 
-    /// Executes the closure `action` on the specified global actor provided by
-    /// the caller.
+    /// **Action Effect - Global Actor Execution**
+    /// 
+    /// Creates an action effect that executes on a specified global actor and returns a single event.
+    /// The event is processed synchronously before any Input buffer events.
     ///
-    /// The action returns an event that will be _synchronously_ processed by the
-    /// transducer.
+    /// The action executes during the computation cycle with the caller-specified global actor isolation.
+    /// This enables safe access to environment values isolated to the same global actor.
     ///
-    /// Processing of the events send via the Input will be suspendend until after
-    /// all events returned from actions have been processed.
+    /// - Parameter action: Async closure that returns a single event for immediate processing.
+    /// 
+    /// > Tip: For best performance, avoid capturing values in the closure.
+    /// > Caution: Events process synchronously; terminal states halt further processing.
     ///
-    /// > Tip: For best performance, the action should avoid to close over state. That is,
-    /// the closure should not capture values. Instead, you might want to access values
-    /// provided in the `env` parameter.
+    /// ## Related Methods
+    /// - ``init(isolatedAction:)`` - For system actor isolation
+    /// - ``init(action:)-92cyp`` - Multiple events variant
+    /// - ``init(id:operation:)`` - For async unstructured tasks
     ///
-    /// > Caution: Events returned from an action are processed synchronously
-    ///   in the update function. However, if the state becomes terminal during
-    ///   action event processing, no further events will be processed.
-    ///
-    /// The global actor usually matches the global actor where the environment `Env`
-    /// is isolated on, so that `action` can access the environment on the specified
-    /// global actor.
-    ///
-    /// `action(_:_:)` is an async throwing function. The processing of events will be
-    /// suspended until the action function returns. Throwing an error will terminate
-    /// the transducer and causing the`run` function to throw this error.
-    ///
-    /// Accesses to the environment parameter is safe if `Env` conforms to
-    /// `Sendable` or if `Env` is isolated to the same global actor.
-    ///
-    /// > Note:
-    ///   The use of `@isolated(any)` in the parameter list ensures that the closure
-    ///   is executed with the specified actor isolation, which is important for thread safety
-    ///   when accessing actor-isolated environments (`Env`).
-    ///
-    /// ## Example:
-    /// Given an Environment `Env` isolated to global actor `@MainActor`:
+    /// ## Example
     /// ```swift
-    /// @MainActor class Env { ... }
-    /// ```
-    /// An Action Effect, created in the `updated` function of the transducer, can safely
-    /// access the environment value when specifiying the same global actor for the action
-    /// closure:
-    /// ```swift
-    /// let effect = T.Effect(action: { @MainActor env in
+    /// Effect(action: { @MainActor env in
     ///     let delegate = env.createDelegate()
     ///     return .delegate(delegate)
     /// })
@@ -157,37 +138,22 @@ public struct Effect<T: EffectTransducer> {
         }
     }
 
-    /// Executes the closure `action` on the "systemActor", i.e. the actor specified where
-    /// the function `run` is executing.
+    /// **Action Effect - System Actor Execution**
+    /// 
+    /// Creates an action effect that executes on the system actor and returns multiple events.
+    /// Events are processed synchronously before any Input buffer events.
     ///
-    /// The action may return events provided in an array which gets processed
-    /// by the system. These events will be procesed _synchronously_ and in
-    /// order. The next processed event is alway the first event in the array
-    /// from the current action.
+    /// The action executes on the "systemActor" where the `run` function executes,
+    /// regardless of any global actor isolation on `Env`.
     ///
-    /// Processing of the events send via the Input will be suspendend until after
-    /// all events returned from actions have been processed.
+    /// - Parameter action: Async closure receiving environment, and isolated actor reference.
+    /// 
+    /// > Tip: For best performance, avoid capturing values in the closure.
     ///
-    /// > Tip: For best performance, the action should avoid to close over state. That is,
-    /// the closure should not capture values. Instead, you might want to access values
-    /// provided in the `env` parameter.
-    ///
-    /// > Caution: Events returned from an action are processed synchronously
-    ///   in the update function. However, if the state becomes terminal during
-    ///   action event processing, no further events will be processed.
-    ///
-    /// The closure is always executed on the system actor, regardless of any global actor
-    /// isolation on `Env`.
-    ///
-    /// - Parameter action: An async throwing function that performs the actual work. It
-    /// can be used to send events back to the transducer, invoke side effects or access the
-    /// environment value. The closure receives
-    ///     - the environment (`Env`) containing any required dependencies and configuration data,
-    ///     - the input (`Input`) for sending events to the transducer, and
-    ///     - an isolated actor reference for thread-safe operations.
-    ///
-    /// When the action function throws an error, it will terminate the transducer and causing
-    /// the`run` function to rethrow it.
+    /// ## Related Methods
+    /// - ``init(action:)-92cyp`` - For global actor isolation
+    /// - ``init(isolatedAction:)-8vdj6`` - Single event variant
+    /// - ``init(id:isolatedOperation:)`` - For async unstructured tasks
     public init(
         isolatedAction action: @Sendable @escaping (
             Env,
@@ -199,35 +165,22 @@ public struct Effect<T: EffectTransducer> {
         }
     }
 
-    /// Executes the closure `action` on the "systemActor", i.e. the actor specified where
-    /// the function `run` is executing.
+    /// **Action Effect - System Actor Execution**
+    /// 
+    /// Creates an action effect that executes on the system actor and returns a single event.
+    /// The event is processed synchronously before any Input buffer events.
     ///
-    /// The action returns an event that will be _synchronously_ processed by the
-    /// transducer.
+    /// The action executes on the "systemActor" where the `run` function executes,
+    /// regardless of any global actor isolation on `Env`.
     ///
-    /// Processing of the events send via the Input will be suspendend until after
-    /// all events returned from actions have been processed.
+    /// - Parameter action: Async closure receiving environment and isolated actor reference.
+    /// 
+    /// > Tip: For best performance, avoid capturing values in the closure.
     ///
-    /// > Tip: For best performance, the action should avoid to close over state. That is,
-    /// the closure should not capture values. Instead, you might want to access values
-    /// provided in the `env` parameter.
-    ///
-    /// > Caution: Events returned from an action are processed synchronously
-    ///   in the update function. However, if the state becomes terminal during
-    ///   action event processing, no further events will be processed.
-    ///
-    /// The closure is always executed on the system actor, regardless of any global actor
-    /// isolation on `Env`.
-    ///
-    /// - Parameter action: An async throwing function that performs the actual work. It
-    /// can be used to send events back to the transducer, invoke side effects or access the
-    /// environment value. The closure receives
-    ///     - the environment (`Env`) containing any required dependencies and configuration data,
-    ///     - the input (`Input`) for sending events to the transducer, and
-    ///     - an isolated actor reference for thread-safe operations.
-    ///
-    /// When the action function throws an error, it will terminate the transducer and causing
-    /// the`run` function to rethrow it.
+    /// ## Related Methods
+    /// - ``init(action:)-5f3jl`` - For global actor isolation
+    /// - ``init(isolatedAction:)-84bib`` - Multiple events variant
+    /// - ``init(id:isolatedOperation:)`` - For async unstructured tasks
     public init(
         isolatedAction action: @Sendable @escaping (
             Env,
@@ -240,34 +193,24 @@ public struct Effect<T: EffectTransducer> {
         }
     }
 
-    /// Creates an effect that executes an asynchronous operation executing within an
-    /// unstructured Task managed by the transducer.
+    /// **Operation Effect - System Actor Task**
+    /// 
+    /// Creates an operation effect that executes as a managed Task on the system actor.
+    /// Events are sent asynchronously via Input and processed with other concurrent events.
     ///
-    /// An operation can send events back to the transducer using the provided `input`
-    /// parameter. Note, that the input parameter may be shared with other components
-    /// which may also send events concurrently. The events will be processed in order,
-    /// as they arrive in the event buffer.
-    ///
-    /// The closure is always executed on the "systemActor", i.e. the actor specified where the
-    /// function `run` is executing, regardless of any global actor isolation on `Env`.
+    /// The operation executes on the "systemActor" where the `run` function executes,
+    /// enabling safe Task management regardless of environment actor isolation.
     ///
     /// - Parameters:
-    ///   - id: An optional identifier for the effect. If not provided, a system-generated identifier will be
-    ///   used.
-    ///   - operation: An asynchronous closure that performs the actual work. The closure receives
-    ///     - the environment (`Env`) containing any required dependencies and configuration data,
-    ///     - the input (`Input`) for sending events to the transducer, and
-    ///     - an isolated actor reference for thread-safe operations.
+    ///   - id: Optional identifier for effect cancellation. Auto-generated if nil.
+    ///   - operation: Async closure receiving environment, input, and isolated actor reference.
     ///
-    /// The transducer offers lifecycle management for the Swift Task which executes the operation.
-    /// The given `id` can be used to explicitly cancel the operation from within the transducer's
-    /// `update` function. When the transducer terminates, and the operation is still executing, its
-    /// Task will be cancelled automatically.
+    /// > Note: CancellationError is handled gracefully; other errors terminate the transducer.
     ///
-    /// - Note: If the operation throws an error:
-    ///   - If it's a `CancellationError`, the transducer continues normally.
-    ///   - For any other error, it will terminate the transducer and causing
-    ///     the`run` function to rethrow it.
+    /// ## Related Methods
+    /// - ``init(id:operation:)`` - For global actor isolation
+    /// - ``init(isolatedAction:)-84bib`` - For synchronous actions with system actor
+    /// - ``cancelTask(_:)`` - For cancelling operations by ID
     ///
     public init(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
@@ -324,33 +267,24 @@ public struct Effect<T: EffectTransducer> {
     // operation (which may have different isolations) and also between systemActor,
     // EXCEPT where all calls to operation are isolated to `systemActor`.
 
-    /// Creates an effect that executes an asynchronous operation executing within an
-    /// unstructured Task managed by the transducer.
+    /// **Operation Effect - Global Actor Task**
+    /// 
+    /// Creates an operation effect that executes as a managed Task on a specified global actor.
+    /// Events are sent asynchronously via Input and processed with other concurrent events.
     ///
-    /// An operation can send events back to the transducer using the provided `input`
-    /// parameter. Note, that the input parameter may be shared with other components
-    /// which may also send events concurrently. The events will be processed in order,
-    /// as they arrive in the event buffer.
-    ///
-    /// The operation is executed on the provided global actor associated to the closure. Usually, this is
-    /// the global actor where `Env` is isolated to, so that accessing it is safe from within the operation.
+    /// The operation executes on the global actor associated with the closure,
+    /// typically matching the environment's actor isolation for safe access.
     ///
     /// - Parameters:
-    ///   - id: An optional identifier for the effect. If not provided, a system-generated identifier will be
-    ///   used.
-    ///   - operation: An asynchronous closure that performs the actual work. The closure receives
-    ///     - the environment (`Env`) containing any required dependencies and configuration data,
-    ///     - the input (`Input`) for sending events to the transducer
+    ///   - id: Optional identifier for effect cancellation. Auto-generated if nil.
+    ///   - operation: Async closure receiving environment and input parameters.
     ///
-    /// The transducer offers lifecycle management for the Swift Task which executes the operation.
-    /// The given `id`, if not `nil` can be used to explicitly cancel the operation from within the
-    /// transducer's `update` function. When the transducer terminates, and the operation is still
-    /// executing, its Task will be cancelled automatically.
+    /// > Note: CancellationError is handled gracefully; other errors terminate the transducer.
     ///
-    /// - Note: If the operation throws an error:
-    ///   - If it's a `CancellationError`, the transducer continues normally.
-    ///   - For any other error, it will terminate the transducer and causing
-    ///     the`run` function to rethrow it.
+    /// ## Related Methods
+    /// - ``init(id:isolatedOperation:)`` - For system actor isolation
+    /// - ``init(action:)-92cyp`` - For synchronous actions with global actor
+    /// - ``cancelTask(_:)`` - For cancelling operations by ID
     ///
     public init(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
@@ -389,33 +323,27 @@ public struct Effect<T: EffectTransducer> {
 
 extension Effect {
 
-    /// Creates an effect that executes an asynchronous operation after a specified duration.
+    /// **Operation Effect - Delayed System Actor Task**
+    /// 
+    /// Creates an operation effect that executes on the system actor after a specified duration.
+    /// Events are sent asynchronously via Input and processed with other concurrent events.
     ///
-    /// This effect will wait for the specified duration before executing the provided operation.
-    /// If the operation completes successfully, the effect will complete with its result.
-    /// If the operation fails with an error, the effect will propagate that error to the caller,
-    /// causing the transducer's run function to return with this error.
+    /// The operation waits for the specified duration before executing on the "systemActor",
+    /// providing precise timing control with automatic Task lifecycle management.
     ///
     /// - Parameters:
-    ///   - id: An optional unique identifier for this effect. When provided, it can be used for
-    ///     cancellation, or to distinguish between multiple effects of the same type.
-    ///   - operation: The asynchronous operation to execute after the duration has elapsed.
-    ///   - duration: The time interval to wait before executing the operation.
-    ///   - tolerance: An optional tolerance for the duration, which allows the system to adjust
-    ///     the timing of the operation slightly if needed.
-    ///   - clock: The clock to use for measuring the duration. Defaults to `ContinuousClock()`.
+    ///   - id: Optional identifier for effect cancellation. Auto-generated if nil.
+    ///   - operation: Async closure receiving environment, input, and isolated actor reference.
+    ///   - duration: Time interval to wait before executing the operation.
+    ///   - tolerance: Optional timing tolerance for system optimization.
+    ///   - clock: Clock for duration measurement. Defaults to `ContinuousClock()`.
     ///
-    /// This effect will execute the operation on the "systemActor", i.e. the actor
-    /// specified where the function `run` is executing, regardless of any global actor i
-    /// solation on `Env`.
+    /// > Note: CancellationError is handled gracefully; other errors terminate the transducer.
     ///
-    /// - Note: If the operation throws an error:
-    ///   - If it's a `CancellationError`, the transducer continues normally.
-    ///   - For any other error, it will terminate the transducer and causing
-    ///     the`run` function to rethrow it.
-    ///
-    /// - Important: The transducer offers lifecycle management for the Swift Task which
-    /// executes the operation.
+    /// ## Related Methods
+    /// - ``init(id:operation:after:tolerance:clock:)`` - For global actor isolation
+    /// - ``init(id:isolatedOperation:)`` - For immediate operations with system actor
+    /// - ``cancelTask(_:)`` - For cancelling timed operations by ID
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public init<C: Clock>(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
@@ -452,33 +380,27 @@ extension Effect {
         }
     }
 
-    /// Creates an effect that executes an asynchronous operation after a specified duration.
+    /// **Operation Effect - Delayed Global Actor Task**
+    /// 
+    /// Creates an operation effect that executes on a specified global actor after a duration.
+    /// Events are sent asynchronously via Input and processed with other concurrent events.
     ///
-    /// This effect will wait for the specified duration before executing the provided operation.
-    /// If the operation completes successfully, the effect will complete with its result.
-    /// If the operation fails with an error, the effect will propagate that error to the caller,
-    /// causing the transducer's run function to return with this error.
+    /// The operation waits for the specified duration before executing on the global actor
+    /// associated with the closure, enabling safe environment access after timing delays.
     ///
     /// - Parameters:
-    ///   - id: An optional unique identifier for this effect. When provided, it can be used for
-    ///     cancellation, or to distinguish between multiple effects of the same type.
-    ///   - operation: The asynchronous operation to execute after the duration has elapsed.
-    ///   - duration: The time interval to wait before executing the operation.
-    ///   - tolerance: An optional tolerance for the duration, which allows the system to adjust
-    ///     the timing of the operation slightly if needed.
-    ///   - clock: The clock to use for measuring the duration. Defaults to `ContinuousClock()`.
+    ///   - id: Optional identifier for effect cancellation. Auto-generated if nil.
+    ///   - operation: Async closure receiving environment and input parameters.
+    ///   - duration: Time interval to wait before executing the operation.
+    ///   - tolerance: Optional timing tolerance for system optimization.
+    ///   - clock: Clock for duration measurement. Defaults to `ContinuousClock()`.
     ///
-    /// This effect will execute the operation on the global actor associated to the closure.
-    /// This enables to match the global actor where `Env` is isolated to, so that accessing
-    /// it is safe.
+    /// > Note: CancellationError is handled gracefully; other errors terminate the transducer.
     ///
-    /// - Note: If the operation throws an error:
-    ///   - If it's a `CancellationError`, the transducer continues normally.
-    ///   - For any other error, it will terminate the transducer and causing
-    ///     the`run` function to rethrow it.
-    ///
-    /// - Important: The transducer offers lifecycle management for the Swift Task which
-    /// executes the operation.
+    /// ## Related Methods
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` - For system actor isolation
+    /// - ``init(id:operation:)`` - For immediate operations with global actor
+    /// - ``cancelTask(_:)`` - For cancelling timed operations by ID
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public init<C: Clock>(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
@@ -518,13 +440,21 @@ extension Effect {
 
 extension Effect {
 
-    /// Creates an effect which, when invoked, sends an event to the transducer.
+    /// **Action Effect - Immediate Event**
+    /// 
+    /// Creates an action effect that immediately returns the specified event.
+    /// The event is processed synchronously before any Input buffer events.
     ///
-    /// The event will be directly executed and has precedence over any other events
-    /// enqueued in the event buffer.
+    /// Provides the simplest way to send a single event with minimal overhead,
+    /// executing with immediate precedence over buffered events.
     ///
-    /// - Parameter event: The event which will be sent.
-    /// - Returns: An effect.
+    /// - Parameter event: The event to send immediately.
+    /// - Returns: An effect that delivers the event synchronously.
+    ///
+    /// ## Related Methods
+    /// - ``init(action:)-5f3jl`` - For complex action effects with environment access
+    /// - ``init(isolatedAction:)-8vdj6`` - For action effects with system actor isolation
+    /// - ``combine(_:_:)`` - For combining multiple effects including event effects
     public static func event(_ event: sending Event) -> Effect {
         Effect(f: { env, input, context, isolated in
             isolated.assertIsolated()
@@ -633,14 +563,23 @@ extension Effect {
 
 extension Effect {
 
-    /// Combines multiple effects into a single effect that executes them sequentially.
-    /// - Parameters:
-    ///   - effect1: The first effect to combine.
-    ///   - effect2: The second effect to combine.
+    /// **Effect Combination - Sequential Execution**
+    /// 
+    /// Combines two effects into a single effect that executes them sequentially.
+    /// Events from both effects are collected and returned together.
     ///
-    /// This method allows you to combine multiple effects into a single effect that executes them in order.
-    /// Each effect will be executed one after the other, and if any effect throws an error,
-    /// the combined effect will also throw that error, terminating the transducer.
+    /// Effects execute in order with their events combined into a single result.
+    /// If any effect throws an error, the combined effect terminates immediately.
+    ///
+    /// - Parameters:
+    ///   - effect1: The first effect to execute.
+    ///   - effect2: The second effect to execute.
+    /// - Returns: A combined effect that executes both sequentially.
+    ///
+    /// ## Related Methods
+    /// - ``combine(_:_:_:)`` - For combining three effects
+    /// - ``combine(_:_:_:_:)`` - For combining four effects
+    /// - ``combine(_:_:_:_:_:)`` - For combining five effects
     public static func combine(
         _ effect1: consuming sending Self,
         _ effect2: consuming sending Self,
@@ -654,15 +593,24 @@ extension Effect {
         })
     }
 
-    /// Combines multiple effects into a single effect that executes them sequentially.
-    /// - Parameters:
-    ///   - effect1: The first effect to combine.
-    ///   - effect2: The second effect to combine.
-    ///   - effect3: The third effect to combine.
+    /// **Effect Combination - Sequential Execution**
+    /// 
+    /// Combines three effects into a single effect that executes them sequentially.
+    /// Events from all effects are collected and returned together.
     ///
-    /// This method allows you to combine multiple effects into a single effect that executes them in order.
-    /// Each effect will be executed one after the other, and if any effect throws an error,
-    /// the combined effect will also throw that error, terminating the transducer.
+    /// Effects execute in order with their events combined into a single result.
+    /// If any effect throws an error, the combined effect terminates immediately.
+    ///
+    /// - Parameters:
+    ///   - effect1: The first effect to execute.
+    ///   - effect2: The second effect to execute.
+    ///   - effect3: The third effect to execute.
+    /// - Returns: A combined effect that executes all three sequentially.
+    ///
+    /// ## Related Methods
+    /// - ``combine(_:_:)`` - For combining two effects
+    /// - ``combine(_:_:_:_:)`` - For combining four effects
+    /// - ``combine(_:_:_:_:_:)`` - For combining five effects
     public static func combine(
         _ effect1: consuming sending Self,
         _ effect2: consuming sending Self,
@@ -679,16 +627,25 @@ extension Effect {
         })
     }
 
-    /// Combines multiple effects into a single effect that executes them sequentially.
-    /// - Parameters:
-    ///   - effect1: The first effect to combine.
-    ///   - effect2: The second effect to combine.
-    ///   - effect3: The third effect to combine.
-    ///   - effect4: The fourth effect to combine.
+    /// **Effect Combination - Sequential Execution**
+    /// 
+    /// Combines four effects into a single effect that executes them sequentially.
+    /// Events from all effects are collected and returned together.
     ///
-    /// This method allows you to combine multiple effects into a single effect that executes them in order.
-    /// Each effect will be executed one after the other, and if any effect throws an error,
-    /// the combined effect will also throw that error, terminating the transducer.
+    /// Effects execute in order with their events combined into a single result.
+    /// If any effect throws an error, the combined effect terminates immediately.
+    ///
+    /// - Parameters:
+    ///   - effect1: The first effect to execute.
+    ///   - effect2: The second effect to execute.
+    ///   - effect3: The third effect to execute.
+    ///   - effect4: The fourth effect to execute.
+    /// - Returns: A combined effect that executes all four sequentially.
+    ///
+    /// ## Related Methods
+    /// - ``combine(_:_:)`` - For combining two effects
+    /// - ``combine(_:_:_:)`` - For combining three effects
+    /// - ``combine(_:_:_:_:_:)`` - For combining five effects
     public static func combine(
         _ effect1: consuming sending Self,
         _ effect2: consuming sending Self,
@@ -708,17 +665,26 @@ extension Effect {
         })
     }
 
-    /// Combines multiple effects into a single effect that executes them sequentially.
-    /// - Parameters:
-    ///   - effect1: The first effect to combine.
-    ///   - effect2: The second effect to combine.
-    ///   - effect3: The third effect to combine.
-    ///   - effect4: The fourth effect to combine.
-    ///   - effect5: The fifth effect to combine.
+    /// **Effect Combination - Sequential Execution**
+    /// 
+    /// Combines five effects into a single effect that executes them sequentially.
+    /// Events from all effects are collected and returned together.
     ///
-    /// This method allows you to combine multiple effects into a single effect that executes them in order.
-    /// Each effect will be executed one after the other, and if any effect throws an error,
-    /// the combined effect will also throw that error, terminating the transducer.
+    /// Effects execute in order with their events combined into a single result.
+    /// If any effect throws an error, the combined effect terminates immediately.
+    ///
+    /// - Parameters:
+    ///   - effect1: The first effect to execute.
+    ///   - effect2: The second effect to execute.
+    ///   - effect3: The third effect to execute.
+    ///   - effect4: The fourth effect to execute.
+    ///   - effect5: The fifth effect to execute.
+    /// - Returns: A combined effect that executes all five sequentially.
+    ///
+    /// ## Related Methods
+    /// - ``combine(_:_:)`` - For combining two effects
+    /// - ``combine(_:_:_:)`` - For combining three effects
+    /// - ``combine(_:_:_:_:)`` - For combining four effects
     public static func combine(
         _ effect1: consuming sending Self,
         _ effect2: consuming sending Self,
@@ -756,13 +722,21 @@ extension Effect {
 
 extension Effect {
 
-    /// Cancels the task with the specified identifier.
+    /// **Task Cancellation - Operation Management**
+    /// 
+    /// Creates an effect that cancels a previously created operation by its identifier.
+    /// Use in the `update` function to explicitly terminate running operations.
+    ///
+    /// Enables fine-grained control over operation lifecycles by targeting specific
+    /// tasks for immediate cancellation without affecting other concurrent operations.
     ///
     /// - Parameter id: The identifier of the task to cancel.
-    /// - Returns: An effect that cancels the task.
+    /// - Returns: An effect that cancels the specified task.
     ///
-    /// Create this effect and return it in the `update` function
-    /// to cancel a previously created effect.
+    /// ## Related Methods
+    /// - ``init(id:operation:)`` - For creating cancellable operations with global actor
+    /// - ``init(id:isolatedOperation:)`` - For creating cancellable operations with system actor
+    /// - ``init(id:operation:after:tolerance:clock:)`` - For creating cancellable timed operations
     ///
     public static func cancelTask(_ id: some Hashable & Sendable) -> Effect {
         return Effect(f: { env, input, context, isolated in

@@ -1,79 +1,43 @@
-/// A type that describes the behavior and its constituting parts of a
-/// Finite State Machine (FSM).
+/// **EffectTransducer - Finite State Machine with Side Effects**
 ///
-/// A Finite State Machine (FSM) is a computational model that can be in one
-/// of a finite number of states at any given time. It can transition between
-/// these states based on input events, and it can produce output based on
-/// its current state and the input events it receives.
+/// Extends pure state machines with controlled asynchronous side effects.
+/// Maintains mathematical rigor while enabling real-world system integration.
 ///
-/// A FSM is also called a finite state transducer (FST) or simply a transducer,
-/// when it produces output based on the input events and its current state.
+/// EffectTransducers separate pure state logic from side effects, ensuring
+/// deterministic behavior while enabling I/O, networking, timers, and other
+/// async operations. Effects execute concurrently with state processing,
+/// sending results back as events for continued state machine control.
 ///
-/// A FSM is a tuple of the form:
-/// $(States, Inputs, Initial State, Transition Function, Output Function)$
-/// - `States`: A finite set of states that the FSM can be in.
-/// - `Inputs`: A finite set of input events that the FSM can receive.
-/// - `Initial State`: The state in which the FSM starts.
-/// - `Transition Function`: A function that takes the current state and an input
-///   event and returns the next state.
-/// - `Output Function`: A function that takes the current state and an input event
-///   and returns an output value.
+/// ## Architecture Benefits
+/// - **Pure State Logic**: State transitions remain deterministic and testable
+/// - **Controlled Side Effects**: Async operations managed by transducer lifecycle
+/// - **Effect Cancellation**: Automatic cleanup when states become terminal
+/// - **Event-Driven Results**: Effects send outcomes back as regular events
 ///
-/// The protocol `EffectTransducer` defines the interface for a finite state
-/// machine (FSM) that can process events and produce output based on its current
-/// state and the input events it receives.
+/// ## Effect Types
+/// - **Action Effects**: Immediate, synchronous execution with state guarantees
+/// - **Operation Effects**: Async Tasks with cancellation and error handling
 ///
-/// In addition to the FSM's behavior, the protocol also allows for the definition
-/// of side effects that can occur during the processing of events. A side effect
-/// is an operation that has an observable interaction with the outside world.
-/// Effects are created within the FSM's update function and returned as part of
-/// the transducer's output.
+/// ## Quick Example
+/// ```swift
+/// enum NetworkTransducer: EffectTransducer {
+///     enum State { case idle, loading, loaded(Data), error(Error) }
+///     enum Event { case load, dataReceived(Data), failed(Error) }
+///     
+///     static func update(_ state: inout State, event: Event) -> Effect? {
+///         switch (state, event) {
+///         case (.idle, .load):
+///             state = .loading
+///             return networkEffect()
+///         case (.loading, .dataReceived(let data)):
+///             state = .loaded(data)
+///             return nil
+///         }
+///     }
+/// }
+/// ```
 ///
-/// Effects are a powerful way to call asynchronous operations, such as network
-/// requests or database updates. The effects can send events back into the transducer
-/// using the provided `Input` interface of the transducer proxy. This allows for
-/// a seamless integration of asynchronous operations into the FSM's processing
-/// logic, enabling the FSM to react to the results of these operations.
-///
-/// The transducer manages these effects by providing a way to define and handle
-/// them within the FSM's processing logic. This also includes the ability to
-/// cancel the effects by referencing the effect with a unique ID and sending a
-/// cancellation event from within the update function. Effects can also spawn new
-/// transducers expanding the FSM's capabilities. The life-cycle of effects is
-/// managed by the transducer itself, which keeps track of all active effects.
-/// When a transducer reaches a terminal state, any effect returned by the 
-/// transition that caused the terminal state will still execute (allowing for 
-/// cleanup, logging, or other side effects), but no further events will be 
-/// processed. All other active effects are automatically cancelled, ensuring 
-/// that the FSM processing stops while still allowing final effects to complete.
-///
-/// The terminology of the protocol `Transducer` uses the name `Event` instead of
-/// "Input" to better reflect the nature of the input of the FSM in a software
-/// implementation, which are in fact _events_ that happen in the system and that
-/// the FSM can process.
-///
-/// The protocol `Transducer` does not require a separate transition and output
-/// function, but instead combines these two functions into a single function
-/// called `update`. This function takes the current state and an input event
-/// and returns the output value produced by the FSM. The state is updated in
-/// place.
-///
-/// Due to this design, the specific implementation of a FSM allows for socalled
-/// Moore or Mealy machines, where the output can be produced based on the current
-/// state (Moore) or the current state and the input event (Mealy), respectively.
-///
-/// Note that a conforming type describes the behavior of a transducer, but does not
-/// implement the state machine itself. The actual state machine is created by
-/// executing the `run` function, which takes an initial state and a transducer proxy.
-///
-/// The asynchronous throwing `run` function also represents the life-cycle of the
-/// transducer. It returns when the transducer reaches a terminal state or when an
-/// error occurs.
-///
-/// Note also, that this design requires no objects or classes to be created
-/// to represent the transducer. The transducer is a pure function that can be
-/// executed in an asynchronous context, and it can be used to process events and
-/// produce output.
+/// > See `Oak Transducers.md` for effect patterns and architectural guidance.
 public protocol EffectTransducer: BaseTransducer where Effect == Oak.Effect<Self> {
     
     /// The _Output_ of the FSM, which may include an optional
@@ -84,21 +48,37 @@ public protocol EffectTransducer: BaseTransducer where Effect == Oak.Effect<Self
     
     associatedtype Output = Void
     
-    /// The type of the environment in which the transducer operates and which
-    /// provides the necessary context for executing effects.
+    /// **Environment Type** - Dependency injection for effects.
+    /// Provides context and services needed for side effect execution.
     associatedtype Env = Void
 
-    /// A pure function that combines the _transition_ and the _output_ function
-    /// of the finite state machine (FSM) into a single function.
+    /// **Pure State Transition with Effect Generation**
+    ///
+    /// The mathematical core enhanced with controlled side effect creation.
+    /// Maintains deterministic state logic while enabling async operations.
+    ///
+    /// Returns effects for async work (networking, timers, I/O) while keeping
+    /// state transitions pure and testable. Effects execute concurrently and
+    /// send results back as events, maintaining the event-driven architecture.
     ///
     /// - Parameters:
-    ///   - state: The current state of the FSM, which may be mutated to reflect the transition.
-    ///   - event: The event to process.
-    /// - Returns: A value of type `Output`
+    ///   - state: Current machine state (mutated for deterministic transitions)
+    ///   - event: Triggering event from external sources or effect completions
+    /// - Returns: `Effect?` (no output) or `(Effect?, Output)` (with output)
     ///
-    /// > Note: The return type`TransducerOutput` can be either a `Effect?` or a
-    /// tuple `(Effect?, Output)`. The output value will be sent to the output subject
-    /// which is given as a parameter in the `run` function.
+    /// ## Effect Integration Pattern
+    /// ```swift
+    /// static func update(_ state: inout State, event: Event) -> Effect? {
+    ///     switch (state, event) {
+    ///     case (.idle, .startLoad):
+    ///         state = .loading
+    ///         return networkEffect() // Async operation
+    ///     case (.loading, .dataReceived(let data)):
+    ///         state = .loaded(data)
+    ///         return nil // Pure state transition
+    ///     }
+    /// }
+    /// ```
     static func update(_ state: inout State, event: Event) -> TransducerOutput
 }
 
