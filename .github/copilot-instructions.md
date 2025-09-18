@@ -1,6 +1,8 @@
 # Oak Framework - AI Coding Assistant Instructions
 
-> Repository policy: For high-level, tool-agnostic guidance shared across assistants, see `AI_GUIDELINES.md`. Treat that file as the canonical repo policy; this document provides Oak-specific patterns and examples.
+This document provides Oak-specific patterns and examples.
+
+> Repository policy: For high-level, tool-agnostic guidance shared across assistants, see `AI_GUIDELINES.md`. Treat that file as the canonical repo policy; Also refer to [BasicSystemPrompt](BasicSystemPrompt.md) for platform rules, quality and best practices.
 
 ## Purpose & Scope (For Agents)
 - Optimize for concise, correct changes; avoid large refactors unless requested.
