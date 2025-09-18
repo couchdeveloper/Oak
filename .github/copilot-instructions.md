@@ -1,5 +1,26 @@
 # Oak Framework - AI Coding Assistant Instructions
 
+> Repository policy: For high-level, tool-agnostic guidance shared across assistants, see `AI_GUIDELINES.md`. Treat that file as the canonical repo policy; this document provides Oak-specific patterns and examples.
+
+## Purpose & Scope (For Agents)
+- Optimize for concise, correct changes; avoid large refactors unless requested.
+- Follow Oak’s FSM model: pure `update`, effects in `Effect`, Swift concurrency.
+- Respect terminal states and `Sendable` boundaries; do not add global state.
+- Keep edits surgical and in-repo; don’t invent APIs or move files unnecessarily.
+
+## Quick Rules For Agents
+- Safety: No side effects in `update`. Effects may send events; action effects process synchronously.
+- Concurrency: Honor isolation; use `@Sendable` where values cross boundaries.
+- State: Prefer enums; implement `isTerminal` precisely. Don’t ignore terminal transitions.
+- Testing: Use existing XCTest targets. Avoid real timers/networking in tests.
+- Docs: Update docs when changing effect/terminal behavior. Link to `AI_GUIDELINES.md`.
+
+## Workflows At A Glance
+- Run tests: `swift test` (targets: `OakTests`, `OakBenchmarks`).
+- Format: `./Scripts/formatCode.sh`.
+- Docs: `./Scripts/previewDocs.sh` or `./Scripts/generateDocs.sh`.
+- SwiftUI usage: Prefer `TransducerView` or `ObservableTransducer` over `ObservableObject`.
+
 ## Project Overview
 
 Oak is a Swift finite state machine (FSM) library built on structured concurrency, designed for type-safe, reactive application architecture with SwiftUI integration. It emphasizes pure functional state transitions separated from side effects.
