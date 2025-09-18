@@ -280,7 +280,7 @@ Parent transducers coordinate child transducers through output->input connection
 ```swift
 // Parent receives child output, forwards as events
 let childCallback = Callback<Child.Output> { output in
-    try? parentInput.send(.childResult(output))
+    try parentInput.send(.childResult(output))
 }
 ```
 
