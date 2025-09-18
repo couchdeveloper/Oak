@@ -152,7 +152,10 @@ extension Transducer {
         var ignoreCount = 0
         for try await transducerEvent in proxy.stream {
             logger.warning(
-                "Transducer '\(Self.self)': ignoring event \(ignoreCount): \(String(describing: transducerEvent))"
+                """
+                Transducer '\(Self.self)': ignoring event \(ignoreCount): \
+                \(String(describing: transducerEvent))
+                """
             )
             ignoreCount += 1
         }
@@ -211,10 +214,12 @@ extension Transducer {
     // ///   becomes terminal.
     // ///
     // /// - Throws:
-    // ///   - `TransducerError.noOutputProduced`: If no output is produced before reaching the terminal state.
-    // ///   - Other errors: If the transducer cannot execute its transition and output function as expected,
-    // ///     for example, when events could not be enqueued because of a full event buffer,
-    // ///     when the func `terminate()` is called on the proxy, or when the output value cannot be sent.
+    // ///   - `TransducerError.noOutputProduced`: If no output is produced before
+    // ///     reaching the terminal state.
+    // ///   - Other errors: If the transducer cannot execute its transition and
+    // ///     output function as expected, for example, when events could not be
+    // ///     enqueued because of a full event buffer, when the func `terminate()`
+    // ///     is called on the proxy, or when the output value cannot be sent.
     // ///
     // @discardableResult
     // public static func run(
@@ -258,10 +263,12 @@ extension Transducer {
     // ///   becomes terminal.
     // ///
     // /// - Throws:
-    // ///   - `TransducerError.noOutputProduced`: If no output is produced before reaching the terminal state.
-    // ///   - Other errors: If the transducer cannot execute its transition and output function as expected,
-    // ///     for example, when events could not be enqueued because of a full event buffer,
-    // ///     when the func `terminate()` is called on the proxy, or when the output value cannot be sent.
+    // ///   - `TransducerError.noOutputProduced`: If no output is produced before
+    // ///     reaching the terminal state.
+    // ///   - Other errors: If the transducer cannot execute its transition and
+    // ///     output function as expected, for example, when events could not be
+    // ///     enqueued because of a full event buffer, when the func `terminate()`
+    // ///     is called on the proxy, or when the output value cannot be sent.
     // ///
     // @discardableResult
     // public static func run(
@@ -325,12 +332,12 @@ extension Transducer {
         )
     }
 
-    /// Creates a transducer with an observable state whose update function has the signature
-    /// `(inout State, Event) -> Output`.
+    /// Creates a transducer with an observable state whose update function has the
+    /// signature `(inout State, Event) -> Output`.
     ///
-    /// The update function is isolated by the given Actor, that
-    /// can be exlicitly specified, or it will be inferred from the caller. If it's not specified, and the
-    /// caller is not isolated, the compilation will fail.
+    /// The update function is isolated by the given Actor, that can be explicitly
+    /// specified, or it will be inferred from the caller. If it's not specified,
+    /// and the caller is not isolated, the compilation will fail.
     ///
     /// - Parameters:
     ///   - isolated: The actor where the `update` function will run on and where the state
@@ -341,10 +348,12 @@ extension Transducer {
     ///   transducers, its type is always `Void`. This parameter exists for consistency
     ///   with `EffectTransducer` and to support composition patterns.
     /// - Returns: The output, that has been generated when the transducer reaches a terminal state.
-    /// - Warning: The backing store for the state variable must not be mutated by the caller or must not be used with any other transducer.
-    /// - Throws: Throws an error indicating the reason, for example, when the Swift Task, where the
-    /// transducer is running on, has been cancelled, or when it has been forcibly terminated, and thus could
-    /// not reach a terminal state.
+    /// - Warning: The backing store for the state variable must not be mutated by
+    ///   the caller or must not be used with any other transducer.
+    /// - Throws: Throws an error indicating the reason, for example, when the
+    ///   Swift Task, where the transducer is running on, has been cancelled, or
+    ///   when it has been forcibly terminated, and thus could not reach a
+    ///   terminal state.
     @discardableResult
     public static func run<Host>(
         state: ReferenceWritableKeyPath<Host, State>,
@@ -389,10 +398,12 @@ extension Transducer {
     ///   run function.
     ///
     /// - Throws:
-    ///   - `TransducerError.noOutputProduced`: If no output is produced before reaching the terminal state.
-    ///   - Other errors: If the transducer cannot execute its transition and output function as expected,
-    ///     for example, when events could not be enqueued because of a full event buffer,
-    ///     when the func `terminate()` is called on the proxy, or when the output value cannot be sent.
+    ///   - `TransducerError.noOutputProduced`: If no output is produced before
+    ///     reaching the terminal state.
+    ///   - Other errors: If the transducer cannot execute its transition and
+    ///     output function as expected, for example, when events could not be
+    ///     enqueued because of a full event buffer, when the func `terminate()`
+    ///     is called on the proxy, or when the output value cannot be sent.
     ///
     public static func run(
         storage: some Storage<State>,

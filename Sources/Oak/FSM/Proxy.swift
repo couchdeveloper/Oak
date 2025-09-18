@@ -1,13 +1,15 @@
 import struct Foundation.UUID
 
-/// Asynchronous event channel for mediating communication between a transducer and its environment.
+/// Asynchronous event channel for mediating communication between a transducer
+/// and its environment.
 ///
-/// Provides event sending capabilities and transducer termination control. Must be associated
-/// with a transducer by passing it to the transducer's `run` function. Events are buffered
-/// internally and processed sequentially by the transducer runtime.
+/// Provides event sending capabilities and transducer termination control. Must
+/// be associated with a transducer by passing it to the transducer's `run`
+/// function. Events are buffered internally and processed sequentially by the
+/// transducer runtime.
 ///
-/// Automatically terminates the associated transducer when deinitialized to ensure proper
-/// resource cleanup.
+/// Automatically terminates the associated transducer when deinitialized to
+/// ensure proper resource cleanup.
 ///
 /// - Parameter Event: The type of event transmitted through the proxy.
 ///
@@ -30,8 +32,9 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
     ///
     /// > Warning: Framework-only API. Do not access directly from user code.
     ///
-    /// Events are buffered internally and processed in FIFO order. Stream terminates
-    /// gracefully on `finish()` or with error on `cancel(with:)` or proxy deinitialization.
+    /// Events are buffered internally and processed in FIFO order. Stream
+    /// terminates gracefully on `finish()` or with error on `cancel(with:)` or
+    /// proxy deinitialization.
     ///
     /// - Type: `AsyncThrowingStream<Event, Swift.Error>`
     public let stream: Stream
@@ -45,9 +48,9 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
 
     /// Lightweight interface for sending events to the transducer.
     ///
-    /// Designed for use within effects and asynchronous contexts. Conforms to `Sendable`
-    /// for safe use across isolation boundaries. Can be created directly from the proxy
-    /// or provided by the transducer to effects.
+    /// Designed for use within effects and asynchronous contexts. Conforms to
+    /// `Sendable` for safe use across isolation boundaries. Can be created
+    /// directly from the proxy or provided by the transducer to effects.
     public struct Input: BufferedTransducerInput {
 
         internal init(continuation: Continuation) {
@@ -58,8 +61,8 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
 
         /// Sends an event to the transducer.
         ///
-        /// Safe for use across isolation boundaries due to `Sendable` conformance.
-        /// Can be called from effects or external contexts.
+        /// Safe for use across isolation boundaries due to `Sendable`
+        /// conformance. Can be called from effects or external contexts.
         ///
         /// - Parameter event: The event to send.
         /// - Throws: Error if proxy is terminated or buffer is full.
@@ -70,8 +73,9 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
 
     /// Creates a proxy with specified buffer size and optional initial event.
     ///
-    /// Buffer size determines how many events can be queued before dropping oldest events.
-    /// When buffer is full, new events cause errors that terminate the transducer.
+    /// Buffer size determines how many events can be queued before dropping
+    /// oldest events. When buffer is full, new events cause errors that
+    /// terminate the transducer.
     ///
     /// - Parameter bufferSize: Maximum buffered events (default: 8).
     /// - Parameter initialEvent: Optional event to enqueue immediately.
@@ -93,8 +97,8 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
 
     /// Creates a proxy with default settings.
     ///
-    /// Uses buffer size of 8 events with no initial event. Convenient for use with
-    /// `TransducerView` where the proxy parameter is optional.
+    /// Uses buffer size of 8 events with no initial event. Convenient for use
+    /// with `TransducerView` where the proxy parameter is optional.
     public init() {
         self.init(bufferSize: 8, initialEvent: nil)
     }
@@ -112,18 +116,21 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
 
     /// Creates an `Input` instance for sending events to the transducer.
     ///
-    /// Returns a lightweight, `Sendable` handle that can be passed between components
-    /// for event sending without exposing the full proxy API.
+    /// Returns a lightweight, `Sendable` handle that can be passed between
+    /// components for event sending without exposing the full proxy API.
     public var input: Input {
         .init(continuation: self.continuation)
     }
 
-    /// Terminates the proxy ungracefully, causing the transducer to throw an error.
+    /// Terminates the proxy ungracefully, causing the transducer to throw an
+    /// error.
     ///
-    /// Should only be used when graceful termination via terminal states is not possible.
-    /// The transducer may still process events sent before termination. Idempotent operation.
+    /// Should only be used when graceful termination via terminal states is not
+    /// possible. The transducer may still process events sent before
+    /// termination. Idempotent operation.
     ///
-    /// - Parameter error: Error to throw from transducer's `run` function (default: `TransducerError.cancelled`).
+    /// - Parameter error: Error to throw from transducer's `run` function
+    ///   (default: `TransducerError.cancelled`).
     public func cancel(with error: Swift.Error? = nil) {
         continuation.finish(throwing: error ?? TransducerError.cancelled)
     }
@@ -143,7 +150,9 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
         case .dropped(let event):
             throw Error.droppedEvent("Input dropped event: \(event) because event buffer is full")
         case .terminated:
-            // TODO: we would like to have `event` here, but the case does not provide it. We can not use the parameter `event` since it is sending.
+            // TODO: we would like to have `event` here, but the case does not
+            // provide it. We can not use the parameter `event` since it is
+            // sending.
             throw Error.sendFailed("Input could not enqueue event because it is terminated")
         @unknown default:
             break
@@ -173,10 +182,11 @@ extension Proxy: TransducerProxyInternal {
     }
 
     /// Validates proxy is not already in use by another transducer.
-    /// 
+    ///
     /// > Warning: Framework-only method. Do not call directly from user code.
-    /// 
-    /// - Throws: `TransducerError.proxyAlreadyInUse` if proxy is already associated with a running transducer.
+    ///
+    /// - Throws: `TransducerError.proxyAlreadyInUse` if proxy is already
+    ///   associated with a running transducer.
     public func checkInUse() throws(TransducerError) {
         // Note: this implementation cannot guarantee,
         // that a proxy can be attempted to be reused

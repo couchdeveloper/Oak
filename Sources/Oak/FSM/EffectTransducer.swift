@@ -10,7 +10,8 @@
 ///
 /// ## Architecture Benefits
 /// - **Pure State Logic**: State transitions remain deterministic and testable
-/// - **Controlled Side Effects**: Async operations managed by transducer lifecycle
+/// - **Controlled Side Effects**: Async operations managed by transducer
+///   lifecycle
 /// - **Effect Cancellation**: Automatic cleanup when states become terminal
 /// - **Event-Driven Results**: Effects send outcomes back as regular events
 ///
@@ -23,7 +24,7 @@
 /// enum NetworkTransducer: EffectTransducer {
 ///     enum State { case idle, loading, loaded(Data), error(Error) }
 ///     enum Event { case load, dataReceived(Data), failed(Error) }
-///     
+///
 ///     static func update(_ state: inout State, event: Event) -> Effect? {
 ///         switch (state, event) {
 ///         case (.idle, .load):

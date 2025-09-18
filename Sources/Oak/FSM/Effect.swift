@@ -6,16 +6,19 @@
 /// Oak provides two fundamental effect types with distinct execution models:
 ///
 /// ## Action Effects - Structured Concurrency
-/// Execute synchronously during the computation cycle with immediate event processing.
-/// Events are processed before any Input buffer events, with state guarantees maintained.
+/// Execute synchronously during the computation cycle with immediate event
+/// processing. Events are processed before any Input buffer events, with state
+/// guarantees maintained.
 ///
-/// **Choose when:** Need immediate processing, state consistency is critical, or work is CPU-bound and fast.
+/// **Choose when:** Need immediate processing, state consistency is critical, or
+/// work is CPU-bound and fast.
 ///
-/// ## Operation Effects - Unstructured Tasks  
+/// ## Operation Effects - Unstructured Tasks
 /// Execute as managed Tasks concurrently with the transducer.
 /// Events are sent asynchronously via Input and support cancellation.
 ///
-/// **Choose when:** Need async work, I/O operations, cancellation support, or long-running tasks.
+/// **Choose when:** Need async work, I/O operations, cancellation support, or
+/// long-running tasks.
 ///
 /// ## Quick Decision Guide
 /// - **Immediate processing + state guarantees** → Action Effects
@@ -45,12 +48,14 @@ public struct Effect<T: EffectTransducer> {
     private let f: (Env, Input, Context, isolated any Actor) async throws -> [Event]
 
     /// **Internal Effect Constructor**
-    /// 
-    /// Low-level initializer for creating custom effects. Used internally by public initializers.
-    /// External users should prefer the specific `action` or `operation` initializers.
     ///
-    /// - Parameter f: Async function that implements the effect behavior and returns events.
-    /// 
+    /// Low-level initializer for creating custom effects. Used internally by
+    /// public initializers. External users should prefer the specific `action` or
+    /// `operation` initializers.
+    ///
+    /// - Parameter f: Async function that implements the effect behavior and
+    ///   returns events.
+    ///
     /// > Tip: For best performance, avoid capturing values in the closure.
     internal init(
         f: @escaping (Env, Input, Context, isolated any Actor) async throws -> [Event],
@@ -68,17 +73,21 @@ public struct Effect<T: EffectTransducer> {
     }
 
     /// **Action Effect - Global Actor Execution**
-    /// 
-    /// Creates an action effect that executes on a specified global actor and returns multiple events.
-    /// Events are processed synchronously before any Input buffer events.
     ///
-    /// The action executes during the computation cycle with the caller-specified global actor isolation.
-    /// This enables safe access to environment values isolated to the same global actor.
+    /// Creates an action effect that executes on a specified global actor and
+    /// returns multiple events. Events are processed synchronously before any
+    /// Input buffer events.
     ///
-    /// - Parameter action: Async closure that returns events for immediate processing.
-    /// 
+    /// The action executes during the computation cycle with the caller-specified
+    /// global actor isolation. This enables safe access to environment values
+    /// isolated to the same global actor.
+    ///
+    /// - Parameter action: Async closure that returns events for immediate
+    ///   processing.
+    ///
     /// > Tip: For best performance, avoid capturing values in the closure.
-    /// > Caution: Events process synchronously; terminal states halt further processing.
+    /// > Caution: Events process synchronously; terminal states halt further
+    ///   processing.
     ///
     /// ## Related Methods
     /// - ``init(isolatedAction:)`` - For system actor isolation
@@ -103,17 +112,21 @@ public struct Effect<T: EffectTransducer> {
     }
 
     /// **Action Effect - Global Actor Execution**
-    /// 
-    /// Creates an action effect that executes on a specified global actor and returns a single event.
-    /// The event is processed synchronously before any Input buffer events.
     ///
-    /// The action executes during the computation cycle with the caller-specified global actor isolation.
-    /// This enables safe access to environment values isolated to the same global actor.
+    /// Creates an action effect that executes on a specified global actor and
+    /// returns a single event. The event is processed synchronously before any
+    /// Input buffer events.
     ///
-    /// - Parameter action: Async closure that returns a single event for immediate processing.
-    /// 
+    /// The action executes during the computation cycle with the caller-specified
+    /// global actor isolation. This enables safe access to environment values
+    /// isolated to the same global actor.
+    ///
+    /// - Parameter action: Async closure that returns a single event for immediate
+    ///   processing.
+    ///
     /// > Tip: For best performance, avoid capturing values in the closure.
-    /// > Caution: Events process synchronously; terminal states halt further processing.
+    /// > Caution: Events process synchronously; terminal states halt further
+    ///   processing.
     ///
     /// ## Related Methods
     /// - ``init(isolatedAction:)`` - For system actor isolation
@@ -139,15 +152,17 @@ public struct Effect<T: EffectTransducer> {
     }
 
     /// **Action Effect - System Actor Execution**
-    /// 
-    /// Creates an action effect that executes on the system actor and returns multiple events.
-    /// Events are processed synchronously before any Input buffer events.
+    ///
+    /// Creates an action effect that executes on the system actor and returns
+    /// multiple events. Events are processed synchronously before any Input
+    /// buffer events.
     ///
     /// The action executes on the "systemActor" where the `run` function executes,
     /// regardless of any global actor isolation on `Env`.
     ///
-    /// - Parameter action: Async closure receiving environment, and isolated actor reference.
-    /// 
+    /// - Parameter action: Async closure receiving environment, and isolated actor
+    ///   reference.
+    ///
     /// > Tip: For best performance, avoid capturing values in the closure.
     ///
     /// ## Related Methods
@@ -166,15 +181,17 @@ public struct Effect<T: EffectTransducer> {
     }
 
     /// **Action Effect - System Actor Execution**
-    /// 
-    /// Creates an action effect that executes on the system actor and returns a single event.
-    /// The event is processed synchronously before any Input buffer events.
+    ///
+    /// Creates an action effect that executes on the system actor and returns a
+    /// single event. The event is processed synchronously before any Input buffer
+    /// events.
     ///
     /// The action executes on the "systemActor" where the `run` function executes,
     /// regardless of any global actor isolation on `Env`.
     ///
-    /// - Parameter action: Async closure receiving environment and isolated actor reference.
-    /// 
+    /// - Parameter action: Async closure receiving environment and isolated actor
+    ///   reference.
+    ///
     /// > Tip: For best performance, avoid capturing values in the closure.
     ///
     /// ## Related Methods
@@ -194,22 +211,27 @@ public struct Effect<T: EffectTransducer> {
     }
 
     /// **Operation Effect - System Actor Task**
-    /// 
-    /// Creates an operation effect that executes as a managed Task on the system actor.
-    /// Events are sent asynchronously via Input and processed with other concurrent events.
     ///
-    /// The operation executes on the "systemActor" where the `run` function executes,
-    /// enabling safe Task management regardless of environment actor isolation.
+    /// Creates an operation effect that executes as a managed Task on the system
+    /// actor. Events are sent asynchronously via Input and processed with other
+    /// concurrent events.
+    ///
+    /// The operation executes on the "systemActor" where the `run` function
+    /// executes, enabling safe Task management regardless of environment actor
+    /// isolation.
     ///
     /// - Parameters:
     ///   - id: Optional identifier for effect cancellation. Auto-generated if nil.
-    ///   - operation: Async closure receiving environment, input, and isolated actor reference.
+    ///   - operation: Async closure receiving environment, input, and isolated
+    ///     actor reference.
     ///
-    /// > Note: CancellationError is handled gracefully; other errors terminate the transducer.
+    /// > Note: CancellationError is handled gracefully; other errors terminate
+    ///   the transducer.
     ///
     /// ## Related Methods
     /// - ``init(id:operation:)`` - For global actor isolation
-    /// - ``init(isolatedAction:)-84bib`` - For synchronous actions with system actor
+    /// - ``init(isolatedAction:)-84bib`` - For synchronous actions with system
+    ///   actor
     /// - ``cancelTask(_:)`` - For cancelling operations by ID
     ///
     public init(

@@ -3,13 +3,13 @@
 /// Defines transducer type contracts without implementation requirements.
 /// Enables architectural flexibility through composition and delegation patterns.
 ///
-/// BaseTransducer serves as a type container for building sophisticated state machine 
+/// BaseTransducer serves as a type container for building sophisticated state machine
 /// hierarchies. Unlike concrete transducers, it focuses on type composition rather
 /// than state mutation, making it ideal for coordinator and composite patterns.
 ///
 /// ## Key Design Benefits
 /// - **Compositional Architecture**: Build complex systems from simpler parts
-/// - **Hierarchical State Machines**: Parent coordinators with leaf state machines  
+/// - **Hierarchical State Machines**: Parent coordinators with leaf state machines
 /// - **Type Safety**: Enforce contracts without forcing implementation details
 /// - **Delegation Patterns**: Route behavior to appropriate concrete transducers
 ///
@@ -64,7 +64,8 @@ public protocol BaseTransducer<Event> {
     /// The type of the environment in which the transducer operates.
     ///
     /// The environment provides the necessary context for executing the transducer.
-    /// This allows the transducer to interact with the outside world in a controlled way.
+    /// This allows the transducer to interact with the outside world in a
+    /// controlled way.
     ///
     /// > Note:  For non-effect transducers, its type is always `Void`.
     associatedtype Env
@@ -108,14 +109,15 @@ public protocol BaseTransducer<Event> {
     /// The function `run(storage:proxy:env:output:systemActor:)` returns
     /// when the transducer reaches a terminal state or when an error occurs.
     ///
-    /// The proxy, or more specifically, the `Input` interface of the proxy, is used to
-    /// send events to the transducer. The output can be used to connect to other
-    /// components. This can also be another transducer. In this case, the output is
-    /// connected to the input interface of another transducer.
+    /// The proxy, or more specifically, the `Input` interface of the proxy, is
+    /// used to send events to the transducer. The output can be used to connect
+    /// to other components. This can also be another transducer. In this case,
+    /// the output is connected to the input interface of another transducer.
     ///
-    /// - Parameter storage: A reference to a storage which is used by the transducer
-    ///   to store its state. The storage must conform to the `Storage` protocol.
-    ///   The storage is used to read and write the state of the transducer.
+    /// - Parameter storage: A reference to a storage which is used by the
+    ///   transducer to store its state. The storage must conform to the `Storage`
+    ///   protocol. The storage is used to read and write the state of the
+    ///   transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
     /// - Parameter env: The environment used for the transducer.
@@ -131,10 +133,12 @@ public protocol BaseTransducer<Event> {
     ///   becomes terminal.
     ///
     /// - Throws:
-    ///   - `TransducerError.noOutputProduced`: If no output is produced before reaching the terminal state.
-    ///   - Other errors: If the transducer cannot execute its transition and output function as expected,
-    ///     for example, when events could not be enqueued because of a full event buffer,
-    ///     when the func `terminate()` is called on the proxy, or when the output value cannot be sent.
+    ///   - `TransducerError.noOutputProduced`: If no output is produced before
+    ///     reaching the terminal state.
+    ///   - Other errors: If the transducer cannot execute its transition and
+    ///     output function as expected, for example, when events could not be
+    ///     enqueued because of a full event buffer, when the func `terminate()`
+    ///     is called on the proxy, or when the output value cannot be sent.
     ///
     @discardableResult
     static func run(
@@ -150,17 +154,17 @@ public protocol BaseTransducer<Event> {
     /// The function `run(initialState:proxy:output:)` returns when the transducer
     /// reaches a terminal state or when an error occurs.
     ///
-    /// The proxy, or more specifically, the `Input` interface of the proxy, is used to
-    /// send events to the transducer. The output can be used to connect to other
-    /// components. This can also be another transducer. In this case, the output is
-    /// connected to the input interface of another transducer.
+    /// The proxy, or more specifically, the `Input` interface of the proxy, is
+    /// used to send events to the transducer. The output can be used to connect
+    /// to other components. This can also be another transducer. In this case,
+    /// the output is connected to the input interface of another transducer.
     ///
     /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
     /// - Parameter env: The environment used for the transducer. For non-effect
-    ///   transducers, its type is always `Void`. This parameter exists for consistency
-    ///   with `EffectTransducer` and to support composition patterns.
+    ///   transducers, its type is always `Void`. This parameter exists for
+    ///   consistency with `EffectTransducer` and to support composition patterns.
     /// - Parameter output: The subject to which the transducer's output will be
     ///   sent.
     /// - Parameter systemActor: The isolation of the caller.
@@ -172,10 +176,12 @@ public protocol BaseTransducer<Event> {
     ///   becomes terminal.
     ///
     /// - Throws:
-    ///   - `TransducerError.noOutputProduced`: If no output is produced before reaching the terminal state.
-    ///   - Other errors: If the transducer cannot execute its transition and output function as expected,
-    ///     for example, when events could not be enqueued because of a full event buffer,
-    ///     when the func `terminate()` is called on the proxy, or when the output value cannot be sent.
+    ///   - `TransducerError.noOutputProduced`: If no output is produced before
+    ///     reaching the terminal state.
+    ///   - Other errors: If the transducer cannot execute its transition and
+    ///     output function as expected, for example, when events could not be
+    ///     enqueued because of a full event buffer, when the func `terminate()`
+    ///     is called on the proxy, or when the output value cannot be sent.
     ///
     @discardableResult
     static func run(
