@@ -59,7 +59,12 @@ enum SimpleCounter: Transducer {
             state = .idle(count: max(0, count - 1))
             return max(0, count - 1)
         default:
-            return 0 // Handle unexpected combinations
+            // When reaching in the `default` case , it may indicate 
+            // a violation of the assumptions about the system. You 
+            // may want to log or handle this case.
+
+            // Handle unexpected combinations
+            return 0
         }
     }
     
@@ -281,6 +286,7 @@ let childCallback = Callback<Child.Output> { output in
 Use state-driven modals where transducer state determines UI presentation:
 ```swift
 enum State {
+    case start
     case idle(Data)
     case modal(sheet: SheetItem, content: Data)
 }
@@ -296,10 +302,21 @@ enum State {
 ## Anti-Patterns to Avoid
 
 - Don't perform side effects directly in `update()` functions
-- Don't use `@StateObject` or `@ObservableObject` - use `TransducerView` instead
+- In the `update()` functions - always handle all cases explicitly
+- In the `update()` functions - do not use a `default` case to 
+  handle expected and valid transitions - it may mask unhandled 
+  states/events. `default` should only be used for truly unexpected 
+  cases and invalid assumptions - i.e. a state/event combination that
+  should never occur in normal operation. Always log this incident
+  or issue a fatal error.
+
+## General Do's and Don'ts
+- State should always have a `start` state, indicating an "uninitialized" condition
+- Event should have a `start` event.
 - Avoid complex nested state structures - prefer flat, normalized designs
-- Don't ignore terminal states - always handle them explicitly
 - Don't mix UI state with business logic state
+- Prefer `TransducerView` over "ViewModels"
+- If a Transducer has a user-defined output, always declare this type in the Transducer enum.
 
 ## Documentation and Communication
 
