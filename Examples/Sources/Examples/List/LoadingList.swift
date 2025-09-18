@@ -4,7 +4,9 @@ import SwiftUI
 // MARK: - Environment Definition
 extension EnvironmentValues {
     @Entry var dataService: (String) async throws -> LoadingList.Transducer.Data = { _ in
-        throw NSError(domain: "DataService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Data service not configured"])
+        throw NSError(
+            domain: "DataService", code: -1,
+            userInfo: [NSLocalizedDescriptionKey: "Data service not configured"])
     }
 }
 
@@ -19,13 +21,13 @@ extension LoadingList.Transducer: EffectTransducer {
     struct Env {
         let service: (String) async throws -> Data
         let input: Input
-        
+
         init(service: @escaping (String) async throws -> Data, input: Input) {
             self.service = service
             self.input = input
         }
     }
-    
+
     struct Sheet: Identifiable {
         var id: String = ""
         let title: String
@@ -34,11 +36,11 @@ extension LoadingList.Transducer: EffectTransducer {
         let commit: (String) -> Void
         let cancel: () -> Void
     }
-    
+
     struct Data {
         let items: [String]
     }
-    
+
     typealias State = Utilities.State<Data, Sheet>
 
     enum Event {
@@ -56,14 +58,14 @@ extension LoadingList.Transducer: EffectTransducer {
         // Events sent from the service
         case serviceError(Swift.Error)
         case serviceLoaded(Data)
-        
+
         // Events sent from setup effects
         case configureContext(State.Context)
 
         // Events sent from modal actions
         case cancelLoading
     }
-    
+
     // MARK: - Effects Implementation
 
     /// This effect "imports" the context from the environment into the transducer.
@@ -90,7 +92,7 @@ extension LoadingList.Transducer: EffectTransducer {
         // Initial app state - first import the context from environment
         case (.start, .viewOnAppear):
             return configureContextEffect()
-            
+
         // Context received - now configure empty state and transition to idle in one step
         case (.start, .configureContext(let context)):
             let actionClosure: @Sendable () -> Void = {
@@ -105,12 +107,12 @@ extension LoadingList.Transducer: EffectTransducer {
             )
             state = .idle(.empty(emptyState), context)
             return nil
-            
+
         // User wants to start loading data
         case (.idle(.empty(_), let context), .intentShowSheet):
             let sheet = Sheet(
-                title: "Load Data", 
-                description: "Enter a parameter to load data:", 
+                title: "Load Data",
+                description: "Enter a parameter to load data:",
                 default: "sample",
                 commit: { parameter in
                     try? context.input.send(.intentSheetCommit(parameter))
@@ -121,40 +123,42 @@ extension LoadingList.Transducer: EffectTransducer {
             )
             state = .modal(state.content, .sheet(sheet), context)
             return nil
-            
+
         // User confirms input in sheet
         case (.modal(let content, .sheet(_), let context), .intentSheetCommit(let parameter)):
             // Create loading state with cancel action using stored input
             let cancelAction = State.Action(
-                id: "cancel", 
+                id: "cancel",
                 title: "Cancel",
                 action: { try? context.input.send(.cancelLoading) }
             )
-            
-            state = .modal(content, .loading(
-                State.Loading(
-                    title: "Loading...", 
-                    description: "Fetching data from service", 
-                    cancelAction: cancelAction
-                )
-            ), context)
+
+            state = .modal(
+                content,
+                .loading(
+                    State.Loading(
+                        title: "Loading...",
+                        description: "Fetching data from service",
+                        cancelAction: cancelAction
+                    )
+                ), context)
             return serviceLoadEffect(parameter: parameter)
-            
+
         // User cancels sheet
         case (.modal(let content, .sheet(_), let context), .intentSheetCancel):
             state = .idle(content, context)
             return nil
-            
+
         // Sheet dismissed (programmatically)
         case (.modal(let content, .sheet(_), let context), .viewSheetDidDismiss):
             state = .idle(content, context)
             return nil
-            
+
         // Service successfully loads data
         case (.modal(_, .loading(_), let context), .serviceLoaded(let data)):
             state = .idle(.data(data), context)
             return nil
-            
+
         // Service encounters error
         case (.modal(_, .loading(_), let context), .serviceError(let error)):
             // Setup Alert
@@ -163,14 +167,16 @@ extension LoadingList.Transducer: EffectTransducer {
                 title: "OK",
                 action: { try? context.input.send(.intentAlertConfirm) }
             )
-            
-            state = .modal(.empty(State.Empty(
-                title: "Error", 
-                description: "Failed to load data.",
-                actions: [confirmAction]
-            )), .error(error), context)
+
+            state = .modal(
+                .empty(
+                    State.Empty(
+                        title: "Error",
+                        description: "Failed to load data.",
+                        actions: [confirmAction]
+                    )), .error(error), context)
             return nil
-            
+
         // User dismisses error alert
         case (.modal(_, .error(let error), let context), .intentAlertConfirm):
             let actionClosure: @Sendable () -> Void = {
@@ -185,7 +191,7 @@ extension LoadingList.Transducer: EffectTransducer {
             )
             state = .idle(.empty(emptyState), context)
             return nil
-            
+
         // // User wants to refresh when data is already loaded
         // case (.idle(.data(let data), let context), .intentRefresh):
         //     let sheet = Sheet(
@@ -201,12 +207,12 @@ extension LoadingList.Transducer: EffectTransducer {
         //     )
         //     state = .modal(.data(data), .sheet(sheet), context)
         //     return nil
-            
+
         // Handle loading cancellation
         case (.modal(let content, .loading(_), let context), .cancelLoading):
             state = .idle(content, context)
             return nil
-            
+
         // Default case - no state change
         default:
             return nil
@@ -241,7 +247,7 @@ enum Utilities {
             let description: String
             let cancelAction: Action?
         }
-        
+
         /// Context contains actor components accessible to the update function
         struct Context {
             let input: LoadingList.Transducer.Input
@@ -255,7 +261,7 @@ enum Utilities {
         enum Modal {
             case loading(Loading?)  // nil = unconfigured, needs setup
             case error(Error)
-            case sheet(Sheet?)      // nil = unconfigured, needs setup
+            case sheet(Sheet?)  // nil = unconfigured, needs setup
 
             var isLoading: Bool {
                 switch self {
@@ -319,11 +325,11 @@ enum Utilities {
                 return nil
             }
         }
-        
+
         var isSheetConfigured: Bool {
             return sheet != nil
         }
-        
+
         var loading: Loading? {
             switch self {
             case .modal(_, let modal, _):
@@ -335,11 +341,11 @@ enum Utilities {
                 return nil
             }
         }
-        
+
         var isLoadingConfigured: Bool {
             return loading != nil
         }
-        
+
         var emptyContent: Empty? {
             switch self {
             case .idle(let content, _):
@@ -356,11 +362,11 @@ enum Utilities {
                 return nil  // Start state has no configured empty content
             }
         }
-        
+
         var isEmptyConfigured: Bool {
             return emptyContent != nil
         }
-        
+
         var context: Context? {
             switch self {
             case .idle(_, let context):
@@ -371,7 +377,7 @@ enum Utilities {
                 return nil
             }
         }
-        
+
         /// Context when in operational states (guaranteed to be non-nil)
         var operationalContext: Context? {
             switch self {
@@ -381,7 +387,7 @@ enum Utilities {
                 return nil
             }
         }
-        
+
         var content: Content {
             switch self {
             case .idle(let content, _):
@@ -399,12 +405,12 @@ enum Utilities {
 // MARK: - Views
 
 extension LoadingList.Views {
-    
+
     struct MainView: View {
         @State private var proxy = LoadingList.Transducer.Proxy()
         @State private var state: LoadingList.Transducer.State = .start
         @Environment(\.dataService) private var dataService
-        
+
         var body: some View {
             TransducerView(
                 of: LoadingList.Transducer.self,
@@ -424,11 +430,11 @@ extension LoadingList.Views {
             }
         }
     }
-    
+
     struct ContentView: View {
         let state: LoadingList.Transducer.State
         let input: LoadingList.Transducer.Input
-        
+
         var body: some View {
             NavigationStack {
                 ZStack {
@@ -439,17 +445,21 @@ extension LoadingList.Views {
                     case .data(let data):
                         DataListView(data: data, input: input)
                     }
-                    
+
                     // Modal overlays
                     if let loading = state.loading {
                         LoadingOverlay(loading: loading)
                     }
                 }
-                .sheet(item: .constant(state.sheet), onDismiss: {
-                    print("sheet dismissed")
-                }, content: { sheet in
-                    InputSheetView(sheet: sheet)
-                })
+                .sheet(
+                    item: .constant(state.sheet),
+                    onDismiss: {
+                        print("sheet dismissed")
+                    },
+                    content: { sheet in
+                        InputSheetView(sheet: sheet)
+                    }
+                )
                 .alert("Error", isPresented: .constant(state.isError)) {
                     Button("OK") {
                         try? input.send(.intentAlertConfirm)
@@ -464,26 +474,26 @@ extension LoadingList.Views {
             }
         }
     }
-    
+
     struct EmptyStateView: View {
         let empty: LoadingList.Transducer.State.Empty?
-        
+
         var body: some View {
             VStack(spacing: 20) {
                 Image(systemName: "list.bullet.clipboard")
                     .font(.system(size: 60))
                     .foregroundColor(.secondary)
-                
+
                 if let empty = empty {
                     Text(empty.title)
                         .font(.title2)
                         .fontWeight(.semibold)
-                    
+
                     Text(empty.description)
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                    
+
                     VStack(spacing: 12) {
                         ForEach(empty.actions.indices, id: \.self) { index in
                             let action = empty.actions[index]
@@ -501,11 +511,11 @@ extension LoadingList.Views {
             .padding()
         }
     }
-    
+
     struct DataListView: View {
         let data: LoadingList.Transducer.Data
         let input: LoadingList.Transducer.Input
-        
+
         var body: some View {
             List(data.items, id: \.self) { item in
                 HStack {
@@ -521,27 +531,27 @@ extension LoadingList.Views {
             //}
         }
     }
-    
+
     struct LoadingOverlay: View {
         let loading: LoadingList.Transducer.State.Loading
-        
+
         var body: some View {
             ZStack {
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
-                
+
                 VStack(spacing: 20) {
                     ProgressView()
                         .scaleEffect(1.2)
-                    
+
                     Text(loading.title)
                         .font(.headline)
-                    
+
                     Text(loading.description)
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                    
+
                     if let cancelAction = loading.cancelAction {
                         Button(cancelAction.title) {
                             cancelAction.action()
@@ -556,11 +566,11 @@ extension LoadingList.Views {
             }
         }
     }
-    
+
     struct InputSheetView: View {
         let sheet: LoadingList.Transducer.Sheet
         @State private var inputText: String = ""
-        
+
         var body: some View {
             NavigationStack {
                 VStack(spacing: 20) {
@@ -568,11 +578,11 @@ extension LoadingList.Views {
                         .font(.body)
                         .multilineTextAlignment(.center)
                         .padding()
-                    
+
                     TextField("Enter parameter", text: $inputText)
                         .textFieldStyle(.roundedBorder)
                         .padding(.horizontal)
-                    
+
                     Spacer()
                 }
                 .navigationTitle(sheet.title)
@@ -602,15 +612,15 @@ extension LoadingList.Views {
 
 // MARK: - Usage Example
 extension LoadingList.Views {
-    
+
     /// Example of how to use MainView with a configured data service
     @MainActor
     static func exampleUsage() -> some View {
         MainView()
             .environment(\.dataService) { parameter in
                 // Simulate async data loading
-                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
-                
+                try await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second delay
+
                 // Return mock data based on parameter
                 return LoadingList.Transducer.Data(
                     items: [
@@ -626,27 +636,30 @@ extension LoadingList.Views {
 
 // MARK: - Preview Support
 extension LoadingList.Views {
-    
+
     /// Fake service function suitable for previews and testing
     @MainActor
     static func previewDataService() -> (String) async throws -> LoadingList.Transducer.Data {
         return { parameter in
             // Simulate network delay
-            try await Task.sleep(nanoseconds: UInt64.random(in: 500_000_000...5_000_000_000)) // 0.5-5 seconds
-            
+            try await Task.sleep(nanoseconds: UInt64.random(in: 500_000_000 ... 5_000_000_000))  // 0.5-5 seconds
+
             // Simulate occasional errors (50% chance)
             if Int.random(in: 1 ... 2) == 1 {
                 throw NSError(
-                    domain: "PreviewDataService", 
-                    code: 500, 
-                    userInfo: [NSLocalizedDescriptionKey: "Simulated network error for parameter: \(parameter)"]
+                    domain: "PreviewDataService",
+                    code: 500,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Simulated network error for parameter: \(parameter)"
+                    ]
                 )
             }
-            
+
             // Generate realistic mock data based on parameter
             let baseItems = [
                 "📄 Document Alpha",
-                "📊 Report Beta", 
+                "📊 Report Beta",
                 "📈 Analysis Gamma",
                 "📋 Summary Delta",
                 "🔍 Research Epsilon",
@@ -654,19 +667,23 @@ extension LoadingList.Views {
                 "📝 Notes Eta",
                 "🎯 Goals Theta"
             ]
-            
+
             let filteredItems = baseItems.filter { item in
                 parameter.isEmpty || item.localizedCaseInsensitiveContains(parameter)
             }
-            
-            let finalItems = filteredItems.isEmpty ? [
-                "No results for '\(parameter)'",
-                "Try a different search term",
-                "Or browse all available items"
-            ] : Array(filteredItems.shuffled().prefix(Int.random(in: 2...6)))
-            
+
+            let finalItems =
+                filteredItems.isEmpty
+                ? [
+                    "No results for '\(parameter)'",
+                    "Try a different search term",
+                    "Or browse all available items"
+                ] : Array(filteredItems.shuffled().prefix(Int.random(in: 2 ... 6)))
+
             return LoadingList.Transducer.Data(
-                items: finalItems + ["Generated at: \(Date().formatted(date: .abbreviated, time: .shortened))"]
+                items: finalItems + [
+                    "Generated at: \(Date().formatted(date: .abbreviated, time: .shortened))"
+                ]
             )
         }
     }
@@ -682,6 +699,8 @@ extension LoadingList.Views {
     LoadingList.Views.MainView()
         .environment(\.dataService) { _ in
             try await Task.sleep(nanoseconds: 1_000_000_000)
-            throw NSError(domain: "Preview", code: 404, userInfo: [NSLocalizedDescriptionKey: "Preview error - service unavailable"])
+            throw NSError(
+                domain: "Preview", code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "Preview error - service unavailable"])
         }
 }

@@ -37,7 +37,7 @@ public struct TransducerComposition {
     public static var parallel: DefaultParallelComposition.Type {
         DefaultParallelComposition.self
     }
-    
+
     /// Get the sequential composition type
     public static var sequential: DefaultSequentialComposition.Type {
         DefaultSequentialComposition.self

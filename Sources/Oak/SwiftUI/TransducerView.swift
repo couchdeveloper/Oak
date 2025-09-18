@@ -27,7 +27,7 @@ import SwiftUI
 @MainActor
 public struct TransducerView<Transducer, Content>: View, @MainActor TransducerActor
 where Transducer: BaseTransducer, Content: View {
-    
+
     public typealias State = Transducer.State
     public typealias Event = Transducer.Event
     public typealias Output = Transducer.Output
@@ -106,7 +106,7 @@ where Transducer: BaseTransducer, Content: View {
         self.runTransducerClosure = runTransducer
         self.content = content
     }
-    
+
     public var body: some View {
         IfLet(proxy) { proxy in
             return content(state, proxy.input)
@@ -131,7 +131,7 @@ where Transducer: BaseTransducer, Content: View {
             }
         }
     }
-        
+
     public func cancel() {
         proxy?.cancel()
         taskHolder?.task.cancel()
@@ -156,16 +156,16 @@ extension TransducerView where Transducer: EffectTransducer {
     public typealias Env = Transducer.Env
 }
 
-fileprivate struct IfLet<T, Content: View>: View {
-    
+private struct IfLet<T, Content: View>: View {
+
     let value: T?
     let content: (T) -> Content
-    
+
     init(_ value: T?, content: @escaping (T) -> Content) {
         self.value = value
         self.content = content
     }
-    
+
     var body: some View {
         if let value {
             content(value)
@@ -175,7 +175,7 @@ fileprivate struct IfLet<T, Content: View>: View {
     }
 }
 
-#if DEBUG // Previews
+#if DEBUG  // Previews
 
 // MARK: - Demo
 
@@ -210,9 +210,9 @@ private enum A: Transducer {
 
 @available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 #Preview("A") {
-    
+
     @Previewable @State var state: A.State = .init()
-    
+
     TransducerView(
         of: A.self,
         initialState: $state
@@ -237,7 +237,7 @@ private enum A: Transducer {
             }
             .buttonStyle(.borderedProminent)
             .padding(32)
-            
+
             let events = state.events.map { "\($0)" }.joined(separator: ", ")
             TextEditor(text: .constant(events))
                 .padding()
@@ -322,10 +322,10 @@ extension Counters: Transducer {
 extension Counters { enum Views {} }
 
 extension Counters.Views {
-    
+
     fileprivate struct ComponentView: View {
         @State private var state = Counters.initialState
-        
+
         var body: some View {
             TransducerView(
                 of: Counters.self,
@@ -482,5 +482,5 @@ private struct RepeatViewInSheet: View {
 #Preview("RepeatViewInSheet") {
     RepeatViewInSheet()
 }
-#endif // DEBUG
+#endif  // DEBUG
 #endif

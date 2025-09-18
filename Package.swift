@@ -21,8 +21,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
-        .package(url: "https://github.com/swhitty/swift-mutex.git", .upToNextMajor(from:"0.0.5")),
-        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+        .package(url: "https://github.com/swhitty/swift-mutex.git", .upToNextMajor(from: "0.0.5")),
+        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -30,7 +30,7 @@ let package = Package(
         .target(
             name: "Oak",
             dependencies: [
-                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
+                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms")
             ],
             swiftSettings: []
         ),
@@ -38,7 +38,7 @@ let package = Package(
             name: "OakTests",
             dependencies: [
                 "Oak",
-                .product(name: "Mutex", package: "swift-mutex"),
+                .product(name: "Mutex", package: "swift-mutex")
             ],
             path: "Tests/OakTests",
             swiftSettings: []

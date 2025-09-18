@@ -9,7 +9,7 @@
 public enum SumTypeEvent<EventA, EventB> {
     /// An event for the first component transducer
     case eventA(EventA)
-    
+
     /// An event for the second component transducer
     case eventB(EventB)
 }
@@ -20,7 +20,7 @@ public enum SumTypeEvent<EventA, EventB> {
 public enum SumTypeOutput<OutputA, OutputB> {
     /// Output from the first component transducer
     case outputA(OutputA)
-    
+
     /// Output from the second component transducer
     case outputB(OutputB)
 
@@ -34,16 +34,16 @@ public enum SumTypeOutput<OutputA, OutputB> {
 public struct ProductTypeState<StateA: Terminable, StateB: Terminable>: Terminable {
     /// The state of the first component transducer
     public var stateA: StateA
-    
+
     /// The state of the second component transducer
     public var stateB: StateB
-    
+
     /// Creates a new composite state
     public init(stateA: StateA, stateB: StateB) {
         self.stateA = stateA
         self.stateB = stateB
     }
-    
+
     /// Returns true if either component state is terminal
     public var isTerminal: Bool {
         stateA.isTerminal || stateB.isTerminal
@@ -57,10 +57,10 @@ public struct ProductTypeState<StateA: Terminable, StateB: Terminable>: Terminab
 public struct ProductTypeEnv<EnvA, EnvB> {
     /// The environment for the first component transducer
     public var envA: EnvA
-    
+
     /// The environment for the second component transducer
     public var envB: EnvB
-    
+
     /// Creates a new composite environment
     public init(envA: EnvA, envB: EnvB) {
         self.envA = envA
@@ -72,7 +72,7 @@ public struct ProductTypeEnv<EnvA, EnvB> {
 public protocol ProductTypeProxy<ProxyA, ProxyB> {
     /// The proxy type for the first component transducer
     associatedtype ProxyA: TransducerProxy
-    
+
     /// The proxy type for the second component transducer
     associatedtype ProxyB: TransducerProxy
 
@@ -81,7 +81,7 @@ public protocol ProductTypeProxy<ProxyA, ProxyB> {
 
     /// Access to the proxy for the first component transducer
     var proxyA: ProxyA { get }
-    
+
     /// Access to the proxy for the second component transducer
     var proxyB: ProxyB { get }
 }
@@ -113,15 +113,15 @@ struct SyncCallback<Value>: Subject {
 ///
 /// A composite transducer combines two transducers together using a specific
 /// composition strategy (parallel or sequential). This protocol provides a minimal
-/// interface, and the actual behavior is implemented in extensions specific to 
+/// interface, and the actual behavior is implemented in extensions specific to
 /// each composition type.
 public protocol CompositeTransducerProtocol: BaseTransducer {
     /// The first component transducer
     associatedtype TransducerA: BaseTransducer
-    
+
     /// The second component transducer
     associatedtype TransducerB: BaseTransducer
-    
+
     /// The marker type for the composition strategy (parallel or sequential)
     associatedtype CompositionTypeMarker: CompositionType
 
@@ -132,7 +132,8 @@ public protocol CompositeTransducerProtocol: BaseTransducer {
 }
 
 /// Extension providing default implementation for parallel composition
-extension CompositeTransducerProtocol where 
+extension CompositeTransducerProtocol
+where
     CompositionTypeMarker: ParallelComposition,
     State == ProductTypeState<TransducerA.State, TransducerB.State>,
     Event == SumTypeEvent<TransducerA.Event, TransducerB.Event>,
@@ -141,8 +142,9 @@ extension CompositeTransducerProtocol where
     TransducerA.Output: Sendable,
     TransducerB.Output: Sendable,
     TransducerA: BaseTransducer,
-    TransducerB: BaseTransducer {
-    
+    TransducerB: BaseTransducer
+{
+
     /// Run the parallel composite transducer
     ///
     /// In parallel composition, both component transducers run concurrently.
@@ -154,7 +156,8 @@ extension CompositeTransducerProtocol where
         env: Env,
         output: some Subject<SumTypeOutput<TransducerA.Output, TransducerB.Output>>,
         systemActor: isolated any Actor = #isolation
-    ) async throws -> Output where P: ProductTypeProxy, P.ProxyA == TransducerA.Proxy, P.ProxyB == TransducerB.Proxy {
+    ) async throws -> Output
+    where P: ProductTypeProxy, P.ProxyA == TransducerA.Proxy, P.ProxyB == TransducerB.Proxy {
         // Create output subjects that wrap the outputs from each component
         let outputA = SyncCallback<TransducerA.Output> { valueA, actor in
             guard actor === systemActor else {
@@ -170,7 +173,7 @@ extension CompositeTransducerProtocol where
             nonisolated(unsafe) let output = output
             try await output.send(.outputB(valueB), isolated: actor)
         }
-        
+
         // Set up task to run transducer A
         let transducerTaskA = Task {
             return try await TransducerA.run(
@@ -181,7 +184,7 @@ extension CompositeTransducerProtocol where
                 systemActor: systemActor
             )
         }
-        
+
         // Set up task to run transducer B
         let transducerTaskB = Task {
             return try await TransducerB.run(
@@ -192,7 +195,7 @@ extension CompositeTransducerProtocol where
                 systemActor: systemActor
             )
         }
-                
+
         // Wait for both tasks to complete
         do {
             // We need to explicitly annotate these with 'let' to ensure proper task behavior
@@ -204,13 +207,14 @@ extension CompositeTransducerProtocol where
             throw error
         }
     }
-    
-    
+
     /// Provides the initial output for the composite transducer
     ///
     /// For parallel composition, if either component has an initial output,
     /// we will return that (with preference to transducer A if both have initial outputs)
-    public static func initialOutput(initialState: State) -> SumTypeOutput<TransducerA.Output, TransducerB.Output>? {
+    public static func initialOutput(
+        initialState: State
+    ) -> SumTypeOutput<TransducerA.Output, TransducerB.Output>? {
         if let outputA = TransducerA.initialOutput(initialState: initialState.stateA) {
             return .outputA(outputA)
         } else if let outputB = TransducerB.initialOutput(initialState: initialState.stateB) {

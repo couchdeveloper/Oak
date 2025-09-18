@@ -82,7 +82,7 @@ struct TransducerCancellationTests {
 
             // Cancel after a brief delay
             Task {
-                try await Task.sleep(nanoseconds: 1_000_000) // 1 ms
+                try await Task.sleep(nanoseconds: 1_000_000)  // 1 ms
                 proxy.cancel()
             }
 
@@ -521,7 +521,7 @@ struct TransducerCancellationTests {
             let task = Task {
                 try await T.run(initialState: .start, proxy: proxy, env: T.Env())
             }
-            try await Task.sleep(nanoseconds: 100_000_000) // 100 ms
+            try await Task.sleep(nanoseconds: 100_000_000)  // 100 ms
             task.cancel()
             await #expect(throws: CancellationError.self) {
                 try await task.value

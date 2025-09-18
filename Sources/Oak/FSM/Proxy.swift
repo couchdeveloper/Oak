@@ -23,7 +23,7 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
     }
 
     /// Type alias for the event stream used by the transducer runtime.
-    /// 
+    ///
     /// > Warning: Framework-only API. Do not access directly from user code.
     public typealias Stream = AsyncThrowingStream<Event, Swift.Error>
     typealias Continuation = Stream.Continuation
@@ -137,7 +137,7 @@ public struct Proxy<Event>: TransducerProxy, Identifiable {
 
 }
 
- extension Proxy {
+extension Proxy {
 
     private static func send(
         continuation: Continuation,
@@ -175,7 +175,7 @@ extension Proxy: Sendable where Event: Sendable {}
 extension Proxy: TransducerProxyInternal {
 
     /// Gracefully terminates the event stream.
-    /// 
+    ///
     /// > Warning: Framework-only method. Do not call directly from user code.
     public func finish() {
         continuation.finish()

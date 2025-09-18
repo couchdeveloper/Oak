@@ -22,7 +22,7 @@
 ///
 /// ## Quick Decision Guide
 /// - **Immediate processing + state guarantees** → Action Effects
-/// - **Async work + cancellation** → Operation Effects  
+/// - **Async work + cancellation** → Operation Effects
 /// - **Single event immediately** → `.event()` static method
 /// - **Cancel running work** → `.cancelTask()` with Operation Effects
 ///
@@ -290,7 +290,7 @@ public struct Effect<T: EffectTransducer> {
     // EXCEPT where all calls to operation are isolated to `systemActor`.
 
     /// **Operation Effect - Global Actor Task**
-    /// 
+    ///
     /// Creates an operation effect that executes as a managed Task on a specified global actor.
     /// Events are sent asynchronously via Input and processed with other concurrent events.
     ///
@@ -346,7 +346,7 @@ public struct Effect<T: EffectTransducer> {
 extension Effect {
 
     /// **Operation Effect - Delayed System Actor Task**
-    /// 
+    ///
     /// Creates an operation effect that executes on the system actor after a specified duration.
     /// Events are sent asynchronously via Input and processed with other concurrent events.
     ///
@@ -403,7 +403,7 @@ extension Effect {
     }
 
     /// **Operation Effect - Delayed Global Actor Task**
-    /// 
+    ///
     /// Creates an operation effect that executes on a specified global actor after a duration.
     /// Events are sent asynchronously via Input and processed with other concurrent events.
     ///
@@ -463,7 +463,7 @@ extension Effect {
 extension Effect {
 
     /// **Action Effect - Immediate Event**
-    /// 
+    ///
     /// Creates an action effect that immediately returns the specified event.
     /// The event is processed synchronously before any Input buffer events.
     ///
@@ -586,7 +586,7 @@ extension Effect {
 extension Effect {
 
     /// **Effect Combination - Sequential Execution**
-    /// 
+    ///
     /// Combines two effects into a single effect that executes them sequentially.
     /// Events from both effects are collected and returned together.
     ///
@@ -616,7 +616,7 @@ extension Effect {
     }
 
     /// **Effect Combination - Sequential Execution**
-    /// 
+    ///
     /// Combines three effects into a single effect that executes them sequentially.
     /// Events from all effects are collected and returned together.
     ///
@@ -650,7 +650,7 @@ extension Effect {
     }
 
     /// **Effect Combination - Sequential Execution**
-    /// 
+    ///
     /// Combines four effects into a single effect that executes them sequentially.
     /// Events from all effects are collected and returned together.
     ///
@@ -688,7 +688,7 @@ extension Effect {
     }
 
     /// **Effect Combination - Sequential Execution**
-    /// 
+    ///
     /// Combines five effects into a single effect that executes them sequentially.
     /// Events from all effects are collected and returned together.
     ///
@@ -745,7 +745,7 @@ extension Effect {
 extension Effect {
 
     /// **Task Cancellation - Operation Management**
-    /// 
+    ///
     /// Creates an effect that cancels a previously created operation by its identifier.
     /// Use in the `update` function to explicitly terminate running operations.
     ///

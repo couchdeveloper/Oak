@@ -25,22 +25,22 @@
 ///
 /// > See `Oak Transducers.md` for composition patterns and architectural guidance.
 public protocol BaseTransducer<Event> {
-    
+
     /// **State Type** - Machine state space with terminal detection.
     /// Must conform to `Terminable` for proper lifecycle management.
     associatedtype State: Terminable
-    
+
     /// **Event Type** - Input alphabet that drives state transitions.
     /// Represents all possible triggers the transducer can process.
     associatedtype Event
-    
+
     // associatedtype TransducerOutput
-    
+
     /// The type of the input interface of the transducer proxy.
     ///
     /// This is used to send events to the transducer.
     typealias Input = Proxy.Input
-    
+
     /// Part of the _Output_ of the FSM, which includes all non-effects.
     ///
     /// An output value will be produced by the transducer in every computation
@@ -60,7 +60,7 @@ public protocol BaseTransducer<Event> {
     /// The type of the effect a transducer may return in its update function.
     /// This is `Never` for non-effect transducers.
     associatedtype Effect
-    
+
     /// The type of the environment in which the transducer operates.
     ///
     /// The environment provides the necessary context for executing the transducer.
@@ -69,7 +69,7 @@ public protocol BaseTransducer<Event> {
     ///
     /// > Note:  For non-effect transducers, its type is always `Void`.
     associatedtype Env
-        
+
     /// The type of the transducer proxy.
     ///
     /// A proxy is required to execute a transducer to provide the input
@@ -90,7 +90,7 @@ public protocol BaseTransducer<Event> {
     /// extremely fast, but if a transducer sends output to the subject,
     /// subscribers may block the processing of the event.
     associatedtype Proxy: TransducerProxy<Event> & TransducerProxyInternal = Oak.Proxy<Event>
-    
+
     /// This function needs to be defined and return a non-nil Output value
     /// to ensure correct behaviour of Moore type transducers.
     ///
@@ -101,7 +101,7 @@ public protocol BaseTransducer<Event> {
     ///
     /// The default implementation returns `nil`.
     static func initialOutput(initialState: State) -> Output?
-        
+
     /// Executes the Finite State Machine (FSM) by using the given storage as
     /// as a reference to its state. The current value of the state is the
     /// initial state of the FSM.
@@ -148,7 +148,7 @@ public protocol BaseTransducer<Event> {
         output: some Subject<Output>,
         systemActor: isolated any Actor
     ) async throws -> Output
-    
+
     /// Executes the Finite State Machine (FSM) with the given initial state.
     ///
     /// The function `run(initialState:proxy:output:)` returns when the transducer

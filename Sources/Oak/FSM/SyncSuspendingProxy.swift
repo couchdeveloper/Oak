@@ -16,12 +16,12 @@ import struct Foundation.UUID
 public struct SyncSuspendingProxy<Event: Sendable>: TransducerProxy {
 
     /// Type alias for the event stream used by the transducer runtime.
-    /// 
+    ///
     /// > Warning: Framework-only API. Do not access directly from user code.
     public typealias Stream = AsyncThrowingChannel<Event, Swift.Error>
-    
+
     /// Unique identifier for this proxy instance.
-    /// 
+    ///
     /// Generated at initialization and stable for the proxy's lifetime.
     /// Used for distinguishing proxies in equality checks and resource tracking.
     public let id: UUID = UUID()

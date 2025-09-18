@@ -130,7 +130,7 @@ public protocol TransducerActor<Transducer> {
 // MARK: -
 
 extension TransducerActor where StateInitialising == State {
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Void`.
     ///
@@ -235,7 +235,7 @@ extension TransducerActor where StateInitialising == State {
             content: content
         )
     }
-    
+
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
     ///
@@ -299,7 +299,7 @@ extension TransducerActor where StateInitialising == State {
             content: content
         )
     }
-    
+
 }
 
 extension TransducerActor where StateInitialising == State {
@@ -352,7 +352,7 @@ extension TransducerActor where StateInitialising == State {
 }
 
 extension TransducerActor where StateInitialising == State {
-    
+
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
     ///
@@ -433,7 +433,7 @@ extension TransducerActor where StateInitialising == State {
             content: content
         )
     }
-    
+
 }
 
 extension TransducerActor where StateInitialising == State {
@@ -571,7 +571,6 @@ extension TransducerActor where StateInitialising == State {
     }
 }
 
-
 // MARK: -
 
 extension TransducerActor where StateInitialising == State, Content == Never {
@@ -616,7 +615,8 @@ extension TransducerActor where StateInitialising == State, Content == Never {
         output: sending some Subject<Output>,
         completion: Completion? = nil,
         content: @escaping (State, Input) -> Content
-) where
+    )
+    where
         Transducer: Oak.EffectTransducer,
         Transducer.TransducerOutput == (Transducer.Effect?, Output)
     {
@@ -693,7 +693,8 @@ extension TransducerActor where StateInitialising == State, Content == Never {
         env: Transducer.Env,
         completion: Completion? = nil,
         content: @escaping (State, Input) -> Content
-    ) where
+    )
+    where
         Transducer: Oak.EffectTransducer,
         Transducer.TransducerOutput == (Transducer.Effect?, Output)
     {
@@ -1006,7 +1007,8 @@ extension TransducerActor where StateInitialising == State, Content == Never {
         env: Transducer.Env,
         output: sending some Subject<Output>,
         completion: Completion? = nil,
-    ) where
+    )
+    where
         Transducer: Oak.EffectTransducer,
         Transducer.TransducerOutput == (Transducer.Effect?, Output)
     {
@@ -1079,7 +1081,8 @@ extension TransducerActor where StateInitialising == State, Content == Never {
         proxy: Proxy? = nil,
         env: Transducer.Env,
         completion: Completion? = nil,
-    ) where
+    )
+    where
         Transducer: Oak.EffectTransducer,
         Transducer.TransducerOutput == (Transducer.Effect?, Output)
     {

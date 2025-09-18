@@ -3,13 +3,13 @@
 /// Defines deterministic event-driven state machines with mathematical rigor.
 /// Eliminates edge cases through explicit (state, event) → outcome mappings.
 ///
-/// Transducers embody finite state machine theory: every state/event combination 
+/// Transducers embody finite state machine theory: every state/event combination
 /// has a defined transition, making undefined behavior impossible. This mathematical
 /// foundation transforms complex concurrent scenarios into predictable, testable logic.
 ///
 /// ## Core Components
 /// - **State**: Finite set of possible machine states with terminal detection
-/// - **Event**: Input alphabet that drives state transitions  
+/// - **Event**: Input alphabet that drives state transitions
 /// - **Output**: Optional values produced during transitions
 /// - **update()**: Pure function encoding transition and output logic
 ///
@@ -18,7 +18,7 @@
 /// enum Counter: Transducer {
 ///     enum State { case idle(Int) }
 ///     enum Event { case increment, decrement }
-///     
+///
 ///     static func update(_ state: inout State, event: Event) -> Int {
 ///         switch (state, event) {
 ///         case (.idle(let count), .increment):
@@ -36,11 +36,11 @@
 /// > architectural patterns, and advanced usage scenarios.
 
 public protocol Transducer: BaseTransducer where Effect == Never, Env == Void {
-    
+
     associatedtype Event
     associatedtype State
     associatedtype Output = Void
-    
+
     /// **Pure State Transition Function**
     ///
     /// The mathematical heart of the transducer. Maps (state, event) → (new_state, output)
@@ -69,7 +69,7 @@ public protocol Transducer: BaseTransducer where Effect == Never, Env == Void {
 }
 
 extension Transducer {
-    
+
     @inline(__always)
     static func compute(_ state: inout State, event: Event) -> (Effect?, Output) {
         (.none, update(&state, event: event))
@@ -165,7 +165,7 @@ extension Transducer {
         }
         return result
     }
-        
+
     @discardableResult
     public static func run(
         initialState: State,
@@ -237,7 +237,7 @@ extension Transducer {
     //         systemActor: systemActor
     //     )
     // }
-    
+
     // /// Executes the Finite State Machine (FSM) with the given initial state.
     // ///
     // /// The function `run(initialState:proxy:output:)` returns when the transducer
@@ -421,7 +421,7 @@ extension Transducer {
 }
 
 extension Transducer {
-    
+
     /// Executes the Finite State Machine (FSM) with the given initial state.
     ///
     /// The function `run(initialState:proxy:)` returns when the transducer
@@ -460,5 +460,5 @@ extension Transducer {
             systemActor: systemActor
         )
     }
-    
+
 }

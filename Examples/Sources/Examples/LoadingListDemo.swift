@@ -16,8 +16,8 @@ struct CustomServiceExample: View {
         LoadingList.Views.MainView()
             .environment(\.dataService) { parameter in
                 // Custom service implementation
-                try await Task.sleep(nanoseconds: 800_000_000) // 0.8 seconds
-                
+                try await Task.sleep(nanoseconds: 800_000_000)  // 0.8 seconds
+
                 // Real API call would go here
                 return LoadingList.Transducer.Data(
                     items: [

@@ -1,10 +1,12 @@
-import SwiftUI
 import Foundation
+import SwiftUI
 
 // MARK: - Environment Definition
 extension EnvironmentValues {
     @Entry var dataServiceMVVM: (String) async throws -> LoadingListMVVM.Models.DataModel = { _ in
-        throw NSError(domain: "DataService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Data service not configured"])
+        throw NSError(
+            domain: "DataService", code: -1,
+            userInfo: [NSLocalizedDescriptionKey: "Data service not configured"])
     }
 }
 
@@ -20,13 +22,13 @@ extension LoadingListMVVM.Models {
     struct DataModel {
         let items: [String]
     }
-    
+
     struct EmptyStateModel {
         let title: String
         let description: String
         let actionTitle: String
     }
-    
+
     struct ErrorModel {
         let title: String
         let message: String
@@ -41,18 +43,20 @@ extension LoadingListMVVM.ViewModels {
         @Published var data: LoadingListMVVM.Models.DataModel?
         @Published var isLoading = false
         @Published var error: LoadingListMVVM.Models.ErrorModel?
-        
+
         // Private properties
         private var dataService: (String) async throws -> LoadingListMVVM.Models.DataModel = { _ in
-            throw NSError(domain: "DataService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Data service not configured"])
+            throw NSError(
+                domain: "DataService", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Data service not configured"])
         }
         private var loadingTask: Task<Void, Never>?
-        
+
         // Computed properties (no @Published to avoid cycles)
         var isEmpty: Bool {
             return data == nil && !isLoading && error == nil
         }
-        
+
         var emptyState: LoadingListMVVM.Models.EmptyStateModel {
             if let error = error {
                 return LoadingListMVVM.Models.EmptyStateModel(
@@ -68,62 +72,64 @@ extension LoadingListMVVM.ViewModels {
                 )
             }
         }
-        
+
         // MARK: - Initialization
-        func configure(dataService: @escaping (String) async throws -> LoadingListMVVM.Models.DataModel) {
+        func configure(
+            dataService: @escaping (String) async throws -> LoadingListMVVM.Models.DataModel
+        ) {
             self.dataService = dataService
         }
-        
+
         // MARK: - User Actions
         func startLoading(with parameter: String) {
             // Cancel existing loading task
             loadingTask?.cancel()
-            
+
             // Clear previous state
             error = nil
-            
+
             // Start loading
             isLoading = true
-            
+
             loadingTask = Task { @MainActor in
                 do {
                     let result = try await self.dataService(parameter)
-                    
+
                     // Check if task was cancelled
                     if Task.isCancelled {
                         return
                     }
-                    
+
                     // Update UI with success
                     self.data = result
                     self.isLoading = false
-                    
+
                 } catch {
                     // Check if task was cancelled
                     if Task.isCancelled {
                         return
                     }
-                    
+
                     // Handle error
                     self.handleError(error)
                 }
             }
         }
-        
+
         func cancelLoading() {
             loadingTask?.cancel()
             loadingTask = nil
             isLoading = false
         }
-        
+
         func dismissError() {
             error = nil
         }
-        
+
         func retry() {
             // Will be handled by the view
         }
-        
+
         // MARK: - Private Methods
         private func handleError(_ error: Error) {
             self.error = LoadingListMVVM.Models.ErrorModel(
@@ -133,7 +139,7 @@ extension LoadingListMVVM.ViewModels {
             self.isLoading = false
             self.data = nil
         }
-        
+
         // MARK: - Lifecycle
         deinit {
             loadingTask?.cancel()
@@ -143,11 +149,11 @@ extension LoadingListMVVM.ViewModels {
 
 // MARK: - Views with separate sheet management
 extension LoadingListMVVM.Views {
-    
+
     struct MainView: View {
         @StateObject private var viewModel = LoadingListMVVM.ViewModels.LoadingListViewModel()
         @Environment(\.dataServiceMVVM) private var dataService
-        
+
         var body: some View {
             ContentView(viewModel: viewModel)
                 .onAppear {
@@ -155,12 +161,12 @@ extension LoadingListMVVM.Views {
                 }
         }
     }
-    
+
     struct ContentView: View {
         @ObservedObject var viewModel: LoadingListMVVM.ViewModels.LoadingListViewModel
         @State private var showSheet = false
         @State private var inputText = "sample"
-        
+
         var body: some View {
             NavigationStack {
                 ZStack {
@@ -176,7 +182,7 @@ extension LoadingListMVVM.Views {
                     } else if let data = viewModel.data {
                         DataListView(data: data)
                     }
-                    
+
                     // Loading overlay
                     if viewModel.isLoading {
                         LoadingOverlay(onCancel: viewModel.cancelLoading)
@@ -208,26 +214,26 @@ extension LoadingListMVVM.Views {
             }
         }
     }
-    
+
     struct EmptyStateView: View {
         let model: LoadingListMVVM.Models.EmptyStateModel
         let onAction: () -> Void
-        
+
         var body: some View {
             VStack(spacing: 20) {
                 Image(systemName: "list.bullet.clipboard")
                     .font(.system(size: 60))
                     .foregroundColor(.secondary)
-                
+
                 Text(model.title)
                     .font(.title2)
                     .fontWeight(.semibold)
-                
+
                 Text(model.description)
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-                
+
                 Button(model.actionTitle) {
                     onAction()
                 }
@@ -236,10 +242,10 @@ extension LoadingListMVVM.Views {
             .padding()
         }
     }
-    
+
     struct DataListView: View {
         let data: LoadingListMVVM.Models.DataModel
-        
+
         var body: some View {
             List(data.items, id: \.self) { item in
                 HStack {
@@ -251,27 +257,27 @@ extension LoadingListMVVM.Views {
             }
         }
     }
-    
+
     struct LoadingOverlay: View {
         let onCancel: () -> Void
-        
+
         var body: some View {
             ZStack {
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
-                
+
                 VStack(spacing: 20) {
                     ProgressView()
                         .scaleEffect(1.2)
-                    
+
                     Text("Loading...")
                         .font(.headline)
-                    
+
                     Text("Fetching data from service")
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                    
+
                     Button("Cancel") {
                         onCancel()
                     }
@@ -284,12 +290,12 @@ extension LoadingListMVVM.Views {
             }
         }
     }
-    
+
     struct InputSheetView: View {
         @Binding var inputText: String
         let onCommit: (String) -> Void
         let onCancel: () -> Void
-        
+
         var body: some View {
             NavigationStack {
                 VStack(spacing: 20) {
@@ -297,11 +303,11 @@ extension LoadingListMVVM.Views {
                         .font(.body)
                         .multilineTextAlignment(.center)
                         .padding()
-                    
+
                     TextField("Enter parameter", text: $inputText)
                         .textFieldStyle(.roundedBorder)
                         .padding(.horizontal)
-                    
+
                     Spacer()
                 }
                 .navigationTitle("Load Data")
@@ -325,26 +331,29 @@ extension LoadingListMVVM.Views {
 
 // MARK: - Preview Support
 extension LoadingListMVVM.Views {
-    
+
     /// Fake service function suitable for previews and testing
     static func previewDataService() -> (String) async throws -> LoadingListMVVM.Models.DataModel {
         return { parameter in
             // Simulate network delay
-            try await Task.sleep(nanoseconds: UInt64.random(in: 500_000_000...2_000_000_000)) // 0.5-2 seconds
-            
+            try await Task.sleep(nanoseconds: UInt64.random(in: 500_000_000 ... 2_000_000_000))  // 0.5-2 seconds
+
             // Simulate occasional errors (30% chance)
-            if Int.random(in: 1...10) <= 3 {
+            if Int.random(in: 1 ... 10) <= 3 {
                 throw NSError(
-                    domain: "PreviewDataService", 
-                    code: 500, 
-                    userInfo: [NSLocalizedDescriptionKey: "Simulated network error for parameter: \(parameter)"]
+                    domain: "PreviewDataService",
+                    code: 500,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Simulated network error for parameter: \(parameter)"
+                    ]
                 )
             }
-            
+
             // Generate realistic mock data based on parameter
             let baseItems = [
                 "📄 Document Alpha",
-                "📊 Report Beta", 
+                "📊 Report Beta",
                 "📈 Analysis Gamma",
                 "📋 Summary Delta",
                 "🔍 Research Epsilon",
@@ -352,19 +361,23 @@ extension LoadingListMVVM.Views {
                 "📝 Notes Eta",
                 "🎯 Goals Theta"
             ]
-            
+
             let filteredItems = baseItems.filter { item in
                 parameter.isEmpty || item.localizedCaseInsensitiveContains(parameter)
             }
-            
-            let finalItems = filteredItems.isEmpty ? [
-                "No results for '\(parameter)'",
-                "Try a different search term",
-                "Or browse all available items"
-            ] : Array(filteredItems.shuffled().prefix(Int.random(in: 2...6)))
-            
+
+            let finalItems =
+                filteredItems.isEmpty
+                ? [
+                    "No results for '\(parameter)'",
+                    "Try a different search term",
+                    "Or browse all available items"
+                ] : Array(filteredItems.shuffled().prefix(Int.random(in: 2 ... 6)))
+
             return LoadingListMVVM.Models.DataModel(
-                items: finalItems + ["Generated at: \(Date().formatted(date: .abbreviated, time: .shortened))"]
+                items: finalItems + [
+                    "Generated at: \(Date().formatted(date: .abbreviated, time: .shortened))"
+                ]
             )
         }
     }
@@ -380,6 +393,8 @@ extension LoadingListMVVM.Views {
     LoadingListMVVM.Views.MainView()
         .environment(\.dataServiceMVVM) { _ in
             try await Task.sleep(nanoseconds: 1_000_000_000)
-            throw NSError(domain: "Preview", code: 404, userInfo: [NSLocalizedDescriptionKey: "Preview error - service unavailable"])
+            throw NSError(
+                domain: "Preview", code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "Preview error - service unavailable"])
         }
 }

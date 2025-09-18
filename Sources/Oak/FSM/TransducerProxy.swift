@@ -56,7 +56,7 @@ extension TransducerProxy {
 
 /// Internal framework protocol - do not implement directly. This protocol provides low-level access to proxy internals
 /// required by the framework runtime. Instead, conform to `TransducerProxy` for user-facing proxy implementations.
-/// 
+///
 /// The separation between `TransducerProxy` and `TransducerProxyInternal` maintains API boundaries while enabling
 /// framework functionality. User code should only interact with the public `TransducerProxy` interface.
 ///
@@ -117,8 +117,8 @@ public protocol TransducerProxyInternal<Event> {
     /// >Caution: This method is intended for internal use by the Oak framework only.
     /// Client code should not call this method directly.
     ///
-    /// This function is called by the internal transducer runtime when the state 
-    /// of the transducer reaches a terminal state, indicating that no further 
+    /// This function is called by the internal transducer runtime when the state
+    /// of the transducer reaches a terminal state, indicating that no further
     /// events will be processed.
     ///
     /// - Important: After calling `finish()`, any subsequent attempts to send

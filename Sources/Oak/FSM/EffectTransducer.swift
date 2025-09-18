@@ -40,15 +40,15 @@
 ///
 /// > See `Oak Transducers.md` for effect patterns and architectural guidance.
 public protocol EffectTransducer: BaseTransducer where Effect == Oak.Effect<Self> {
-    
+
     /// The _Output_ of the FSM, which may include an optional
     /// effect and a value type, `Output`. Typically, for Effect-
     /// Transducers it is either `Effect?` or the tuple `(Effect?, Output)`.
     /// For non-effect transducers, it is simply `Output`.
     associatedtype TransducerOutput
-    
+
     associatedtype Output = Void
-    
+
     /// **Environment Type** - Dependency injection for effects.
     /// Provides context and services needed for side effect execution.
     associatedtype Env = Void
@@ -85,7 +85,7 @@ public protocol EffectTransducer: BaseTransducer where Effect == Oak.Effect<Self
 
 /// Required for protocol conformance
 extension EffectTransducer where TransducerOutput == (Effect?, Output) {
-    
+
     @inline(__always)
     public static func compute(_ state: inout State, event: Event) -> (Effect?, Output) {
         update(&state, event: event)
@@ -131,7 +131,7 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
                     let effect: Effect?
                     (effect, outputValue) = Self.compute(&storage.value, event: event)
                     try await output.send(outputValue!, isolated: systemActor)
-                    
+
                     // Check if the state became terminal after processing this event
                     let isTerminated = storage.value.isTerminal
                     if isTerminated {
@@ -139,7 +139,7 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
                         proxy.finish()
                         // Continue to execute the effect if present, but will break after
                     }
-                    
+
                     if let effect {
                         let moreEvents = try await execute(
                             effect,
@@ -147,12 +147,12 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
                             env: env,
                             context: context
                         )
-                        
+
                         // If state became terminal, don't process any returned events
                         if isTerminated {
                             break loop
                         }
-                        
+
                         switch moreEvents.count {
                         case 0:
                             break
@@ -293,7 +293,7 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
             systemActor: systemActor
         )
     }
-    
+
     // /// Executes the Finate State Machine (FSM) with the given initial state.
     // ///
     // /// This overload of `run` is specialized for transducers where
@@ -383,14 +383,14 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
                 var nextEvent: Event? = event
                 while let event = nextEvent {
                     let (effect, _) = Self.compute(&storage.value, event: event)
-                    
+
                     // Check if the state became terminal after processing this event
                     let isTerminated = storage.value.isTerminal
                     if isTerminated {
                         proxy.finish()
                         // Continue to execute the effect if present, but will break after
                     }
-                    
+
                     if let effect {
                         let moreEvents = try await execute(
                             effect,
@@ -398,12 +398,12 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
                             env: env,
                             context: context
                         )
-                        
+
                         // If state became terminal, don't process any returned events
                         if isTerminated {
                             break loop
                         }
-                        
+
                         switch moreEvents.count {
                         case 0:
                             break
@@ -456,15 +456,15 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
         // cancelled. Iff there should be running effects, we eagerly cancel
         // them all:
         context.cancellAllTasks()
-        
+
         // Iff the current task has been cancelled, we do still reach here. In
         // this case, the transducer may have been interupted being in a non-
         // terminal state and the event buffer may still containing unprocessed
         // events. We do explicitly throw a `CancellationError` to indicate
         // this fact:
         try Task.checkCancellation()
-        
-#if DEBUG
+
+        #if DEBUG
         // Here, the event buffer may still have events in it, but the transducer
         // has finished processing. These events have been successfull enqueued,
         // and no error indicates this fact. In DEBUG we log these unprocessed
@@ -476,7 +476,7 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
             )
             ignoreCount += 1
         }
-#endif
+        #endif
         return Void()
     }
 
@@ -535,7 +535,7 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
 
 /// Convenience
 extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
-    
+
     public static func run(
         storage: some Storage<State>,
         proxy: Proxy = Proxy(),
@@ -568,7 +568,7 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
 }
 
 extension EffectTransducer where TransducerOutput == (Effect?, Output) {
-    
+
     @discardableResult
     public static func run(
         storage: some Storage<State>,
@@ -585,7 +585,6 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
         )
     }
 
-    
     @discardableResult
     public static func run(
         initialState: State,
@@ -602,7 +601,6 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
         )
     }
 }
-
 
 extension EffectTransducer {
 
