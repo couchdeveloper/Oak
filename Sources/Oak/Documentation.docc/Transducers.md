@@ -57,6 +57,55 @@ enum SimpleCounter: Transducer {
 
 **Pure Functions**: The `update` function must be deterministic and free of side effects. No network calls, file operations, or other external interactions.
 
+#### The Power of Purity and Determinism
+
+The pure, deterministic nature of the `update` function is Oak's most important architectural principle and provides profound benefits for correctness:
+
+**Deterministic Execution**:
+- Same `(state, event)` inputs **always** produce the same `(new_state, output)` results
+- No dependencies on time, external state, random numbers, or environmental factors
+- Function behavior is completely predictable and mathematically verifiable
+
+**Time Independence**:
+- No race conditions possible - execution order doesn't affect outcomes
+- No temporal coupling between state transitions
+- State machine behavior is independent of system load, timing, or scheduling
+
+**Correctness Guarantees**:
+```swift
+// This will ALWAYS produce the same result, every time
+let result1 = MyTransducer.update(&state, event: .increment)
+let result2 = MyTransducer.update(&state, event: .increment) // Identical to result1
+
+// No possibility of:
+// - Different results based on time of day
+// - Race conditions with other operations  
+// - Heisenberg effects from debugging
+// - Non-reproducible behaviors
+```
+
+**Testing and Verification**:
+- State transitions can be tested exhaustively with complete confidence
+- Bugs are perfectly reproducible
+- Property-based testing can verify correctness across all possible inputs
+- State machine correctness can be formally verified
+
+This purity enables Oak to provide guarantees that are impossible with imperative, side-effect-laden code: your state machine will behave exactly the same way every single time, regardless of system conditions.
+
+**Real-World Impact**:
+```
+PO: "QA found a bug when user does X and app is in state Y."  
+Dev: "Can't reproduce. Works on my simulator. Must be an edge case."
+```
+
+With Oak's deterministic state machines, this conversation becomes:
+```
+PO: "QA found a bug when user does X and app is in state Y."
+Dev: "Let me check the update function... ah, here's the issue!"
+```
+
+**Why? Because finite state machines don't have "edge cases"** - they have defined transitions for every possible `(state, event)` combination. Either the transition is handled correctly, or it fails gracefully with a well-defined behavior. No mysteries, no "works on my machine", no irreproducible bugs.
+
 **Direct Output**: Returns output values directly from the `update` function.
 
 **No Environment**: Simple transducers don't require external dependencies.

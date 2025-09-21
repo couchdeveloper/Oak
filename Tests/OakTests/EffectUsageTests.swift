@@ -394,7 +394,7 @@ struct EffectUsageTests {
                 switch event {
                 case .start:
                     return (
-                        .combine(
+                        .sequence(
                             makeEffect("1"),
                             makeEffect("2"),
                             makeEffect("3")

@@ -476,7 +476,7 @@ extension Effect {
     /// ## Related Methods
     /// - ``init(action:)-5f3jl`` - For complex action effects with environment access
     /// - ``init(isolatedAction:)-8vdj6`` - For action effects with system actor isolation
-    /// - ``combine(_:_:)`` - For combining multiple effects including event effects
+    /// - ``sequence(_:_:)`` - For sequencing multiple effects including event effects
     public static func event(_ event: sending Event) -> Effect {
         Effect(f: { env, input, context, isolated in
             isolated.assertIsolated()
@@ -585,24 +585,24 @@ extension Effect {
 
 extension Effect {
 
-    /// **Effect Combination - Sequential Execution**
+    /// **Effect Sequencing - Sequential Execution**
     ///
-    /// Combines two effects into a single effect that executes them sequentially.
+    /// Sequences two effects into a single effect that executes them sequentially.
     /// Events from both effects are collected and returned together.
     ///
-    /// Effects execute in order with their events combined into a single result.
-    /// If any effect throws an error, the combined effect terminates immediately.
+    /// Effects execute in order with their events sequenced into a single result.
+    /// If any effect throws an error, the sequenced effect terminates immediately.
     ///
     /// - Parameters:
     ///   - effect1: The first effect to execute.
     ///   - effect2: The second effect to execute.
-    /// - Returns: A combined effect that executes both sequentially.
+    /// - Returns: A sequenced effect that executes both sequentially.
     ///
     /// ## Related Methods
-    /// - ``combine(_:_:_:)`` - For combining three effects
-    /// - ``combine(_:_:_:_:)`` - For combining four effects
-    /// - ``combine(_:_:_:_:_:)`` - For combining five effects
-    public static func combine(
+    /// - ``sequence(_:_:_:)`` - For sequencing three effects
+    /// - ``sequence(_:_:_:_:)`` - For sequencing four effects
+    /// - ``sequence(_:_:_:_:_:)`` - For sequencing five effects
+    public static func sequence(
         _ effect1: consuming sending Self,
         _ effect2: consuming sending Self,
     ) -> Effect {
@@ -615,25 +615,25 @@ extension Effect {
         })
     }
 
-    /// **Effect Combination - Sequential Execution**
+    /// **Effect Sequencing - Sequential Execution**
     ///
-    /// Combines three effects into a single effect that executes them sequentially.
+    /// Sequences three effects into a single effect that executes them sequentially.
     /// Events from all effects are collected and returned together.
     ///
-    /// Effects execute in order with their events combined into a single result.
-    /// If any effect throws an error, the combined effect terminates immediately.
+    /// Effects execute in order with their events sequenced into a single result.
+    /// If any effect throws an error, the sequenced effect terminates immediately.
     ///
     /// - Parameters:
     ///   - effect1: The first effect to execute.
     ///   - effect2: The second effect to execute.
     ///   - effect3: The third effect to execute.
-    /// - Returns: A combined effect that executes all three sequentially.
+    /// - Returns: A sequenced effect that executes all three sequentially.
     ///
     /// ## Related Methods
-    /// - ``combine(_:_:)`` - For combining two effects
-    /// - ``combine(_:_:_:_:)`` - For combining four effects
-    /// - ``combine(_:_:_:_:_:)`` - For combining five effects
-    public static func combine(
+    /// - ``sequence(_:_:)`` - For sequencing two effects
+    /// - ``sequence(_:_:_:_:)`` - For sequencing four effects
+    /// - ``sequence(_:_:_:_:_:)`` - For sequencing five effects
+    public static func sequence(
         _ effect1: consuming sending Self,
         _ effect2: consuming sending Self,
         _ effect3: consuming sending Self,
@@ -649,26 +649,26 @@ extension Effect {
         })
     }
 
-    /// **Effect Combination - Sequential Execution**
+    /// **Effect Sequencing - Sequential Execution**
     ///
-    /// Combines four effects into a single effect that executes them sequentially.
+    /// Sequences four effects into a single effect that executes them sequentially.
     /// Events from all effects are collected and returned together.
     ///
-    /// Effects execute in order with their events combined into a single result.
-    /// If any effect throws an error, the combined effect terminates immediately.
+    /// Effects execute in order with their events sequenced into a single result.
+    /// If any effect throws an error, the sequenced effect terminates immediately.
     ///
     /// - Parameters:
     ///   - effect1: The first effect to execute.
     ///   - effect2: The second effect to execute.
     ///   - effect3: The third effect to execute.
     ///   - effect4: The fourth effect to execute.
-    /// - Returns: A combined effect that executes all four sequentially.
+    /// - Returns: A sequenced effect that executes all four sequentially.
     ///
     /// ## Related Methods
-    /// - ``combine(_:_:)`` - For combining two effects
-    /// - ``combine(_:_:_:)`` - For combining three effects
-    /// - ``combine(_:_:_:_:_:)`` - For combining five effects
-    public static func combine(
+    /// - ``sequence(_:_:)`` - For sequencing two effects
+    /// - ``sequence(_:_:_:)`` - For sequencing three effects
+    /// - ``sequence(_:_:_:_:_:)`` - For sequencing five effects
+    public static func sequence(
         _ effect1: consuming sending Self,
         _ effect2: consuming sending Self,
         _ effect3: consuming sending Self,
@@ -687,13 +687,13 @@ extension Effect {
         })
     }
 
-    /// **Effect Combination - Sequential Execution**
+    /// **Effect Sequencing - Sequential Execution**
     ///
-    /// Combines five effects into a single effect that executes them sequentially.
+    /// Sequences five effects into a single effect that executes them sequentially.
     /// Events from all effects are collected and returned together.
     ///
-    /// Effects execute in order with their events combined into a single result.
-    /// If any effect throws an error, the combined effect terminates immediately.
+    /// Effects execute in order with their events sequenced into a single result.
+    /// If any effect throws an error, the sequenced effect terminates immediately.
     ///
     /// - Parameters:
     ///   - effect1: The first effect to execute.
@@ -701,13 +701,13 @@ extension Effect {
     ///   - effect3: The third effect to execute.
     ///   - effect4: The fourth effect to execute.
     ///   - effect5: The fifth effect to execute.
-    /// - Returns: A combined effect that executes all five sequentially.
+    /// - Returns: A sequenced effect that executes all five sequentially.
     ///
     /// ## Related Methods
-    /// - ``combine(_:_:)`` - For combining two effects
-    /// - ``combine(_:_:_:)`` - For combining three effects
-    /// - ``combine(_:_:_:_:)`` - For combining four effects
-    public static func combine(
+    /// - ``sequence(_:_:)`` - For sequencing two effects
+    /// - ``sequence(_:_:_:)`` - For sequencing three effects
+    /// - ``sequence(_:_:_:_:)`` - For sequencing four effects
+    public static func sequence(
         _ effect1: consuming sending Self,
         _ effect2: consuming sending Self,
         _ effect3: consuming sending Self,

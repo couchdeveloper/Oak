@@ -276,7 +276,7 @@ struct TransducerTests {
                 switch event {
                 case .start:
                     state = .processing(0)
-                    return .combine(
+                    return .sequence(
                         .event(.actionEvent),
                         Effect.init(id: "op") { env, input in
                             try input.send(.operationEvent)
@@ -789,7 +789,7 @@ struct TransducerTests {
                 switch event {
                 case .start:
                     state = .processing
-                    return .combine(
+                    return .sequence(
                         .event(.effect1Done),
                         .event(.effect2Done)
                     )
