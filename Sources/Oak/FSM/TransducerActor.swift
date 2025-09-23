@@ -804,8 +804,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - storage: The underlying storage of the state value. The type conforms to `Oak.Storage`.
-    ///   It has a getter and a nonmutating setter. The intial state is given by the current state value.
+    ///   - initialState: The initial state value for the transducer.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
@@ -865,8 +864,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - storage: The underlying storage of the state value. The type conforms to `Oak.Storage`.
-    ///   It has a getter and a nonmutating setter. The intial state is given by the current state value.
+    ///   - initialState: The initial state value for the transducer.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - completion: A completion handler which will be called once when the transducer
@@ -923,8 +921,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - storage: The underlying storage of the state value. The type conforms to `Oak.Storage`.
-    ///   It has a getter and a nonmutating setter. The intial state is given by the current state value.
+    ///   - initialState: The initial state value for the transducer.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - completion: A completion handler which will be called once when the transducer

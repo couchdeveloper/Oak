@@ -1,0 +1,13 @@
+@Tutorials(name: "Oak") {
+    @Intro(title: "Get Started with Oak") {
+        Learn the fundamentals of building finite state machines with Oak through practical, hands-on tutorials. Master type-safe state management and seamless SwiftUI integration.
+        
+        Each tutorial builds upon the previous one, guiding you from basic concepts to advanced patterns used in production applications.
+    }
+    
+    @Chapter(name: "Building State Machines") {
+        Start your Oak journey by creating your first transducer and understanding Oak's approach to state management.
+        
+        @TutorialReference(tutorial: "doc:BuildingYourFirstTransducer")
+    }
+}

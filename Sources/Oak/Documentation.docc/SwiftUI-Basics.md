@@ -170,4 +170,4 @@ In practice, event sending rarely fails unless the transducer is in a terminal s
 
 ## What's Next
 
-This covers basic SwiftUI integration with simple transducers. For handling asynchronous operations like network requests, see <doc:Effects>. For more complex UI patterns, see <doc:Hierarchical-Architecture>.
+This covers basic SwiftUI integration with simple transducers. For handling asynchronous operations like network requests, see <doc:Effects>. For more complex patterns and examples, see <doc:Common-Patterns>.

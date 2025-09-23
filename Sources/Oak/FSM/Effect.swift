@@ -90,8 +90,9 @@ public struct Effect<T: EffectTransducer> {
     ///   processing.
     ///
     /// ## Related Methods
-    /// - ``init(isolatedAction:)`` - For system actor isolation
-    /// - ``init(action:)-5f3jl`` - Single event variant
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` - For system actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` - For system actor isolation (single event)  
+    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` - Single event variant
     /// - ``init(id:operation:)`` - For async unstructured tasks
     ///
     /// ## Example
@@ -129,8 +130,9 @@ public struct Effect<T: EffectTransducer> {
     ///   processing.
     ///
     /// ## Related Methods
-    /// - ``init(isolatedAction:)`` - For system actor isolation
-    /// - ``init(action:)-92cyp`` - Multiple events variant
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` - For system actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` - For system actor isolation (single event)
+    /// - ``init(action:)-(()(Effect<T>.Env)->[Effect<T>.Event])`` - Multiple events variant
     /// - ``init(id:operation:)`` - For async unstructured tasks
     ///
     /// ## Example
@@ -166,8 +168,6 @@ public struct Effect<T: EffectTransducer> {
     /// > Tip: For best performance, avoid capturing values in the closure.
     ///
     /// ## Related Methods
-    /// - ``init(action:)-92cyp`` - For global actor isolation
-    /// - ``init(isolatedAction:)-8vdj6`` - Single event variant
     /// - ``init(id:isolatedOperation:)`` - For async unstructured tasks
     public init(
         isolatedAction action: @Sendable @escaping (
@@ -195,8 +195,6 @@ public struct Effect<T: EffectTransducer> {
     /// > Tip: For best performance, avoid capturing values in the closure.
     ///
     /// ## Related Methods
-    /// - ``init(action:)-5f3jl`` - For global actor isolation
-    /// - ``init(isolatedAction:)-84bib`` - Multiple events variant
     /// - ``init(id:isolatedOperation:)`` - For async unstructured tasks
     public init(
         isolatedAction action: @Sendable @escaping (
@@ -230,7 +228,6 @@ public struct Effect<T: EffectTransducer> {
     ///
     /// ## Related Methods
     /// - ``init(id:operation:)`` - For global actor isolation
-    /// - ``init(isolatedAction:)-84bib`` - For synchronous actions with system
     ///   actor
     /// - ``cancelTask(_:)`` - For cancelling operations by ID
     ///
@@ -305,7 +302,6 @@ public struct Effect<T: EffectTransducer> {
     ///
     /// ## Related Methods
     /// - ``init(id:isolatedOperation:)`` - For system actor isolation
-    /// - ``init(action:)-92cyp`` - For synchronous actions with global actor
     /// - ``cancelTask(_:)`` - For cancelling operations by ID
     ///
     public init(
@@ -474,8 +470,6 @@ extension Effect {
     /// - Returns: An effect that delivers the event synchronously.
     ///
     /// ## Related Methods
-    /// - ``init(action:)-5f3jl`` - For complex action effects with environment access
-    /// - ``init(isolatedAction:)-8vdj6`` - For action effects with system actor isolation
     /// - ``sequence(_:_:)`` - For sequencing multiple effects including event effects
     public static func event(_ event: sending Event) -> Effect {
         Effect(f: { env, input, context, isolated in

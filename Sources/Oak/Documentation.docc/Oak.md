@@ -1,4 +1,4 @@
-# Oak Framework
+# ``Oak``
 
 A type-safe finite state machine library for Swift with powerful effect handling and seamless SwiftUI integration.
 
@@ -77,45 +77,31 @@ Oak may be unnecessary for simple views with minimal state requirements or appli
 
 ## Topics
 
-### Getting Started
+### Tutorials
 
-- <doc:Installation>
-- <doc:First-State-Machine>
-- <doc:SwiftUI-Basics>
+- <doc:table-of-contents>
 
-### Migration
+### FSM Core
 
-- <doc:MVVM-to-Oak>
-- <doc:Common-Patterns>
-
-### Core Concepts
-
-- <doc:Finite-State-Machines>
-- <doc:Transducers>
-- <doc:State-Modeling>
-- <doc:Effects>
+- ``Transducer``
+- ``EffectTransducer`` 
+- ``Effect``
+- ``BaseTransducer``
 
 ### SwiftUI Integration
 
-- <doc:TransducerView>
-- <doc:Environment-Injection>
-- <doc:Hierarchical-Architecture>
+- ``TransducerView``
+- ``ObservableTransducer``
 
-### Examples
+### Advanced Features
 
-- <doc:Counter-Example>
-- <doc:Data-Loading>
-- <doc:Form-Validation>
-- <doc:Navigation-Flow>
+- ``TransducerActor``
+- ``TransducerProxy``
+- ``Subject``
+- ``Callback``
 
-### Testing
+### Utilities
 
-- <doc:Testing-Transducers>
-- <doc:Testing-Effects>
-- <doc:Integration-Testing>
-
-### Advanced Usage
-
-- <doc:Performance>
-- <doc:Composition>
-- <doc:Debugging>
+- ``Terminable``
+- ``NonTerminal``
+- ``TransducerError``
