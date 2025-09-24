@@ -16,10 +16,10 @@
 ///## Building Hierarchies of Transducers
 ///
 /// Now, the power of SwiftUI Views and their ability to compose and built hierarchies can be leveraged to
-/// also built hierarchies of transducers. The transducer actor, i.e. the SwiftUI view, knowns how to present
+/// also built hierarchies of transducers. The transducer actor, i.e. the SwiftUI view, knows how to present
 /// sheets and it knows how to navigate to destination views. When these destination views also use
-/// transducers, it just needs to wire them up, that is, connecting the output of the distination transducer with
-/// the input of its own transducer in order to esablish a communication.
+/// transducers, it just needs to wire them up, that is, connecting the output of the destination transducer with
+/// the input of its own transducer in order to establish a communication.
 ///
 /// The protocol is designed to work seamlessly with SwiftUI views and types conforming to the `Observable`
 /// protocol from the Observation framework, enabling reactive updates when the transducer's state changes.
@@ -41,7 +41,7 @@
 /// ### SwiftUI Integration
 /// ```swift
 /// struct MyView: View {
-///     @State privat var state: MyUseCase.State = .init()
+///     @State private var state: MyUseCase.State = .init()
 ///     var body: some View {
 ///         TransducerView(
 ///             of: MyUseCase.self,
@@ -57,7 +57,7 @@
 /// ### Observable Integration
 /// ```swift
 /// struct MyView: View {
-///     @State privat var model = ObservableTransducer(of: MyUseCase.self)
+///     @State private var model = ObservableTransducer(of: MyUseCase.self)
 ///     var body: some View {
 ///         Text(model.message)
 ///         Button("Action") { try model.proxy.send(.userAction) }
@@ -139,13 +139,13 @@ extension TransducerActor where StateInitialising == State {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
     ///   actor creates one.
     ///   - completion: An optional completion handler which will be called once when the transducer
@@ -161,7 +161,7 @@ extension TransducerActor where StateInitialising == State {
     ///
     /// Given a transducer, `MyUseCase`, that conforms to `Transducer`, a transducer view can be
     /// created by passing in the _type_ of the transducer and the content view can be created in the
-    /// traling closure as shown below:
+    /// trailing closure as shown below:
     ///
     ///```swift
     /// struct ContentView: View {
@@ -244,13 +244,13 @@ extension TransducerActor where StateInitialising == State {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
     ///   actor creates one.
     ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
@@ -312,13 +312,13 @@ extension TransducerActor where StateInitialising == State {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
     ///   actor creates one.
     ///   - completion: A completion handler which will be called once when the transducer
@@ -361,13 +361,13 @@ extension TransducerActor where StateInitialising == State {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
@@ -445,13 +445,13 @@ extension TransducerActor where StateInitialising == State {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
@@ -501,13 +501,13 @@ extension TransducerActor where StateInitialising == State {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
@@ -583,13 +583,13 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
@@ -664,13 +664,13 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
@@ -717,13 +717,13 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
@@ -798,7 +798,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
@@ -858,7 +858,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
@@ -915,7 +915,7 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
@@ -976,13 +976,13 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
@@ -1053,13 +1053,13 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an
@@ -1101,13 +1101,13 @@ extension TransducerActor where StateInitialising == State, Content == Never {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
-    ///   - initialState: The intial state.
+    ///   - initialState: The initial state.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the view
     ///   creates one.
     ///   - env: An environment value. The environment value will be passed as an argument to an

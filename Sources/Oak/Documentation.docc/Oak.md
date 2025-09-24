@@ -6,50 +6,9 @@ A type-safe finite state machine library for Swift with powerful effect handling
 
 Oak provides a structured approach to application state management through finite state machines (FSMs). Unlike traditional state management patterns that rely on imperative updates and manual synchronization, Oak enforces explicit state transitions with compile-time guarantees about application behavior.
 
-### The Problem with "Edge Cases"
+## Why Oak?
 
-Traditional application development often suffers from what the industry calls "edge cases" - unexpected behaviors that surface when software encounters inputs or conditions that weren't explicitly considered during design. These are typically treated as inevitable bugs that require reactive debugging.
-
-However, most "edge cases" aren't truly edge cases at all. They're evidence of **incomplete specifications** and **implicit assumptions** that weren't made explicit in the code. For example:
-
-- A form accepts "numbers 1-100" but crashes on input "0" or "abc"
-- An authenticated user's session expires, but the app assumes authentication is permanent
-- A network request fails, but the UI assumes it always succeeds
-
-Oak fundamentally eliminates this category of problems by requiring **complete state modeling** upfront. When you define a finite state machine, you must explicitly handle every possible state and every possible event. The compiler prevents you from deploying incomplete specifications.
-
-### From Reactive Debugging to Proactive Design
-
-Oak transforms the development process from:
-- ❌ "We'll handle edge cases when they appear"
-- ❌ "Some bugs are inevitable in complex systems"  
-- ❌ "Boolean flags can represent any combination"
-
-To:
-- ✅ "Every possible scenario must be explicitly modeled"
-- ✅ "Impossible states are literally impossible to represent"
-- ✅ "The compiler verifies complete coverage"
-
-This shift from **reactive debugging culture** to **proactive design culture** doesn't eliminate human error, but it makes entire categories of errors impossible and forces thorough analysis where it matters most.
-
-### AI-Assisted Development
-
-Oak's structured approach creates an ideal environment for AI-assisted coding. The finite state machine pattern provides clear, mechanical rules that AI can follow systematically while humans focus on creative problem-solving and domain expertise.
-
-**Where AI Excels with Oak:**
-- **State Space Expansion**: Given requirements like "user authentication with session timeout," AI can suggest comprehensive state enums covering all scenarios
-- **Exhaustive Refactoring**: When adding new states or events, AI systematically updates all affected transitions without missing cases
-- **Pattern Completion**: AI recognizes incomplete `switch` statements and suggests missing state/event combinations
-- **Consistency Checking**: AI verifies that state transitions follow logical rules and identifies unreachable states or impossible combinations
-
-**The Perfect Division of Labor:**
-- **Humans provide**: Domain knowledge, business rules, acceptance criteria, and high-level architectural decisions
-- **AI handles**: Mechanical pattern matching, exhaustive case analysis, systematic refactoring, and type-safe code generation
-
-This collaboration is particularly powerful because FSMs separate concerns cleanly - timing and performance belong in Effects (not state transitions), domain logic is expressed as business rules (not implementation details), and the compiler verifies correctness regardless of who wrote the code.
-
-**Real-World Impact:**
-Rather than spending hours manually updating dozens of transition cases when requirements change, developers can focus on the conceptual design while AI handles the systematic implementation. This dramatically reduces the cognitive load of FSM development and eliminates the tedious refactoring work that traditionally made state machines feel cumbersome.
+Oak transforms application development from reactive debugging to proactive design. By requiring complete state modeling upfront, Oak makes entire categories of bugs impossible while providing a structured approach that aligns naturally with business requirements.
 
 ### Key Benefits
 
@@ -75,18 +34,33 @@ Oak excels in scenarios requiring reliable state management:
 
 Oak may be unnecessary for simple views with minimal state requirements or applications with very basic user interactions.
 
+### AI Collaboration
+
+Oak's structured approach creates an ideal environment for AI-assisted coding. The finite state machine pattern provides clear, mechanical rules that AI can follow systematically while humans focus on creative problem-solving and domain expertise.
+
+This collaboration dramatically reduces the cognitive load of FSM development and eliminates the tedious refactoring work that traditionally made state machines feel cumbersome.
+
+## Getting Started
+
+Begin your Oak journey with our interactive tutorial: <doc:table-of-contents>
+
+For a comprehensive exploration of Oak's benefits for teams and businesses, see <doc:Why-Choose-Oak>.
+
+Learn about AI-assisted development patterns in <doc:AI-Assisted-Development>.
+
 ## Topics
 
-### Tutorials
-
-- <doc:table-of-contents>
-
-### FSM Core
+### Core Transducer Protocols
 
 - ``Transducer``
-- ``EffectTransducer`` 
-- ``Effect``
+- ``EffectTransducer``
 - ``BaseTransducer``
+
+### Effect System
+
+- ``Effect``
+- ``Subject``
+- ``Callback``
 
 ### SwiftUI Integration
 
@@ -97,10 +71,8 @@ Oak may be unnecessary for simple views with minimal state requirements or appli
 
 - ``TransducerActor``
 - ``TransducerProxy``
-- ``Subject``
-- ``Callback``
 
-### Utilities
+### State Management Utilities
 
 - ``Terminable``
 - ``NonTerminal``

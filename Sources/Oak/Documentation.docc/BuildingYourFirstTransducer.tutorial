@@ -3,6 +3,8 @@
         
         Learn how to create a simple state machine using Oak's Transducer protocol. You'll build a counter that can increment, decrement, and reset its value.
         
+        This tutorial covers the fundamentals with pure state transitions and simple testing. As you build more complex applications, you'll encounter scenarios requiring side effects like network requests, timers, or user interactions - Oak handles these through `EffectTransducer`, which builds upon everything you'll learn here.
+        
         @Image(source: "oak-logo.png", alt: "Oak Framework Logo")
     }
     
@@ -125,16 +127,6 @@
                 
                 @Code(name: "SimpleCounterTests.swift", file: "tutorial-test3.swift")
             }
-        }
-    }
-    
-    @Section(title: "Next Steps") {
-        @ContentAndMedia {
-            Congratulations! You've built your first Oak transducer using the basic `Transducer` protocol. This tutorial covered the fundamentals with pure state transitions and simple testing.
-            
-            As you build more complex applications, you'll encounter scenarios requiring side effects like network requests, timers, or user interactions. Oak handles these through `EffectTransducer`, which builds upon everything you've learned here.
-            
-            When working with `EffectTransducer` and complex async flows, you'll explore more advanced testing patterns including effect verification, async flow testing with mock environments, SwiftUI integration testing, and error handling scenarios. The pure function approach you've mastered here provides the foundation for all these advanced scenarios.
         }
     }
 }
