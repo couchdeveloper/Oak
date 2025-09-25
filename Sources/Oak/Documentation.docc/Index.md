@@ -16,15 +16,24 @@ Oak transforms application development from reactive debugging to proactive desi
 
 ### Key Benefits
 
-**Type Safety**: Oak leverages Swift's type system to prevent invalid state transitions at compile time. Every possible state and event combination must be explicitly handled, eliminating undefined behavior.
+#### Fewer Production Bugs
+Swift enums for states and events make invalid combinations impossible, while exhaustive transition handling ensures every scenario is covered before your code ships.
 
-**Predictable State Changes**: State transitions follow mathematical rules defined in pure functions. This deterministic approach makes application behavior predictable and reproducible.
+#### Faster Debugging
+Pure, deterministic transitions mean bugs are perfectly reproducible—no more "works on my machine" or mysterious edge cases that only happen in production.
 
-**Effect Isolation**: Side effects are separated from state logic through Oak's Effect system. This separation improves testability and makes complex async operations manageable.
+#### Easier Testing
+Side effects are isolated from core logic, so you can unit test state transitions without mocking networks, databases, or timers.
 
-**SwiftUI Native**: Oak integrates directly with SwiftUI's reactive system through `TransducerView` and environment injection, requiring no external dependencies or view model layers.
+#### Cleaner SwiftUI Code
+Native integration eliminates view-model boilerplate while preserving reactive data flow, keeping your UI code focused on presentation.
 
-**Concurrent Safety**: Built on Swift's structured concurrency model with proper actor isolation and `Sendable` compliance throughout.
+#### Reliable Concurrency
+Actor isolation and structured cancellation prevent race conditions, ensuring your app behaves predictably even under heavy load.
+
+### The Oak Philosophy
+
+Oak's design philosophy centers on making application logic easy to reason about while providing strong guarantees for correct and complete behavior. By modeling states and transitions explicitly, you gain confidence that your application handles every possible scenario—eliminating the guesswork and unexpected edge cases that plague traditional state management approaches.
 
 ### When to Use Oak
 
@@ -37,12 +46,6 @@ Oak excels in scenarios requiring reliable state management:
 - Teams wanting to reduce state-related debugging time
 
 Oak may be unnecessary for simple views with minimal state requirements or applications with very basic user interactions.
-
-### AI Collaboration
-
-Oak's structured approach creates an ideal environment for AI-assisted coding. The finite state machine pattern provides clear, mechanical rules that AI can follow systematically while humans focus on creative problem-solving and domain expertise.
-
-This collaboration dramatically reduces the cognitive load of FSM development and eliminates the tedious refactoring work that traditionally made state machines feel cumbersome.
 
 ## Topics
 
