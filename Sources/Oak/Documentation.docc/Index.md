@@ -1,4 +1,8 @@
-# ``Oak``
+# Oak
+
+@Metadata {
+   @TechnologyRoot
+}
 
 A type-safe finite state machine library for Swift with powerful effect handling and seamless SwiftUI integration.
 
@@ -40,40 +44,14 @@ Oak's structured approach creates an ideal environment for AI-assisted coding. T
 
 This collaboration dramatically reduces the cognitive load of FSM development and eliminates the tedious refactoring work that traditionally made state machines feel cumbersome.
 
-## Getting Started
-
-Begin your Oak journey with our interactive tutorial: <doc:table-of-contents>
-
-For a comprehensive exploration of Oak's benefits for teams and businesses, see <doc:Why-Choose-Oak>.
-
-Learn about AI-assisted development patterns in <doc:AI-Assisted-Development>.
-
 ## Topics
 
-### Core Transducer Protocols
+### Learn
 
-- ``Transducer``
-- ``EffectTransducer``
-- ``BaseTransducer``
+- <doc:Why-Choose-Oak>
+- <doc:AI-Assisted-Development>
+- <doc:table-of-contents>
 
-### Effect System
+### API
 
-- ``Effect``
-- ``Subject``
-- ``Callback``
-
-### SwiftUI Integration
-
-- ``TransducerView``
-- ``ObservableTransducer``
-
-### Advanced Features
-
-- ``TransducerActor``
-- ``TransducerProxy``
-
-### State Management Utilities
-
-- ``Terminable``
-- ``NonTerminal``
-- ``TransducerError``
+- <doc:API-Documentation>

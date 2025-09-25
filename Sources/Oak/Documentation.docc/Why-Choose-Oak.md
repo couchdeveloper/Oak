@@ -17,7 +17,7 @@ Oak's approach mirrors Gherkin/Cucumber scenarios remarkably well:
 - **When** (event occurs)
 - **Then** (new state + effects)
 
-This alignment creates powerful synergies during requirements gathering. Teams using Oak often discover that refinement sessions become more productive when framed around state transitions. Product owners find themselves naturally thinking through edge cases as they ask "But what if the user is already authenticated when this happens?"
+This alignment creates powerful synergies during requirements gathering. Teams using the Gherkin/Cucumber approach already discover that refinement sessions become more productive when framed around state-event scenarios. The whole team naturally thinks through edge cases as they ask "But what if the user is not authenticated when this happens?" These detailed acceptance criteria then provide ideal input for FSM implementation, though the final state machine typically needs more fine-grained states and events than the original acceptance criteria.
 
 #### Collaborative Discovery
 
@@ -76,7 +76,7 @@ Traditional approaches allow invalid combinations like:
 - `isLoading = true` and `hasError = true`
 - `uploadProgress = 0.8` and `uploadState = "not_started"`
 
-Oak's sum types make these combinations literally impossible to represent.
+Oak's FSM approach encourages thoughtful state design, leading you to model state as either sum types (enums) or product types (structs) that can only represent valid values, naturally preserving invariants and eliminating invalid state combinations.
 
 ### Enhanced Team Velocity
 

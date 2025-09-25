@@ -4,7 +4,7 @@ Oak's structured finite state machine approach creates an ideal environment for 
 
 ## Overview
 
-The finite state machine pattern provides clear, mechanical rules that AI can follow systematically while humans focus on creative problem-solving and domain expertise. This division of labor transforms FSM development from a tedious, error-prone process into an efficient, reliable workflow.
+The finite state machine pattern provides clear, mechanical rules that AI can follow systematically while humans focus on creative problem-solving and domain expertise. This division of labor transforms FSM development from a purely manual process into an efficient, collaborative workflow - especially valuable during refactoring efforts or when scaling to larger state machines with many transitions.
 
 ## Where AI Excels with Oak
 

@@ -19,19 +19,19 @@
             @Step {
                 Create a new Swift file and define your transducer enum that conforms to the `Transducer` protocol.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step1.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step1.swift")
             }
             
             @Step {
                 Define the possible states your counter can be in. For a simple counter, we only need one state that holds the current count value.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step2.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step2.swift")
             }
             
             @Step {
                 Define the events that can happen to your counter. These represent all the ways users can interact with your state machine.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step3.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step3.swift")
             }
             
             @Step {
@@ -39,7 +39,7 @@
                 
                 > Important: When your transducer's `update` function returns an output value (not `Void`), you **must** declare the `Output` typealias. This is required by Oak's protocol design to ensure type safety.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step4.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step4.swift")
             }
         }
     }
@@ -55,31 +55,31 @@
             @Step {
                 Add the initial state. This defines what state your transducer starts in when first created.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step5.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step5.swift")
             }
             
             @Step {
                 Implement the update function signature. This function receives the current state (which you can modify) and an event, then returns output.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step6.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step6.swift")
             }
             
             @Step {
                 Handle the increment event. When the counter receives an increment event, increase the count and return the new value.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step7.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step7.swift")
             }
             
             @Step {
                 Handle the decrement event. Make sure the counter never goes below zero by using `max(0, count - 1)`.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step8.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step8.swift")
             }
             
             @Step {
                 Handle the reset event. This sets the counter back to zero regardless of its current value.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step9.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step9.swift")
             }
         }
     }
@@ -93,13 +93,13 @@
             @Step {
                 Implement the `initialOutput` function to provide output for the starting state.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step10.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step10.swift")
             }
             
             @Step {
                 Your complete transducer is now ready! The counter can increment, decrement, reset, and provides output for every state transition.
                 
-                @Code(name: "SimpleCounter.swift", file: "code-files/01-tutorial-step11.swift")
+                @Code(name: "SimpleCounter.swift", file: "01-tutorial-step11.swift")
             }
         }
     }
@@ -113,19 +113,19 @@
             @Step {
                 Create a simple test to verify your counter works correctly. Start with the initial state and send some events.
                 
-                @Code(name: "SimpleCounterTests.swift", file: "code-files/01-tutorial-test1.swift")
+                @Code(name: "SimpleCounterTests.swift", file: "01-tutorial-test1.swift")
             }
             
             @Step {
                 Test edge cases like decrementing below zero. Your transducer should handle these gracefully.
                 
-                @Code(name: "SimpleCounterTests.swift", file: "code-files/01-tutorial-test2.swift")
+                @Code(name: "SimpleCounterTests.swift", file: "01-tutorial-test2.swift")
             }
             
             @Step {
                 Verify that reset works from any state. This demonstrates the power of explicit state management.
                 
-                @Code(name: "SimpleCounterTests.swift", file: "code-files/01-tutorial-test3.swift")
+                @Code(name: "SimpleCounterTests.swift", file: "01-tutorial-test3.swift")
             }
         }
     }

@@ -8,6 +8,8 @@
     @Chapter(name: "Building State Machines") {
         Start your Oak journey by creating your first transducer and understanding Oak's approach to state management.
         
+    @Image(source: "tutorials-placeholder.png", alt: "Placeholder chapter illustration.")
+
         @TutorialReference(tutorial: "doc:BuildingYourFirstTransducer")
     }
 }

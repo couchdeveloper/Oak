@@ -197,6 +197,12 @@ let result = RealWorldExample.update(&state, event: .userAction)
 - **Use doc links** for articles: `<doc:Effects>`
 - **Use tutorial references** for interactive content: `<doc:BuildingYourFirstTransducer>`
 
+### Resource File Handling
+- Store tutorial code snippets and media assets inside the DocC bundle's `Resources/` directory.
+- DocC flattens this directory when resolving the `file:` parameter in directives like `@Code` and `@Image`; always reference assets by **filename only**, without any path components.
+- Ensure every resource has a unique filename (for example, prefix with a numeric tutorial ID) so references remain unambiguous after flattening.
+- Keep lightweight placeholder art alongside code samples to avoid missing-resource warnings until production assets are available.
+
 ### Callout Usage
 - **Important**: For critical requirements or safety information
 - **Note**: For helpful context or additional information
