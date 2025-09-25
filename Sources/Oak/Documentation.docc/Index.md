@@ -46,12 +46,31 @@ This collaboration dramatically reduces the cognitive load of FSM development an
 
 ## Topics
 
-### Learn
+### Getting Started
 
-- <doc:Why-Choose-Oak>
-- <doc:AI-Assisted-Development>
+- <doc:Installation>
+- <doc:First-State-Machine>
 - <doc:table-of-contents>
 
-### API
+### Core Concepts
+
+- <doc:Why-Choose-Oak>
+- <doc:Finite-State-Machines>
+- <doc:Transducers>
+- <doc:Effects>
+
+### Patterns & Integration
+
+- <doc:Common-Patterns>
+- <doc:SwiftUI-Basics>
+- <doc:TransducerView>
+- <doc:MVVM-to-Oak>
+
+### Quality & Collaboration
+
+- <doc:Testing-Transducers>
+- <doc:AI-Assisted-Development>
+
+### API Reference
 
 - <doc:API-Documentation>

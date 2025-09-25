@@ -9,28 +9,31 @@ This page organizes the Oak API by functional area. Use it as the entry point to
 - ``Transducer``
 - ``EffectTransducer``
 - ``BaseTransducer``
+- ``TransducerProxy``
 
 ### Effect System
 
 - ``Effect``
+
+### Input and Output
+
+- ``Proxy``
+- ``BufferedTransducerInput``
 - ``Subject``
 - ``Callback``
+
+Use the `Proxy.Input` handle returned by ``Proxy`` to forward events through types that conform to ``BufferedTransducerInput``, and combine it with ``Subject`` or ``Callback`` when bridging between transducers.
 
 ### SwiftUI Integration
 
 - ``TransducerView``
 - ``ObservableTransducer``
-
-### Advanced Features
-
 - ``TransducerActor``
-- ``TransducerProxy``
 
 ### State Management Utilities
 
 - ``Terminable``
 - ``NonTerminal``
-- ``TransducerError``
 
 ### Full Reference
 

@@ -73,9 +73,13 @@ The pure, deterministic nature of the `update` function is Oak's most important 
 
 **Correctness Guarantees**:
 ```swift
-// This will ALWAYS produce the same result, every time
+let originalState = state
+
+// Given the same starting state, this will ALWAYS produce the same result, every time
 let result1 = MyTransducer.update(&state, event: .increment)
-let result2 = MyTransducer.update(&state, event: .increment) // Identical to result1
+
+var stateCopy = originalState
+let result2 = MyTransducer.update(&stateCopy, event: .increment) // Identical to result1
 
 // No possibility of:
 // - Different results based on time of day
