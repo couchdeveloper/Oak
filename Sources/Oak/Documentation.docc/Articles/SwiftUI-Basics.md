@@ -16,78 +16,59 @@ Both approaches achieve the same functionality—the choice depends on your arch
 
 ## Counter Transducer Example
 
-Here's the `Counter` transducer that we'll use throughout the SwiftUI integration examples:
+Here's the `Counters` transducer that we'll use throughout the SwiftUI integration examples:
 
 ```swift
 import Oak
 
-enum Counter: Transducer {
+enum Counters: Transducer {
     enum State: Terminable {
-        case idle(count: Int)
-        case incrementing(count: Int)
-        case decrementing(count: Int)
-        case finished(count: Int)
+        case idle(value: Int)
+        case finished(value: Int)
         
         var isTerminal: Bool {
-            if case .finished = self { return true }
-            return false
+            switch self {
+            case .finished: return true
+            default: return false
+            }
         }
         
-        var count: Int {
+        var value: Int {
             switch self {
-            case .idle(let count), .incrementing(let count), 
-                 .decrementing(let count), .finished(let count):
-                return count
+            case .idle(let value), .finished(let value):
+                return value
             }
         }
     }
     
     enum Event {
-        case increment
-        case decrement
-        case incrementComplete
-        case decrementComplete
+        case intentPlus
+        case intentMinus
         case done
     }
     
-    static var initialState: State { .idle(count: 0) }
+    static var initialState: State { .idle(value: 0) }
     
     static func update(_ state: inout State, event: Event) {
         switch (state, event) {
-        case (.idle(let count), .increment):
-            state = .incrementing(count: count)
-        case (.incrementing(let count), .incrementComplete):
-            state = .idle(count: count + 1)
-        case (.idle(let count), .decrement):
-            state = .decrementing(count: count)
-        case (.decrementing(let count), .decrementComplete):
-            state = .idle(count: max(0, count - 1))
-        case (.idle(let count), .done):
-            state = .finished(count: count)
+        case (.idle(let value), .intentPlus):
+            state = .idle(value: value + 1)
+        case (.idle(let value), .intentMinus):
+            state = .idle(value: value > 0 ? value - 1 : 0)
+        case (.idle(let value), .done):
+            state = .finished(value: value)
         case (.finished, _):
             break // Terminal state - ignore all events
         }
     }
 }
-
-extension Counter.State {
-    var canIncrement: Bool {
-        if case .idle = self { return true }
-        return false
-    }
-    
-    var canDecrement: Bool {
-        if case .idle = self { return true }
-        return false
-    }
-}
 ```
 
 This transducer demonstrates several important patterns:
-- **Intermediate states** for async operations (`incrementing`, `decrementing`)
+- **Simple state transitions** with immediate updates
 - **Terminal state handling** with the `finished` state
 - **Computed properties** for convenient state access
-- **Helper extensions** for UI logic
+- **Value constraints** (count cannot go below 0)
 
 ## TransducerView Fundamentals
 
@@ -95,80 +76,40 @@ This transducer demonstrates several important patterns:
 
 ### Basic Integration
 
-Here's how to connect the `Counter` transducer to a SwiftUI view:
+Here's how to connect the `Counters` transducer to a SwiftUI view:
 
 ```swift
 import SwiftUI
 import Oak
 
-struct CounterView: View {
-    @State private var counterState = Counter.initialState
-    
+struct CounterTransducerView: View {
+    @State private var state: Counters.State = .idle(value: 0)
+
     var body: some View {
         TransducerView(
-            of: Counter.self,
-            initialState: $counterState
+            of: Counters.self,
+            initialState: $state
         ) { state, input in
-            CounterContentView(state: state, input: input)
+            VStack(spacing: 20) {
+                Text("Count: \(state.value)")
+                HStack {
+                    Button("➖") { try? input.send(.intentMinus) }
+                    Button("➕") { try? input.send(.intentPlus) }
+                }
+                Button("Done") { try? input.send(.done) }
+            }
+            .disabled(state.isTerminal)
+            .padding()
         }
     }
 }
 ```
 
-Below is the shared UI component used by both integration approaches:
+The UI is embedded directly in the `TransducerView` closure, where:
 
-```swift
-struct CounterContentView: View {
-    let state: Counter.State
-    let sendEvent: (Counter.Event) -> Void
-    
-    init(state: Counter.State, input: some Subject<Counter.Event>) {
-        self.state = state
-        self.sendEvent = { event in
-            try? input.send(event)
-            // Simulate async completion for increment/decrement
-            if event == .increment || event == .decrement {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    let completionEvent: Counter.Event = event == .increment ? .incrementComplete : .decrementComplete
-                    try? input.send(completionEvent)
-                }
-            }
-        }
-    }
-    
-    init(state: Counter.State, sendEvent: @escaping (Counter.Event) -> Void) {
-        self.state = state
-        self.sendEvent = sendEvent
-    }
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("Count: \(state.count)")
-                .font(.title)
-            
-            HStack(spacing: 15) {
-                Button("Increment") {
-                    sendEvent(.increment)
-                }
-                .disabled(!state.canIncrement)
-                
-                Button("Decrement") {
-                    sendEvent(.decrement)
-                }
-                .disabled(!state.canDecrement)
-                
-                Button("Done") {
-                    sendEvent(.done)
-                }
-                .disabled(state.isTerminal)
-            }
-        }
-        .padding()
-    }
-}
-```
-
-> Note: Both integration approaches use the same `CounterContentView` for rendering, demonstrating that the UI logic remains identical regardless of how you integrate the transducer with SwiftUI.
+- **State access**: The current transducer state is available as a parameter
+- **Event sending**: Use `try? input.send(event)` to trigger state transitions
+- **State-driven UI**: The interface adapts automatically to state changes (like disabling buttons when in terminal state)
 
 ## How TransducerView Works
 
@@ -185,10 +126,10 @@ TransducerView uses a `@State` binding from the parent view. This allows:
 The `input` parameter in the view closure provides a way to send events to the transducer:
 
 ```swift
-try? input.send(.increment)
+try? input.send(.intentPlus)
 ```
 
-Events are processed asynchronously and may trigger state transitions.
+Events are processed synchronously and trigger immediate state transitions.
 
 ### Automatic Lifecycle
 
@@ -203,55 +144,51 @@ TransducerView handles:
 Oak encourages state-driven UI design where view appearance is determined entirely by current state:
 
 ```swift
-VStack {
-    switch state {
-    case .idle(let count):
-        Text("Ready: \(count)")
-            .foregroundColor(.primary)
-        
-    case .incrementing(let count):
-        HStack {
-            ProgressView()
-                .scaleEffect(0.8)
-            Text("Adding... \(count)")
-        }
-        .foregroundColor(.blue)
-        
-    case .decrementing(let count):
-        HStack {
-            ProgressView()
-                .scaleEffect(0.8)
-            Text("Subtracting... \(count)")
-        }
-        .foregroundColor(.orange)
+VStack(spacing: 20) {
+    Text("Count: \(state.value)")
+    HStack {
+        Button("➖") { try? input.send(.intentMinus) }
+        Button("➕") { try? input.send(.intentPlus) }
     }
+    Button("Done") { try? input.send(.done) }
 }
+.disabled(state.isTerminal) // Entire UI disabled when finished
 ```
 
-This approach eliminates the need for separate loading flags or error states since they're encoded in the state machine.
+This approach eliminates the need for separate loading flags or error states since they're encoded in the state machine. When the counter reaches the `finished` state, the entire interface is automatically disabled.
 
 ## Parent-Child Communication
 
-TransducerView supports output handling for communication with parent views:
+TransducerView supports state observation through the binding. Parent views can react to state changes:
 
 ```swift
 struct ParentView: View {
-    @State private var counterState = Counter.initialState
-    @State private var message = "Waiting for updates..."
+    @State private var counterState: Counters.State = .idle(value: 0)
     
     var body: some View {
         VStack {
-            Text(message)
-                .padding()
+            Text("Current value: \(counterState.value)")
+                .font(.headline)
+            
+            if counterState.isTerminal {
+                Text("Counter is finished!")
+                    .foregroundColor(.green)
+            }
             
             TransducerView(
-                of: Counter.self,
+                of: Counters.self,
                 initialState: $counterState
             ) { state, input in
-                // Counter UI here
-                CounterContent(state: state, input: input)
-            } output: { count in
-                message = "Counter updated to: \(count)"
+                VStack(spacing: 20) {
+                    Text("Count: \(state.value)")
+                    HStack {
+                        Button("➖") { try? input.send(.intentMinus) }
+                        Button("➕") { try? input.send(.intentPlus) }
+                    }
+                    Button("Done") { try? input.send(.done) }
+                }
+                .disabled(state.isTerminal)
+                .padding()
             }
         }
     }
@@ -263,9 +200,9 @@ struct ParentView: View {
 TransducerView provides error handling for event sending:
 
 ```swift
-Button("Increment") {
+Button("➕") {
     do {
-        try input.send(.increment)
+        try input.send(.intentPlus)
     } catch {
         // Handle event sending errors
         print("Failed to send event: \(error)")
@@ -294,14 +231,21 @@ Consider `ObservableTransducer` when you need:
 import SwiftUI
 import Oak
 
-@available(iOS 17.0, macOS 14.0, *)
-struct CounterWithObservableTransducer: View {
-    @State private var model = ObservableTransducer<Counter>(
-        initialState: Counter.initialState
-    )
+struct CounterModelView: View {
+    typealias CounterModel = ObservableTransducer<Counters>
+    @State var model = CounterModel(initialState: .idle(value: 0))
     
     var body: some View {
-        CounterContentView(state: model.state, sendEvent: model.proxy.send)
+        VStack(spacing: 20) {
+            Text("Count: \(model.state.value)")
+            HStack {
+                Button("➖") { try? model.proxy.send(.intentMinus) }
+                Button("➕") { try? model.proxy.send(.intentPlus) }
+            }
+            Button("Done") { try? model.proxy.send(.done) }
+        }
+        .disabled(model.state.isTerminal)
+        .padding()
     }
 }
 ```
@@ -311,11 +255,9 @@ struct CounterWithObservableTransducer: View {
 ObservableTransducer excels when you need to share state between views:
 
 ```swift
-@available(iOS 17.0, macOS 14.0, *)
 struct SharedCounterApp: View {
-    @State private var counterModel = ObservableTransducer<Counter>(
-        initialState: Counter.initialState
-    )
+    typealias CounterModel = ObservableTransducer<Counters>
+    @State private var counterModel = CounterModel(initialState: .idle(value: 0))
     
     var body: some View {
         NavigationView {
@@ -331,24 +273,24 @@ struct SharedCounterApp: View {
 }
 
 struct CounterDisplayView: View {
-    let model: ObservableTransducer<Counter>
+    let model: ObservableTransducer<Counters>
     
     var body: some View {
-        Text("Current Count: \(model.state.count)")
+        Text("Current Count: \(model.state.value)")
             .font(.title2)
     }
 }
 
 struct CounterEditView: View {
-    let model: ObservableTransducer<Counter>
+    let model: ObservableTransducer<Counters>
     
     var body: some View {
         VStack {
-            Text("Edit Count: \(model.state.count)")
+            Text("Edit Count: \(model.state.value)")
             
             HStack {
-                Button("➖") { try? model.proxy.send(.decrement) }
-                Button("➕") { try? model.proxy.send(.increment) }
+                Button("➖") { try? model.proxy.send(.intentMinus) }
+                Button("➕") { try? model.proxy.send(.intentPlus) }
             }
         }
     }

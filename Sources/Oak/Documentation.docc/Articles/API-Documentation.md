@@ -1,5 +1,14 @@
 # Oak
 
+@Metadata {
+   @Available("iOS", introduced: "15.0")   
+   @Available("iPadOS", introduced: "15.0")   
+   @Available("macOS", introduced: "12.0")   
+   @Available("macCatalyst", introduced: "15.0")   
+   @Available("tvOS", introduced: "12.0")
+   @Available("watchOS", introduced: "8.0") 
+}
+
 This page organizes the Oak API by functional area. Use it as the entry point to the full symbol reference.
 
 ## Topics
@@ -35,6 +44,6 @@ Use the `Proxy.Input` handle returned by ``Proxy`` to forward events through typ
 - ``Terminable``
 - ``NonTerminal``
 
-### Full Reference
+## Complete API Reference
 
-For the complete API index, see the module reference: ``Oak``.
+This page organizes the most commonly used APIs by functional area. For the complete alphabetical index of all Oak symbols, navigate to the main Oak module documentation from the top-level navigation.

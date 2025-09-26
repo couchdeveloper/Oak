@@ -106,6 +106,7 @@ open_browser &
 
 # Start the documentation preview server
 # The --disable-sandbox flag is required for network access
+# Platform availability is now handled via @Available metadata in Index.md
 swift package --disable-sandbox plugin preview-documentation --target Oak --port 8081
 
 echo -e "${GREEN}✅ Documentation preview completed.${NC}"

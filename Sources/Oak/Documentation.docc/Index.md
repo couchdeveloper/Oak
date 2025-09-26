@@ -2,6 +2,12 @@
 
 @Metadata {
    @TechnologyRoot
+   @Available("iOS", introduced: "15.0")   
+   @Available("iPadOS", introduced: "15.0")   
+   @Available("macOS", introduced: "12.0")   
+   @Available("macCatalyst", introduced: "15.0")   
+   @Available("tvOS", introduced: "12.0")
+   @Available("watchOS", introduced: "8.0") 
 }
 
 A type-safe finite state machine library for Swift with powerful effect handling and seamless SwiftUI integration.
@@ -77,3 +83,4 @@ Oak may be unnecessary for simple views with minimal state requirements or appli
 ### API Reference
 
 - <doc:API-Documentation>
+- ``Oak``
