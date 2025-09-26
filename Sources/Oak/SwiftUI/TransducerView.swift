@@ -170,7 +170,7 @@ private struct IfLet<T, Content: View>: View {
         if let value {
             content(value)
         } else {
-            EmptyView()
+            Color.clear
         }
     }
 }
