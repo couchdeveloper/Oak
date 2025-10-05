@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: - Where Transducer: Oak.Transducer, Output == Void
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Void`.
     ///
@@ -177,7 +177,7 @@ extension TransducerActor where Content: View {
 }
 
 // MARK: - Where Transducer: Oak.Transducer
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
     ///
@@ -224,7 +224,7 @@ extension TransducerActor where Content: View {
 }
 
 // MARK: - Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output)
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
     ///
@@ -307,7 +307,7 @@ extension TransducerActor where Content: View {
 }
 
 // MARK: - Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output)
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
     ///
@@ -362,7 +362,7 @@ extension TransducerActor where Content: View {
 }
 
 // MARK: - Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> Self.Effect?`.
     ///

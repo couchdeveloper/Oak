@@ -1,3 +1,4 @@
+#if false
 import Combine
 import Dispatch
 import Foundation
@@ -321,4 +322,5 @@ extension FavouritesSceneViewModel {
     }
 
 }
+#endif
 #endif

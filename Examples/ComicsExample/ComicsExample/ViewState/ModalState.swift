@@ -1,3 +1,7 @@
+public protocol DefaultConstructible {
+    init()
+}
+
 public protocol Dismissable {
     func dismiss()
 }
@@ -6,7 +10,7 @@ public protocol Modality {
     associatedtype Alert
     associatedtype Sheet
     associatedtype ActionSheet
-    associatedtype Progress
+    associatedtype Progress: DefaultConstructible
 
     var alert: Alert? { get }
     var sheet: Sheet? { get }
@@ -18,12 +22,12 @@ public enum ModalState<
     Alert: Identifiable,
     Sheet: Identifiable,
     ActionSheet: Identifiable,
-    Progress
+    Progress: DefaultConstructible
 > {
     case alert(Alert)
     case sheet(Sheet)
     case actionSheet(ActionSheet)
-    case progress(Progress)
+    case progress(Progress = .init())
 }
 
 extension ModalState: Modality {
@@ -71,7 +75,7 @@ public struct SheetState: Identifiable {
 }
 
 public struct ActionSheetState: Identifiable {
-    public init(title: String) {
+    public init(title: String = "") {
         self.title = title
     }
 
@@ -85,6 +89,4 @@ public struct ProgressState {
     }
 
     let label: String
-    
-    static let loading = ProgressState()
 }

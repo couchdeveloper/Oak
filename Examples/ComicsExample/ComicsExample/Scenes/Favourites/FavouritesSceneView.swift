@@ -1,3 +1,4 @@
+#if false
 import SwiftUI
 
 extension Favourites.Views {
@@ -32,7 +33,10 @@ extension Favourites.Views {
                 })
                 .background(Color.clear)
                 .modal(viewState.modal, dismiss: { send(.didDismiss) } )
-                .navigationBarTitle("My Favourites", displayMode: .inline)
+                .navigationTitle("My Favourites")
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
                 .toolbar {
                     HStack {
                         EmptyView()
@@ -64,41 +68,6 @@ extension Favourites.Views {
 
 // MARK: - Previews
 
-fileprivate extension Mocks {
-    static let favourites: [Comics.Comic] = [
-        .init(
-            id: "1001",
-            title: "The Beginning",
-            dateString: "2024-01-15",
-            imageURL: URL(
-                string: "https://example.com/comics/1001.png"
-            )!,
-            altText: "Protagonist meets a cat",
-            isFavourite: true
-        ),
-        .init(
-            id: "1002",
-            title: "Plot Twist",
-            dateString: "2024-02-02",
-            imageURL: URL(
-                string: "https://example.com/comics/1002.png"
-            )!,
-            altText: "A surprising turn of events",
-            isFavourite: false
-        ),
-        .init(
-            id: "1003",
-            title: "Cliffhanger",
-            dateString: "2024-03-10",
-            imageURL: URL(
-                string: "https://example.com/comics/1003.png"
-            )!,
-            altText: "Hanging on the edge",
-            isFavourite: true
-        )
-    ]
-}
-
 #Preview("FavouritesContentView") {
     @Previewable @State var favourites: [Comics.Comic] = Mocks.favourites
 
@@ -118,3 +87,5 @@ fileprivate extension Mocks {
         send: { _ in }
     )
 }
+
+#endif

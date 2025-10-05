@@ -72,36 +72,28 @@ public struct Effect<T: EffectTransducer> {
         try await self.f(env, input, context, systemActor)
     }
 
-    /// **Action Effect - Global Actor Execution**
+    /// **Action Effect — Global Actor (Multiple Events)**
     ///
-    /// Creates an action effect that executes on a specified global actor and
-    /// returns multiple events. Events are processed synchronously before any
-    /// Input buffer events.
+    /// Runs the action on a caller-specified global actor. Events returned from the action
+    /// are delivered synchronously during the current computation cycle, before any buffered
+    /// `Input` events.
     ///
-    /// The action executes during the computation cycle with the caller-specified
-    /// global actor isolation. This enables safe access to environment values
-    /// isolated to the same global actor.
+    /// Use this when you need immediate, in-order processing on a particular global actor,
+    /// or when `Env` is isolated to that actor.
     ///
-    /// - Parameter action: Async closure that returns events for immediate
-    ///   processing.
+    /// - Parameter action: Async closure that receives the environment on the specified
+    ///   global actor. Return zero or more events to be processed immediately.
     ///
-    /// > Tip: For best performance, avoid capturing values in the closure.
-    /// > Caution: Events process synchronously; terminal states halt further
-    ///   processing.
+    /// > Tip: Minimize captures in the closure for best performance.
+    ///
+    /// > Caution: Because events are handled synchronously, reaching a terminal state halts
+    ///  further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` - For system actor isolation (multiple events)
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` - For system actor isolation (single event)  
-    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` - Single event variant
-    /// - ``init(id:operation:)`` - For async unstructured tasks
-    ///
-    /// ## Example
-    /// ```swift
-    /// Effect(action: { @MainActor env in
-    ///     let delegate = env.createDelegate()
-    ///     return [.delegate(delegate)]
-    /// })
-    /// ```
+    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` – Global actor isolation (single event)
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
+    /// - ``init(id:operation:)`` – Async unstructured task on a global actor
     public init(
         action: @Sendable @escaping @isolated(any) (
             Env,
@@ -112,36 +104,28 @@ public struct Effect<T: EffectTransducer> {
         }
     }
 
-    /// **Action Effect - Global Actor Execution**
+    /// **Action Effect — Global Actor (Single Event)**
     ///
-    /// Creates an action effect that executes on a specified global actor and
-    /// returns a single event. The event is processed synchronously before any
-    /// Input buffer events.
+    /// Runs the action on a caller-specified global actor and returns a single event.
+    /// The event is delivered synchronously during the current computation cycle, before
+    /// any buffered `Input` events.
     ///
-    /// The action executes during the computation cycle with the caller-specified
-    /// global actor isolation. This enables safe access to environment values
-    /// isolated to the same global actor.
+    /// Use this when you need immediate processing on a particular global actor,
+    /// or when `Env` is isolated to that actor.
     ///
-    /// - Parameter action: Async closure that returns a single event for immediate
-    ///   processing.
+    /// - Parameter action: Async closure that receives the environment on the specified
+    ///   global actor. Return a single event to be processed immediately.
     ///
-    /// > Tip: For best performance, avoid capturing values in the closure.
-    /// > Caution: Events process synchronously; terminal states halt further
-    ///   processing.
+    /// > Tip: Minimize captures in the closure for best performance.
+    ///
+    /// > Caution: Because events are handled synchronously, reaching a terminal state halts
+    /// further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` - For system actor isolation (multiple events)
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` - For system actor isolation (single event)
-    /// - ``init(action:)-(()(Effect<T>.Env)->[Effect<T>.Event])`` - Multiple events variant
-    /// - ``init(id:operation:)`` - For async unstructured tasks
-    ///
-    /// ## Example
-    /// ```swift
-    /// Effect(action: { @MainActor env in
-    ///     let delegate = env.createDelegate()
-    ///     return .delegate(delegate)
-    /// })
-    /// ```
+    /// - ``init(action:)-(()(Effect<T>.Env)->[Effect<T>.Event])`` – Global actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
+    /// - ``init(id:operation:)`` – Async unstructured task on a global actor
     public init(
         action: @Sendable @escaping @isolated(any) (
             Env,
@@ -153,22 +137,28 @@ public struct Effect<T: EffectTransducer> {
         }
     }
 
-    /// **Action Effect - System Actor Execution**
+    /// **Action Effect — System Actor (Multiple Events)**
     ///
-    /// Creates an action effect that executes on the system actor and returns
-    /// multiple events. Events are processed synchronously before any Input
-    /// buffer events.
+    /// Runs the action on the same actor as the transducer's run loop (the “system actor”),
+    /// independent of any global-actor isolation on `Env`. Events returned from the action
+    /// are delivered synchronously during the current computation cycle, before any buffered
+    /// `Input` events.
     ///
-    /// The action executes on the "systemActor" where the `run` function executes,
-    /// regardless of any global actor isolation on `Env`.
+    /// Use this when you need immediate, in-order processing with the same isolation as the
+    /// transducer, or when `Env` is only safe to access from the system actor.
     ///
-    /// - Parameter action: Async closure receiving environment, and isolated actor
-    ///   reference.
+    /// - Parameter action: Async closure that receives the environment and an isolated
+    ///   reference to the system actor. Return zero or more events to be processed immediately.
     ///
-    /// > Tip: For best performance, avoid capturing values in the closure.
+    /// > Tip: Minimize captures in the closure for best performance.
+    ///
+    /// > Caution: Because events are handled synchronously, reaching a terminal state halts
+    ///  further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(id:isolatedOperation:)`` - For async unstructured tasks
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
+    /// - ``init(action:)-(()(Effect<T>.Env)->[Effect<T>.Event])`` – Global actor isolation (multiple events)
+    /// - ``init(id:isolatedOperation:)`` – Async unstructured task on the system actor
     public init(
         isolatedAction action: @Sendable @escaping (
             Env,
@@ -180,22 +170,27 @@ public struct Effect<T: EffectTransducer> {
         }
     }
 
-    /// **Action Effect - System Actor Execution**
+    /// **Action Effect — System Actor (Single Event)**
     ///
-    /// Creates an action effect that executes on the system actor and returns a
-    /// single event. The event is processed synchronously before any Input buffer
-    /// events.
+    /// Runs the action on the transducer's system actor and returns a single event.
+    /// The event is delivered synchronously during the current computation cycle,
+    /// before any buffered `Input` events, regardless of any global-actor isolation on `Env`.
     ///
-    /// The action executes on the "systemActor" where the `run` function executes,
-    /// regardless of any global actor isolation on `Env`.
+    /// Use this when you need immediate event processing with the same isolation as the
+    /// transducer, or when `Env` is only safe to access from the system actor.
     ///
-    /// - Parameter action: Async closure receiving environment and isolated actor
-    ///   reference.
+    /// - Parameter action: Async closure that receives the environment and an isolated
+    ///   reference to the system actor. Return a single event to be processed immediately.
     ///
-    /// > Tip: For best performance, avoid capturing values in the closure.
+    /// > Tip: Minimize captures in the closure for best performance.
+    ///
+    /// > Caution: Because events are handled synchronously, reaching a terminal state halts
+    /// further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(id:isolatedOperation:)`` - For async unstructured tasks
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
+    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` – Global actor isolation (single event)
+    /// - ``init(id:isolatedOperation:)`` – Async unstructured task on the system actor
     public init(
         isolatedAction action: @Sendable @escaping (
             Env,
@@ -208,29 +203,27 @@ public struct Effect<T: EffectTransducer> {
         }
     }
 
-    /// **Operation Effect - System Actor Task**
+    /// **Operation Effect — System Actor Task (Immediate)**
     ///
-    /// Creates an operation effect that executes as a managed Task on the system
-    /// actor. Events are sent asynchronously via Input and processed with other
-    /// concurrent events.
+    /// Runs the operation as a managed Task on the transducer's system actor. Any events must
+    /// be sent asynchronously via `Input` and are processed alongside other concurrent events.
     ///
-    /// The operation executes on the "systemActor" where the `run` function
-    /// executes, enabling safe Task management regardless of environment actor
-    /// isolation.
+    /// Use this when you need concurrent work with system-actor isolation (for example, to
+    /// safely access system-actor–isolated resources) and explicit cancellation support.
     ///
     /// - Parameters:
-    ///   - id: Optional identifier for effect cancellation. Auto-generated if nil.
-    ///   - operation: Async closure receiving environment, input, and isolated
-    ///     actor reference.
+    ///   - id: Optional identifier used to cancel the task. Auto-generated if `nil`.
+    ///   - operation: Async closure that receives the environment, the input proxy, and an
+    ///     isolated reference to the system actor.
     ///
-    /// > Note: CancellationError is handled gracefully; other errors terminate
-    ///   the transducer.
+    /// > Tip: Import the system actor into the Task closure to preserve isolation.
+    ///
+    /// > Note: `CancellationError` is ignored; other errors terminate the transducer.
     ///
     /// ## Related Methods
-    /// - ``init(id:operation:)`` - For global actor isolation
-    ///   actor
-    /// - ``cancelTask(_:)`` - For cancelling operations by ID
-    ///
+    /// - ``init(id:operation:)`` – Global actor task (immediate)
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor task (delayed)
+    /// - ``cancelTask(_:)`` – Cancel a running operation by ID
     public init(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
         isolatedOperation operation: @Sendable @escaping (
@@ -286,24 +279,25 @@ public struct Effect<T: EffectTransducer> {
     // operation (which may have different isolations) and also between systemActor,
     // EXCEPT where all calls to operation are isolated to `systemActor`.
 
-    /// **Operation Effect - Global Actor Task**
+    /// **Operation Effect — Global Actor Task (Immediate)**
     ///
-    /// Creates an operation effect that executes as a managed Task on a specified global actor.
-    /// Events are sent asynchronously via Input and processed with other concurrent events.
+    /// Runs the operation as a managed Task on a caller-specified global actor. Any events must
+    /// be sent asynchronously via `Input` and are processed alongside other concurrent events.
     ///
-    /// The operation executes on the global actor associated with the closure,
-    /// typically matching the environment's actor isolation for safe access.
+    /// Use this when you need concurrent work on a specific global actor that matches your
+    /// environment's isolation, with explicit cancellation support.
     ///
     /// - Parameters:
-    ///   - id: Optional identifier for effect cancellation. Auto-generated if nil.
-    ///   - operation: Async closure receiving environment and input parameters.
+    ///   - id: Optional identifier used to cancel the task. Auto-generated if `nil`.
+    ///   - operation: Async closure that receives the environment and the input proxy on the
+    ///     specified global actor.
     ///
-    /// > Note: CancellationError is handled gracefully; other errors terminate the transducer.
+    /// > Note: `CancellationError` is ignored; other errors terminate the transducer.
     ///
     /// ## Related Methods
-    /// - ``init(id:isolatedOperation:)`` - For system actor isolation
-    /// - ``cancelTask(_:)`` - For cancelling operations by ID
-    ///
+    /// - ``init(id:isolatedOperation:)`` – System actor task (immediate)
+    /// - ``init(id:operation:after:tolerance:clock:)`` – Global actor task (delayed)
+    /// - ``cancelTask(_:)`` – Cancel a running operation by ID
     public init(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
         operation: @Sendable @escaping @isolated(any) (
@@ -341,27 +335,28 @@ public struct Effect<T: EffectTransducer> {
 
 extension Effect {
 
-    /// **Operation Effect - Delayed System Actor Task**
+    /// **Operation Effect — System Actor Task (Delayed)**
     ///
-    /// Creates an operation effect that executes on the system actor after a specified duration.
-    /// Events are sent asynchronously via Input and processed with other concurrent events.
+    /// Schedules the operation to run as a managed Task on the transducer's system actor
+    /// after a specified delay. Any events must be sent asynchronously via `Input` and are
+    /// processed alongside other concurrent events.
     ///
-    /// The operation waits for the specified duration before executing on the "systemActor",
-    /// providing precise timing control with automatic Task lifecycle management.
+    /// Use this for time-based operations that require system-actor isolation and cancellation.
     ///
     /// - Parameters:
-    ///   - id: Optional identifier for effect cancellation. Auto-generated if nil.
-    ///   - operation: Async closure receiving environment, input, and isolated actor reference.
-    ///   - duration: Time interval to wait before executing the operation.
+    ///   - id: Optional identifier used to cancel the task. Auto-generated if `nil`.
+    ///   - operation: Async closure that receives the environment, the input proxy, and an
+    ///     isolated reference to the system actor.
+    ///   - duration: Delay before the operation starts.
     ///   - tolerance: Optional timing tolerance for system optimization.
-    ///   - clock: Clock for duration measurement. Defaults to `ContinuousClock()`.
+    ///   - clock: Clock used to measure the delay. Defaults to `ContinuousClock()`.
     ///
-    /// > Note: CancellationError is handled gracefully; other errors terminate the transducer.
+    /// > Note: `CancellationError` is ignored; other errors terminate the transducer.
     ///
     /// ## Related Methods
-    /// - ``init(id:operation:after:tolerance:clock:)`` - For global actor isolation
-    /// - ``init(id:isolatedOperation:)`` - For immediate operations with system actor
-    /// - ``cancelTask(_:)`` - For cancelling timed operations by ID
+    /// - ``init(id:operation:after:tolerance:clock:)`` – Global actor task (delayed)
+    /// - ``init(id:isolatedOperation:)`` – System actor task (immediate)
+    /// - ``cancelTask(_:)`` – Cancel a scheduled or running operation by ID
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public init<C: Clock>(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
@@ -398,27 +393,28 @@ extension Effect {
         }
     }
 
-    /// **Operation Effect - Delayed Global Actor Task**
+    /// **Operation Effect — Global Actor Task (Delayed)**
     ///
-    /// Creates an operation effect that executes on a specified global actor after a duration.
-    /// Events are sent asynchronously via Input and processed with other concurrent events.
+    /// Schedules the operation to run as a managed Task on a caller-specified global actor
+    /// after a specified delay. Any events must be sent asynchronously via `Input` and are
+    /// processed alongside other concurrent events.
     ///
-    /// The operation waits for the specified duration before executing on the global actor
-    /// associated with the closure, enabling safe environment access after timing delays.
+    /// Use this for time-based operations that require a specific global actor and cancellation.
     ///
     /// - Parameters:
-    ///   - id: Optional identifier for effect cancellation. Auto-generated if nil.
-    ///   - operation: Async closure receiving environment and input parameters.
-    ///   - duration: Time interval to wait before executing the operation.
+    ///   - id: Optional identifier used to cancel the task. Auto-generated if `nil`.
+    ///   - operation: Async closure that receives the environment and the input proxy on the
+    ///     specified global actor.
+    ///   - duration: Delay before the operation starts.
     ///   - tolerance: Optional timing tolerance for system optimization.
-    ///   - clock: Clock for duration measurement. Defaults to `ContinuousClock()`.
+    ///   - clock: Clock used to measure the delay. Defaults to `ContinuousClock()`.
     ///
-    /// > Note: CancellationError is handled gracefully; other errors terminate the transducer.
+    /// > Note: `CancellationError` is ignored; other errors terminate the transducer.
     ///
     /// ## Related Methods
-    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` - For system actor isolation
-    /// - ``init(id:operation:)`` - For immediate operations with global actor
-    /// - ``cancelTask(_:)`` - For cancelling timed operations by ID
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor task (delayed)
+    /// - ``init(id:operation:)`` – Global actor task (immediate)
+    /// - ``cancelTask(_:)`` – Cancel a scheduled or running operation by ID
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public init<C: Clock>(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
@@ -458,19 +454,17 @@ extension Effect {
 
 extension Effect {
 
-    /// **Action Effect - Immediate Event**
+    /// **Action Effect — Immediate Event**
     ///
-    /// Creates an action effect that immediately returns the specified event.
-    /// The event is processed synchronously before any Input buffer events.
+    /// Emits a single event synchronously in the current computation cycle.
+    /// The event is handled before any buffered `Input` events, preserving
+    /// ordering and state guarantees.
     ///
-    /// Provides the simplest way to send a single event with minimal overhead,
-    /// executing with immediate precedence over buffered events.
-    ///
-    /// - Parameter event: The event to send immediately.
+    /// - Parameter event: The event to emit immediately.
     /// - Returns: An effect that delivers the event synchronously.
     ///
     /// ## Related Methods
-    /// - ``sequence(_:_:)`` - For sequencing multiple effects including event effects
+    /// - ``sequence(_:_:)`` – Sequence multiple effects, including event effects
     public static func event(_ event: sending Event) -> Effect {
         Effect(f: { env, input, context, isolated in
             isolated.assertIsolated()
@@ -761,3 +755,4 @@ extension Effect {
         })
     }
 }
+

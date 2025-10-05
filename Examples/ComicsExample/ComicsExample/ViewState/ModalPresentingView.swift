@@ -1,4 +1,13 @@
+#if false
+
+
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
+#if canImport(AppKit)
+import AppKit
+#endif
 
 extension Modality {
     func binding<Value>(
@@ -27,11 +36,13 @@ extension SwiftUI.Alert  {
     }
 }
 
+#if canImport(UIKit)
 extension SwiftUI.ActionSheet  {
     init(_ actionSheetState: ActionSheetState) {
         self.init(title: Text(actionSheetState.title))
     }
 }
+#endif
 
 
 public extension View {
@@ -58,9 +69,11 @@ public extension View {
             .sheet(item: modal.binding(for: \.sheet, dismiss: dismiss)) { sheet in
                 Color.red
             }
+#if canImport(UIKit)
             .actionSheet(item: modal.binding(for: \.actionSheet, dismiss: dismiss)) { actionSheet in
                 SwiftUI.ActionSheet(actionSheet)
             }
+#endif
 
         } else {
             self
@@ -75,8 +88,17 @@ extension View {
         if let value = item.wrappedValue {
             ZStack {
                 self
-                Color(UIColor.quaternarySystemFill).edgesIgnoringSafeArea(.all)
-                    //.blur(radius: 16)
+                #if canImport(UIKit)
+                Color(UIColor.quaternarySystemFill)
+                    .ignoresSafeArea()
+                #elseif canImport(AppKit)
+                Color(NSColor.quaternaryLabelColor)
+                    .ignoresSafeArea()
+                #else
+                Color.gray.opacity(0.2)
+                    .ignoresSafeArea()
+                #endif
+                //.blur(radius: 16)
                 content(value)
             }
         } else {
@@ -85,6 +107,8 @@ extension View {
     }
 }
 
+
+#if DEBUG
 
 // MARK: - Preview
 
@@ -109,17 +133,29 @@ struct ModalPresentingView_Previews: PreviewProvider {
             .modal(nil, dismiss: {})
 
             HappyView(state: "Happy View with Alert")
-            .modal(.alert(AlertState(
+                .modal(
+                    .alert(
+                        AlertState(
                             title: "Alert",
-                            message: "Alert message")), dismiss: {})
+                            message: "Alert message"
+                        )
+                    ),
+                    dismiss: {}
+                )
 
 
             HappyView(state: "Happy View with loading")
-                .modal(.progress(ProgressState(label: "loading…")), dismiss: {})
+                .modal(
+                    .progress(ProgressState(label: "loading…")),
+                    dismiss: {}
+                )
 
             HappyView(state: "Happy View with loading")
-                .modal(.progress(ProgressState(label: "loading…")), dismiss: {})
-            .preferredColorScheme(.dark)
+                .modal(
+                    .progress(ProgressState(label: "loading…")),
+                    dismiss: {}
+                )
+                .preferredColorScheme(.dark)
         }
     }
 }
@@ -141,3 +177,7 @@ struct ModalPresentingView_Previews: PreviewProvider {
 //        )
 //    }
 //}
+
+
+#endif
+#endif

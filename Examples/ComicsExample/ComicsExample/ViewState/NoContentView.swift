@@ -1,3 +1,6 @@
+#if false
+// This is OBSOLETE!
+
 import SwiftUI
 
 public struct NoContentView: View {
@@ -10,7 +13,7 @@ public struct NoContentView: View {
         GeometryReader { proxy in
             switch state {
             case .blank:
-                Color(UIColor.systemGray5)
+                Color.systemGray5
             case .empty(let title, let description):
                 HStack(alignment: .top) {
                     Spacer()
@@ -18,22 +21,22 @@ public struct NoContentView: View {
                         Spacer()
                         Image(systemName: "xmark.rectangle.portrait")
                             .font(.system(size: 60.0, weight: .ultraLight))
-                            .foregroundColor(Color(UIColor.secondaryLabel))
+                            .foregroundColor(Color.secondaryLabel)
                             .padding(10)
                         Text(title)
                             .font(.headline)
-                            .foregroundColor(Color(UIColor.secondaryLabel))
+                            .foregroundColor(Color.secondaryLabel)
                             .padding(4)
                         Text(description)
                             .font(.body)
                             .multilineTextAlignment(.center)
-                            .foregroundColor(Color(UIColor.secondaryLabel))
+                            .foregroundColor(Color.secondaryLabel)
                         Spacer()
                     }
                     .frame(maxWidth: CGFloat(Int(proxy.size.width * 0.7)))
                     Spacer()
                 }
-                .background(Color(UIColor.systemGray5))
+                .background(Color.systemGray5)
 
             case .error(let title, let description):
                 HStack {
@@ -47,12 +50,12 @@ public struct NoContentView: View {
                         VStack {
                             Text(title)
                                 .font(.largeTitle)
-                                .foregroundColor(Color(UIColor.secondaryLabel))
+                                .foregroundColor(Color.secondaryLabel)
                                 .padding(4)
                             Text(description)
                                 .font(.body)
                                 .frame(maxWidth: .infinity, alignment: .center)
-                                .foregroundColor(Color(UIColor.secondaryLabel))
+                                .foregroundColor(Color.secondaryLabel)
                         }
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: CGFloat(Int(proxy.size.width * 0.7)))
@@ -60,7 +63,7 @@ public struct NoContentView: View {
                     }
                     Spacer()
                 }
-                .background(Color(UIColor.systemGray5))
+                .background(Color.systemGray5)
             }
         }
     }
@@ -98,3 +101,4 @@ struct NoContentView_Previews: PreviewProvider {
         }
     }
 }
+#endif
