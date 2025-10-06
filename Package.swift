@@ -32,7 +32,9 @@ let package = Package(
             dependencies: [
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms")
             ],
-            swiftSettings: []
+            swiftSettings: [
+                .swiftLanguageMode(.v6)  // Explicit for clarity, even though swift-tools-version: 6.2 defaults to this
+            ]
         ),
         .testTarget(
             name: "OakTests",
@@ -41,7 +43,9 @@ let package = Package(
                 .product(name: "Mutex", package: "swift-mutex")
             ],
             path: "Tests/OakTests",
-            swiftSettings: []
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
         ),
         .testTarget(
             name: "OakBenchmarks",
@@ -49,7 +53,9 @@ let package = Package(
                 "Oak"
             ],
             path: "Tests/OakBenchmarks",
-            swiftSettings: []
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
         )
     ]
 )

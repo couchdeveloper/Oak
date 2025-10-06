@@ -69,6 +69,7 @@ echo -e "${BLUE}ℹ️  Attempting basic documentation generation first...${NC}"
 mkdir -p ./generated-docs
 
 # Try basic documentation generation first
+# Platform availability is now handled via @Available metadata in Index.md
 if swift package --disable-sandbox generate-documentation --target Oak; then
     echo -e "${GREEN}✅ Basic documentation generation successful!${NC}"
     
@@ -76,6 +77,7 @@ if swift package --disable-sandbox generate-documentation --target Oak; then
     echo -e "${BLUE}ℹ️  Converting to static hosting format...${NC}"
     
     # Generate static documentation
+    # Platform availability is now handled via @Available metadata in Index.md
     if swift package --disable-sandbox generate-documentation \
         --target Oak \
         --disable-indexing \

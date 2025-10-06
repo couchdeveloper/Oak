@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: - Where Transducer: Oak.Transducer, Output == Void
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Void`.
     ///
@@ -10,14 +10,14 @@ extension TransducerActor where Content: View {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
     ///   - initialState: The underlying storage of the state value, a `SwiftUI.Binding`.
-    ///   The intial state is given by the current state value.
+    ///   The initial state is given by the current state value.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
     ///   actor creates one.
     ///   - completion: An optional completion handler which will be called once when the transducer
@@ -119,14 +119,14 @@ extension TransducerActor where Content: View {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
     /// - Parameters:
     ///   - type: The type of the transducer.
     ///   - initialState: The underlying storage of the state value, a `SwiftUI.Binding`.
-    ///   The intial state is given by the current state value.
+    ///   The initial state is given by the current state value.
     ///   - proxy: A proxy which will be associated to the transducer, or `nil` in which case the
     ///   actor creates one.
     ///   - output: A type conforming to `Subject<Output>` where the transducer sends the
@@ -177,7 +177,7 @@ extension TransducerActor where Content: View {
 }
 
 // MARK: - Where Transducer: Oak.Transducer
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs a transducer with an update function that has the
     /// signature `(inout State, Event) -> Output`.
     ///
@@ -186,7 +186,7 @@ extension TransducerActor where Content: View {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
@@ -224,7 +224,7 @@ extension TransducerActor where Content: View {
 }
 
 // MARK: - Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output)
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
     ///
@@ -233,7 +233,7 @@ extension TransducerActor where Content: View {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
@@ -307,7 +307,7 @@ extension TransducerActor where Content: View {
 }
 
 // MARK: - Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == (Transducer.Effect?, Output)
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> (Self.Effect?, Output)`.
     ///
@@ -316,7 +316,7 @@ extension TransducerActor where Content: View {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///
@@ -362,7 +362,7 @@ extension TransducerActor where Content: View {
 }
 
 // MARK: - Transducer: Oak.EffectTransducer, Transducer.TransducerOutput == Transducer.Effect?
-extension TransducerActor where Content: View {
+extension TransducerActor where Self: View, Content: View {
     /// Initialises a _transducer actor_ that runs an effect transducer with an update function that has the
     /// signature `(inout State, Event) -> Self.Effect?`.
     ///
@@ -371,7 +371,7 @@ extension TransducerActor where Content: View {
     /// `TransducerActor` and thus are _transducer actors_.
     ///
     /// The transducer's life-time (i.e. its _identity_) is bound to the actor's life-time. If the actor will be
-    /// desroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
+    /// destroyed before the transducer reaches a terminal state, it will be forcibly terminated. If the
     /// transducer reaches a terminal state before the actor will be destroyed, user interactions send to
     /// the transducer will be ignored.
     ///

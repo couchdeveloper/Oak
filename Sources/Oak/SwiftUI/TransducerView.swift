@@ -108,8 +108,10 @@ where Transducer: BaseTransducer, Content: View {
     }
 
     public var body: some View {
-        IfLet(proxy) { proxy in
-            return content(state, proxy.input)
+        ZStack {
+            IfLet(proxy) { proxy in
+                content(state, proxy.input)
+            }
         }
         .task {
             if taskHolder == nil {

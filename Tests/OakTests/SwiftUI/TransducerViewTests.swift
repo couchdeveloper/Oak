@@ -312,13 +312,11 @@ extension TransducerViewTests {
             }
 
             var bodyExecutionCount = 0
-            let proxy = TestTransducer.Proxy()
 
             let view = TestView(initialState: TestTransducer.State.start) {
                 TransducerView(
                     of: TestTransducer.self,
                     initialState: $0,
-                    proxy: proxy,
                     output: Callback { @MainActor output in
                         Issue.record("Unexpected callback execution")
                     }
