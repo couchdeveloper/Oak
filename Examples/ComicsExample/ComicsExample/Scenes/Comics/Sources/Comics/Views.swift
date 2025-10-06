@@ -65,9 +65,6 @@ extension Views {
         let viewState: Comics.Transducer.ViewState
         let input: Comics.Transducer.Proxy.Input
 
-        @State var presentation: Comics.Transducer.Presentation? = nil
-        @State var isAlertPresented: Bool = false
-
         var body: some View {
             VStack {
                 switch viewState.content {
@@ -76,44 +73,17 @@ extension Views {
             
                 case .absent(let noContent):
                     NoContentView(noContent: noContent, input: input)
-                    
-                case nil:
-                    Text("ContentView: viewState uninitialized")
-                        .foregroundStyle(Color.white)
-                        .background(Color.red)
                 }
             }
-            .sheet(
-                item: $presentation,
-                onDismiss: { try? input.send(.didDismiss) }
-            ) { presentation in
-                Text("Sheet")
-            }
-            .onChange(of: viewState.presentation?.id, initial: true) { _, _ in
-                self.presentation = viewState.presentation
-            }
-            .alert(
-                "Error",
-                isPresented: $isAlertPresented,
-                presenting: viewState.failure,
-                actions: { _ in
-                    Button("OK") {
-                        try? input.send(.didDismiss)
-                    }
-                }, message: { error in
-                    AlertView(error: error)
-                }
+            .modal(
+                state: viewState,
+                sheet: { Text(verbatim: "\($0)") },
+                alert: { AlertView(error: $0) }
             )
-            .onChange(of: viewState.isFailure, initial: true) { _, newValue in
-                self.isAlertPresented = newValue
-            }
             .navigationTitle("Actual Comic")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar {
-                ToolbarView(input: input)
-            }
         }
     }
     
@@ -182,11 +152,32 @@ extension Views {
         @State private var showAltText = false
         @GestureState private var isDetectingLongPress = false
         
+        @State private var showControls = true
+        @State private var hideTask: Task<Void, Never>?
+        
+        private func scheduleAutoHide() {
+            hideTask?.cancel()
+            hideTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 1)) {
+                    self.showControls = false
+                }
+                self.hideTask = nil
+            }
+        }
+        
         var body: some View {
             VStack {
                 Text(comic.title)
                 Text(comic.dateString)
                 ZoomableImageView(url: comic.imageURL)
+                .onTapGesture {
+                    withAnimation(.easeIn(duration: 0.2)) {
+                        self.showControls = true
+                    }
+                    scheduleAutoHide()
+                }
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 1)
                         .onChanged({ value in
@@ -214,6 +205,40 @@ extension Views {
                     try? input.send(.intentToggleFavourite)
                 }
             }
+            .overlay(alignment: .bottom) {
+                ToolbarView(input: input)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .shadow(radius: 8)
+                    .padding(.bottom, 24)
+                    .opacity(showControls ? 1 : 0)
+                    .allowsHitTesting(showControls)
+                    .simultaneousGesture(
+                        TapGesture()
+                            .onEnded { _ in
+                                scheduleAutoHide()
+                            }
+                    )
+
+            }
+            .onAppear {
+                scheduleAutoHide()
+            }
+            #if os(macOS)
+            .onHover { inside in
+                if inside {
+                    hideTask?.cancel()
+                    hideTask = nil
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        self.showControls = true
+                    }
+                } else {
+                    scheduleAutoHide()
+                }
+            }
+            #endif
             .navigationTitle("Comic #\(comic.id)")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

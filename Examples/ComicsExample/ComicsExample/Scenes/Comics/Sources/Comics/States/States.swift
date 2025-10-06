@@ -1,24 +1,45 @@
-enum States {}
+public enum States {
+    
+    public protocol DefaultConstructible {
+        init()
+    }
+
+    public protocol ViewState {
+        associatedtype Content: DefaultConstructible
+        associatedtype Activity
+        associatedtype Presentation: Identifiable
+        associatedtype Failure
+        
+        var content: Content { get }
+        var activity: Activity? { get }
+        var presentation: Presentation? { get }
+        var failure: Failure? { get }
+        
+        var isBusy: Bool { get }
+        var isIdle: Bool { get }
+        var isFailure: Bool { get }
+        var isPresenting: Bool { get }
+    }
+
+}
 
 extension States {
-    enum Activity {
+    public enum Activity {
         case indeterminate(title: String = "")
     }
     
-    
-    struct Action<Value> {
-        let title: String
-        let action: (Value) -> Void
+    public struct Action<Value> {
+        public let title: String
+        public let action: (Value) -> Void
         
-        func callAsFunction(_ value: Value) {
+        public func callAsFunction(_ value: Value) {
             self.action(value)
         }
     }
 }
 
 extension States.Action where Value == Void {
-    func callAsFunction() {
+    public func callAsFunction() {
         self.callAsFunction(Void())
     }
-
 }

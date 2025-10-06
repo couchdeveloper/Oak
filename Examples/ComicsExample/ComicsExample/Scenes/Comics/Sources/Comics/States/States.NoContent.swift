@@ -1,9 +1,13 @@
 extension States {
     
-    public enum NoContent {
+    public enum NoContent: DefaultConstructible {
         case blank
         case empty(title: String, description: String, action: Action<Void>? = nil)
         case error(title: String, description: String, action: Action<Void>? = nil)
+        
+        public init() {
+            self = .blank
+        }
         
         public var isBlank: Bool {
             if case .blank = self { return true }

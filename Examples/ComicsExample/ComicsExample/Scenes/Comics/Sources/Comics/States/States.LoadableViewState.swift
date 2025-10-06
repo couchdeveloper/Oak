@@ -1,6 +1,13 @@
+import Foundation
+
 extension States {
 
-    enum LoadableViewState<Content, Activity, Presentation: Identifiable, Failure> {
+    enum LoadableViewState<
+        Content: DefaultConstructible,
+        Activity,
+        Presentation: Identifiable,
+        Failure: LocalizedError
+    >: States.ViewState {
         // represents an uninitialised actor
         case start
         // the actor is ready to execute a task
@@ -21,7 +28,7 @@ extension States.LoadableViewState {
         self = .idle(content: content)
     }
     
-    var content: Content? {
+    var content: Content {
         switch self {
         case .idle(let content),
              .busy(_, let content),
@@ -29,7 +36,7 @@ extension States.LoadableViewState {
              .presenting(_, let content):
             return content
         case .start:
-            return nil
+            return Content()
         }
     }
     

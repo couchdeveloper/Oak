@@ -1,9 +1,13 @@
 extension States {
 
     @dynamicMemberLookup
-    public enum ContentState<Content, NoContent> {
+    public enum ContentState<Content, NoContent: DefaultConstructible>: DefaultConstructible {
         case present(Content)
         case absent(NoContent)
+        
+        public init() {
+            self = .absent(NoContent())
+        }
 
         // Standard property access
         public var content: Content? {
