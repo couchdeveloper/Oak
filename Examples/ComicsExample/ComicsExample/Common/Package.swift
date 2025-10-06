@@ -3,11 +3,8 @@
 
 import PackageDescription
 
-let oakPath = "/Users/agrosam/Developer/Oak Project/Oak 3/Oak"
-let commonPath = "/Users/agrosam/Developer/Oak Project/Oak 3/Oak/Examples/ComicsExample/ComicsExample/Common"
-
 let package = Package(
-    name: "Comics",
+    name: "Common",
     platforms: [
         .iOS(.v18),
         .macOS(.v15),
@@ -15,34 +12,25 @@ let package = Package(
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "Comics",
-            targets: ["Comics"]
+            name: "Common",
+            targets: ["Common"]
         ),
     ],
     dependencies: [
-        .package(path: oakPath), // adjust the path as needed
-        .package(path: commonPath),
+        .package(url: "https://github.com/kean/Nuke.git", from: "12.0.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "Comics",
+            name: "Common",
             dependencies: [
-                "Oak",
-                "Common",
+                "Nuke"
             ],
-            swiftSettings: [
-                .swiftLanguageMode(.v6)
-            ]
         ),
         .testTarget(
-            name: "ComicsTests",
-            dependencies: ["Comics"],
-            swiftSettings: [
-                .swiftLanguageMode(.v6)
-            ]
+            name: "CommonTests",
+            dependencies: ["Common"]
         ),
     ]
 )
-

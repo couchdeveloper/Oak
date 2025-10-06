@@ -1,12 +1,10 @@
-import Foundation
-
 extension States {
 
-    enum LoadableViewState<
+    public enum LoadableViewState<
         Content: DefaultConstructible,
         Activity,
         Presentation: Identifiable,
-        Failure: LocalizedError
+        Failure
     >: States.ViewState {
         // represents an uninitialised actor
         case start
@@ -24,11 +22,11 @@ extension States {
 // Convenience accessors
 extension States.LoadableViewState {
     
-    init(content: Content) {
+    public init(content: Content) {
         self = .idle(content: content)
     }
     
-    var content: Content {
+    public var content: Content {
         switch self {
         case .idle(let content),
              .busy(_, let content),
@@ -40,55 +38,55 @@ extension States.LoadableViewState {
         }
     }
     
-    var activity: Activity? {
+    public var activity: Activity? {
         if case .busy(let activity, _) = self {
             return activity
         }
         return nil
     }
     
-    var presentation: Presentation? {
+    public var presentation: Presentation? {
         if case .presenting(let presentation, _) = self {
             return presentation
         }
         return nil
     }
     
-    var failure: Failure? {
+    public var failure: Failure? {
         if case .failure(let error, _) = self {
             return error
         }
         return nil
     }
     
-    var isStart: Bool {
+    public var isStart: Bool {
         if case .start = self { return true }
         return false
     }
     
-    var isIdle: Bool {
+    public var isIdle: Bool {
         if case .idle = self { return true }
         return false
     }
     
-    var isBusy: Bool {
+    public var isBusy: Bool {
         if case .busy = self { return true }
         return false
     }
     
-    var isPresenting: Bool {
+    public var isPresenting: Bool {
         if case .presenting = self { return true }
         return false
     }
     
-    var isFailure: Bool {
+    public var isFailure: Bool {
         if case .failure = self { return true }
         return false
     }
 }
 
 extension States.LoadableViewState {
-    mutating func transitionToIdle() {
+    public mutating func transitionToIdle() {
         switch self {
         case .idle:
             break
@@ -101,7 +99,7 @@ extension States.LoadableViewState {
         }
     }
     
-    func idle() -> Self {
+    public func idle() -> Self {
         switch self {
         case .idle:
             return self
@@ -115,7 +113,7 @@ extension States.LoadableViewState {
     }
 
 
-    mutating func transitionToBusy(_ activity: Activity) {
+    public mutating func transitionToBusy(_ activity: Activity) {
         switch self {
         case .idle(let content),
              .busy(_, let content),
@@ -128,7 +126,7 @@ extension States.LoadableViewState {
         }
     }
     
-    func busy(_ activity: Activity) -> Self {
+    public func busy(_ activity: Activity) -> Self {
         switch self {
         case .idle(let content),
              .busy(_, let content),
@@ -142,7 +140,7 @@ extension States.LoadableViewState {
     }
 
 
-    mutating func transitionToPresenting(_ presentation: Presentation) {
+    public mutating func transitionToPresenting(_ presentation: Presentation) {
         switch self {
         case .idle(let content),
              .busy(_, let content),
@@ -155,7 +153,7 @@ extension States.LoadableViewState {
         }
     }
     
-    func presenting(_ presentation: Presentation) -> Self {
+    public func presenting(_ presentation: Presentation) -> Self {
         switch self {
         case .idle(let content),
              .busy(_, let content),
@@ -174,7 +172,7 @@ extension States.LoadableViewState: Equatable where Content: Equatable, Activity
 
 extension States.LoadableViewState: CustomStringConvertible {
     
-    var description: String {
+    public var description: String {
         switch self {
         case .start:
             return "Start"

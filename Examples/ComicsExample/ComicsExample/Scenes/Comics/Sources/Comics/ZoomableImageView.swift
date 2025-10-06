@@ -1,5 +1,6 @@
 import SwiftUI
 import Nuke
+import Common
 
 struct ZoomableImageView: View {
     let url: URL
@@ -11,7 +12,7 @@ struct ZoomableImageView: View {
         case start
         case loading(url: URL, imageTask: ImageTask)
         case cancelled
-        case completed(Result<Common.PlatformImage, Swift.Error>)
+        case completed(Result<PlatformImage, Swift.Error>)
         
         func cancel() {
             switch self {

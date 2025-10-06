@@ -1,3 +1,5 @@
+// TODO: Refactor into module
+
 public enum States {
     
     public protocol DefaultConstructible {
