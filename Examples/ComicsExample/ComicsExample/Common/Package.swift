@@ -27,6 +27,9 @@ let package = Package(
             dependencies: [
                 "Nuke"
             ],
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
             name: "CommonTests",

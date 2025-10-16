@@ -39,9 +39,22 @@
 		A17D57DD2E8AD4660025CC70 /* ComicsExampleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ComicsExampleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A1D631AF2E9948D600304029 /* Exceptions for "ComicsExample" folder in "ComicsExample" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				FavouritesStorage,
+			);
+			target = A17D57C52E8AD4650025CC70 /* ComicsExample */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A17D57C82E8AD4650025CC70 /* ComicsExample */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A1D631AF2E9948D600304029 /* Exceptions for "ComicsExample" folder in "ComicsExample" target */,
+			);
 			path = ComicsExample;
 			sourceTree = "<group>";
 		};

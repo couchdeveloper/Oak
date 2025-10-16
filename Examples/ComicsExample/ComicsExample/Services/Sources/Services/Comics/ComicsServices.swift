@@ -42,8 +42,7 @@ extension Comics.Comic {
             title: dtoComic.title,
             date: date,
             imageURL: dtoComic.img,
-            altText: dtoComic.alt,
-            isFavourite: isFavourite
+            altText: dtoComic.alt
         )
     }
 
