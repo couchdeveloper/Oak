@@ -102,13 +102,15 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
     ) async throws -> Output {
         try proxy.checkInUse()
         try Task.checkCancellation()
+        
         let stream = proxy.stream
         let input = proxy.input
+        
         let initialOutputValueOrNil = initialOutput(initialState: storage.value)
         if let initialOutputValue = initialOutputValueOrNil {
             try await output.send(initialOutputValue, isolated: systemActor)
+            try Task.checkCancellation()
         }
-        try Task.checkCancellation()
         if storage.value.isTerminal {
             if let initialOutputValue = initialOutputValueOrNil {
                 return initialOutputValue
@@ -122,6 +124,7 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
         var result: Output? = nil
         var events: [Event] = []
         events.reserveCapacity(4)
+        
         do {
             loop: for try await event in stream {
                 try Task.checkCancellation()
@@ -223,8 +226,7 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
         guard let result = result else {
             throw TransducerError.noOutputProduced
         }
-        nonisolated(unsafe) let res = result
-        return res
+        return result
     }
 
     @_disfavoredOverload
@@ -265,8 +267,10 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
     ) async throws -> Output {
         try Task.checkCancellation()
         try proxy.checkInUse()
+        
         let stream = proxy.stream
         let input = proxy.input
+        
         if storage.value.isTerminal {
             return
         }
@@ -275,6 +279,7 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
         })
         var events: [Event] = []
         events.reserveCapacity(4)
+        
         do {
             loop: for try await event in stream {
                 try Task.checkCancellation()
