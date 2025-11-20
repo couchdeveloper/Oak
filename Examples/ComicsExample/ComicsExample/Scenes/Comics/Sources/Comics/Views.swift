@@ -2,6 +2,7 @@ import Dispatch
 import SwiftUI
 import Oak
 import Common
+import FavouritesStorage
 
 public enum Views {}
 
@@ -202,9 +203,7 @@ extension Views {
                 )
                 .infoOverlay(isPresented: $showAltText, text: comic.altText)
                 .padding(4)
-                FavouriteCheckButton(isOn: comic.isFavourite) {
-                    try? input.send(.intentToggleFavourite)
-                }
+                FavouriteCheckButton(comicId: comic.id)
             }
             .overlay(alignment: .bottom) {
                 ToolbarView(input: input)
@@ -248,16 +247,16 @@ extension Views {
     }
     
     struct FavouriteCheckButton: View {
-        let isOn: Bool
-        let action: () -> Void
-        init(isOn: Bool, action: @escaping () -> Void) {
-            self.isOn = isOn
-            self.action = action
-        }
+        let comicId: Int
+        
+        @FavouritesStorage var favourites
         
         var body: some View {
-            Button(action: action ) {
-                Image(systemName: isOn ? "heart.fill": "heart")
+            
+            Button {
+                $favourites.toggle(comicId)
+            } label: {
+                Image(systemName: $favourites.contains(comicId) ? "heart.fill": "heart")
             }
         }
     }
@@ -301,8 +300,7 @@ private extension View {
             imageURL: URL(
                 string: "https://picsum.photos/200/300"
             )!,
-            altText: "Alternate text",
-            isFavourite: false
+            altText: "Alternate text"
         ),
         input: proxy.input
     )
@@ -317,8 +315,7 @@ private extension View {
         imageURL: URL(
             string: "https://picsum.photos/200/300"
         )!,
-        altText: "Alternate text",
-        isFavourite: false
+        altText: "Alternate text"
     )
     
     @Previewable @State var proxy: Comics.Transducer.Proxy = .init()
@@ -341,8 +338,7 @@ private extension View {
                     title: "Mocked Comic #\(id)",
                     date: Date(),
                     imageURL: URL(string: "https://picsum.photos/400/300?random=\(id)")!,
-                    altText: "This is mocked alt text for comic #\(id).",
-                    isFavourite: false
+                    altText: "This is mocked alt text for comic #\(id)."
                 )
             },
             loadActualComic: {
@@ -354,8 +350,7 @@ private extension View {
                     title: "Mocked Actual Comic",
                     date: Calendar(identifier: .gregorian).date(from: DateComponents(year: 2099, month: 2, day: 2))!,
                     imageURL: URL(string: "https://picsum.photos/400/300?random=\(id)")!,
-                    altText: "This is mocked alt text for the actual comic.",
-                    isFavourite: true
+                    altText: "This is mocked alt text for the actual comic."
                 )
             }
         ))

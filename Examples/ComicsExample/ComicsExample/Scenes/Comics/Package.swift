@@ -5,6 +5,7 @@ import PackageDescription
 
 let oakPath = "/Users/agrosam/Developer/Oak Project/Oak 3/Oak"
 let commonPath = "/Users/agrosam/Developer/Oak Project/Oak 3/Oak/Examples/ComicsExample/ComicsExample/Common"
+let favouritesStoragePath = "/Users/agrosam/Developer/Oak Project/Oak 3/Oak/Examples/ComicsExample/ComicsExample/FavouritesStorage"
 
 let package = Package(
     name: "Comics",
@@ -22,6 +23,7 @@ let package = Package(
     dependencies: [
         .package(path: oakPath), // adjust the path as needed
         .package(path: commonPath),
+        .package(path: favouritesStoragePath),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -31,6 +33,7 @@ let package = Package(
             dependencies: [
                 "Oak",
                 "Common",
+                "FavouritesStorage"
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)

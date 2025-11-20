@@ -40,15 +40,13 @@ public struct Comic: Identifiable {
         title: String,
         date: Date?,
         imageURL: URL,
-        altText: String,
-        isFavourite: Bool
+        altText: String
     ) {
         self.id = id
         self.title = title
         self.date = date
         self.imageURL = imageURL
         self.altText = altText
-        self.isFavourite = isFavourite
     }
     
     public var id: Int
@@ -56,7 +54,6 @@ public struct Comic: Identifiable {
     public var date: Date?
     public var imageURL: URL
     public var altText: String
-    public var isFavourite: Bool
 }
 
 extension Comic: Equatable {}

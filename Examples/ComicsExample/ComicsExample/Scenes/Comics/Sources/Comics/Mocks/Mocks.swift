@@ -16,8 +16,7 @@ extension Mocks {
             imageURL: URL(
                 string: "https://example.com/comics/1001.png"
             )!,
-            altText: "Protagonist meets a cat",
-            isFavourite: false
+            altText: "Protagonist meets a cat"
         ),
         .init(
             id: 1002,
@@ -26,8 +25,7 @@ extension Mocks {
             imageURL: URL(
                 string: "https://example.com/comics/1002.png"
             )!,
-            altText: "A surprising turn of events",
-            isFavourite: false
+            altText: "A surprising turn of events"
         ),
         .init(
             id: 1003,
@@ -36,8 +34,7 @@ extension Mocks {
             imageURL: URL(
                 string: "https://example.com/comics/1003.png"
             )!,
-            altText: "Hanging on the edge",
-            isFavourite: false
+            altText: "Hanging on the edge"
         )
     ]
 }

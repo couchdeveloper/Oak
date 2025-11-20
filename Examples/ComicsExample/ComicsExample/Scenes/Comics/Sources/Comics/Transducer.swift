@@ -145,7 +145,7 @@ enum Transducer: EffectTransducer {
         }
     }
     
-    // MARK: - Effects
+    // MARK: - IoC Service Layer (via Effects)
     
     static func loadComic(id: Int) -> Self.Effect {
         Effect(id: "loadComic") { env, input in

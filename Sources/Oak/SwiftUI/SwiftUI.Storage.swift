@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 extension SwiftUI.Binding: Storage {
@@ -10,3 +11,4 @@ extension SwiftUI.Binding: Storage {
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if canImport(SwiftUI)
 import SwiftUI
 
 // MARK: - Where Transducer: Oak.Transducer, Output == Void
@@ -439,3 +440,4 @@ extension TransducerActor where Self: View, Content: View {
         )
     }
 }
+#endif
