@@ -141,9 +141,9 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
                         // Continue to execute the effect if present, but will break after
                     }
 
-                    if let effectOpt {
+                    if let effect = effectOpt {
                         let moreEvents = try await execute(
-                            effectOpt,
+                            effect,
                             input: input,
                             env: env,
                             context: context
@@ -285,7 +285,7 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
                 try Task.checkCancellation()
                 var nextEvent: Event? = event
                 while let event = nextEvent {
-                    let (effect, _) = Self.compute(&storage.value, event: event)
+                    let (effectOpt, _) = Self.compute(&storage.value, event: event)
 
                     // Check if the state became terminal after processing this event
                     let isTerminated = storage.value.isTerminal
@@ -294,7 +294,7 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
                         // Continue to execute the effect if present, but will break after
                     }
 
-                    if let effect {
+                    if let effect = effectOpt {
                         let moreEvents = try await execute(
                             effect,
                             input: input,

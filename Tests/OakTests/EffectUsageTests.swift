@@ -34,12 +34,12 @@ struct EffectUsageTests {
             static func update(_ state: inout State, event: Event) -> T.Effect? {
                 switch event {
                 case .start:
-                    let effect = T.Effect(isolatedAction: { env, isolated in
+                    let effect = action { env, isolated in
                         TestGlobalActor.shared.assertIsolated()
                         env.value = 1
                         let payload = T.Payload()
                         return [.payload(payload)]
-                    })
+                    }
                     return effect
 
                 case .payload(let payload):

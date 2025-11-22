@@ -96,7 +96,7 @@ public struct Effect<T: EffectTransducer> {
     /// - ``init(id:operation:)`` – Async unstructured task on a global actor
     public init(
         action: @Sendable @escaping @isolated(any) (
-            Env,
+            Env
         ) async throws -> sending [Event]
     ) where Env: Sendable {
         self.f = { env, input, context, systemActor in
@@ -128,7 +128,7 @@ public struct Effect<T: EffectTransducer> {
     /// - ``init(id:operation:)`` – Async unstructured task on a global actor
     public init(
         action: @Sendable @escaping @isolated(any) (
-            Env,
+            Env
         ) async throws -> sending Event
     ) where Env: Sendable {
         self.f = { env, input, context, systemActor in
@@ -237,8 +237,8 @@ public struct Effect<T: EffectTransducer> {
             let uid = context.uid()
             // The `task` manages the lifecycle of the asynchronous operation.
             let task = Task {
-                // Caution: parameter `systemActor` MUST be *imported* into the
-                // Task's closure. Importing `systemActor` ensures that the Task
+                // Caution: parameter `systemActor` MUST be *captured* in the
+                // Task's closure. Capturing `systemActor` ensures that the Task
                 // executes with the correct actor isolation, which is critical for
                 // thread safety and for safely accessing any actor-isolated resources
                 // (such as the environment or context) within the Task.
@@ -310,8 +310,8 @@ public struct Effect<T: EffectTransducer> {
             let uid = context.uid()
             // The `task` manages the lifecycle of the asynchronous operation.
             let task = Task {
-                // Caution: parameter `systemActor` MUST be *imported* into the
-                // Task's closure. Importing `systemActor` ensures that the Task
+                // Caution: parameter `systemActor` MUST be *captured* in the
+                // Task's closure. Capturing `systemActor` ensures that the Task
                 // executes with the correct actor isolation, which is critical for
                 // thread safety and for safely accessing any actor-isolated resources
                 // (such as the environment or context) within the Task.
@@ -373,7 +373,7 @@ extension Effect {
             let id = id == nil ? context.id() : ID(id!)
             let uid = context.uid()
             let task = Task {
-                // Caution: parameter `systemActor` MUST be *imported* into the
+                // Caution: parameter `systemActor` MUST be *captured* in the
                 // Task's closure - which is required for the task to
                 // take this isolation.
                 do {
@@ -430,7 +430,7 @@ extension Effect {
             let id = id == nil ? context.id() : ID(id!)
             let uid = context.uid()
             let task = Task {
-                // Caution: parameter `systemActor` MUST be *imported* into the
+                // Caution: parameter `systemActor` MUST be *captured* in the
                 // Task's closure - which is required for the task to
                 // take this isolation.
                 do {
@@ -453,7 +453,7 @@ extension Effect {
 }
 
 extension Effect {
-
+    
     /// **Action Effect — Immediate Event**
     ///
     /// Emits a single event synchronously in the current computation cycle.
@@ -475,8 +475,115 @@ extension Effect {
 
 }
 
+
+// MARK: - New API
+
+extension EffectTransducer {
+    
+    /// Creteas an Action Effect whose action returns an array of events.
+    ///
+    /// Runs the action on a caller-specified global actor. Events returned from the action
+    /// are delivered synchronously during the current computation cycle, before any buffered
+    /// `Input` events.
+    ///
+    /// Use this when you need immediate, in-order processing on a particular global actor,
+    /// or when `Env` is isolated to that actor.
+    ///
+    /// - Parameter action: Async closure that receives the environment on the specified
+    ///   global actor. Return zero or more events to be processed immediately.
+    ///
+    /// > Tip: Minimize captures in the closure for best performance.
+    ///
+    /// > Caution: Because events are handled synchronously, reaching a terminal state halts
+    ///  further processing in this cycle.
+    ///
+    /// ## Related Methods
+    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` – Global actor isolation (single event)
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
+    /// - ``init(id:operation:)`` – Async unstructured task on a global actor
+    public static func action(
+        _ action: @Sendable @escaping @isolated(any) (Env) async throws -> sending [Event]
+    ) -> Oak.Effect<Self> where Env: Sendable {
+        Effect { env, input, context, systemActor in
+            try await action(env)
+        }
+    }
+
+    /// Creates an Action Effect whose action runs on the given isolator.
+    ///
+    /// Runs the action on the transducer's system actor and returns a single event.
+    /// The event is delivered synchronously during the current computation cycle,
+    /// before any buffered `Input` events, regardless of any global-actor isolation on `Env`.
+    ///
+    /// Use this when you need immediate event processing with the same isolation as the
+    /// transducer, or when `Env` is only safe to access from the system actor.
+    ///
+    /// - Parameter action: Async closure that receives the environment and an isolated
+    ///   reference to the system actor. Return a single event to be processed immediately.
+    ///
+    /// > Tip: Minimize captures in the closure for best performance.
+    ///
+    /// > Caution: Because events are handled synchronously, reaching a terminal state halts
+    /// further processing in this cycle.
+    ///
+    /// ## Related Methods
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
+    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` – Global actor isolation (single event)
+    /// - ``init(id:isolatedOperation:)`` – Async unstructured task on the system actor
+    public static func action(
+        isolatedAction action: @Sendable @escaping (
+            Env,
+            isolated any Actor
+        ) async throws -> sending Event
+    ) -> Oak.Effect<Self> {
+        Effect { env, input, context, systemActor in
+            let event = try await action(env, systemActor)
+            return [event]
+        }
+    }
+
+    
+    /// **Action Effect — System Actor (Multiple Events)**
+    ///
+    /// Runs the action on the same actor as the transducer's run loop (the “system actor”),
+    /// independent of any global-actor isolation on `Env`. Events returned from the action
+    /// are delivered synchronously during the current computation cycle, before any buffered
+    /// `Input` events.
+    ///
+    /// Use this when you need immediate, in-order processing with the same isolation as the
+    /// transducer, or when `Env` is only safe to access from the system actor.
+    ///
+    /// - Parameter action: Async closure that receives the environment and an isolated
+    ///   reference to the system actor. Return zero or more events to be processed immediately.
+    ///
+    /// > Tip: Minimize captures in the closure for best performance.
+    ///
+    /// > Caution: Because events are handled synchronously, reaching a terminal state halts
+    ///  further processing in this cycle.
+    ///
+    /// ## Related Methods
+    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
+    /// - ``init(action:)-(()(Effect<T>.Env)->[Effect<T>.Event])`` – Global actor isolation (multiple events)
+    /// - ``init(id:isolatedOperation:)`` – Async unstructured task on the system actor
+    public static func action(
+        isolatedAction action: @Sendable @escaping (
+            Env,
+            isolated any Actor
+        ) async throws -> sending [Event]
+    ) -> Oak.Effect<Self> {
+        Effect { env, input, context, systemActor in
+            try await action(env, systemActor)
+        }
+    }
+}
+
+
+
+
 #if false
 // Pattern that the region based isolation checker does not understand how to check. Please file a bug
+
 public func action<T: Transducer>(
     type: T.Type,
     action: sending @escaping (
