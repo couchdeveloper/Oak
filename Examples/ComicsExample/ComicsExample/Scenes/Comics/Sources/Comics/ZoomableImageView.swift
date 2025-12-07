@@ -1,8 +1,35 @@
 import SwiftUI
+import Oak
 import Nuke
 import Common
 
+// MARK: - Image Loading IoC Port
+public struct ImageLoadingEnv {
+    public var start: @Sendable (_ url: URL) -> Task<PlatformImage, Error>
+    public init(start: @escaping @Sendable (_ url: URL) -> Task<PlatformImage, Error>) {
+        self.start = start
+    }
+}
+
+extension EnvironmentValues {
+    @Entry public var imageLoading: ImageLoadingEnv = .live
+}
+
+extension ImageLoadingEnv {
+    static let live: ImageLoadingEnv = .init { url in
+        Task {
+            let imageTask = ImagePipeline.shared.imageTask(with: url)
+            return try await withTaskCancellationHandler {
+                try await imageTask.image
+            } onCancel: {
+                imageTask.cancel()
+            }
+        }
+    }
+}
+
 struct ZoomableImageView: View {
+    @Environment(\.imageLoading) private var imageLoading
     let url: URL
 
     @State private var scale: CGFloat = 1.0
@@ -10,16 +37,13 @@ struct ZoomableImageView: View {
 
     enum ImageState {
         case start
-        case loading(url: URL, imageTask: ImageTask)
+        case loading(task: Task<PlatformImage, Error>)
         case cancelled
         case completed(Result<PlatformImage, Swift.Error>)
         
         func cancel() {
-            switch self {
-            case .loading(_, let imageTask):
-                imageTask.cancel()
-            default:
-                break
+            if case .loading(let task) = self {
+                task.cancel()
             }
         }
     }
@@ -30,7 +54,7 @@ struct ZoomableImageView: View {
             case .start:
                 Color.clear
             
-            case .loading(url: _, imageTask: _):
+            case .loading:
                 Image(systemName: "photo")
                     .font(.system(size: 20, weight: .light))
                     .tint(Color.gray)
@@ -69,25 +93,19 @@ struct ZoomableImageView: View {
         }
         .task(id: url) {
             imageState.cancel()
-            let imageTask = ImagePipeline.shared.imageTask(with: url)
-            imageState = .loading(
-                url: url,
-                imageTask: imageTask
-            )
+            let task = imageLoading.start(url)
+            imageState = .loading(task: task)
             do {
-                let image = try await imageTask.image
+                let image = try await task.value
                 self.imageState = .completed(.success(image))
+            } catch is CancellationError {
+                self.imageState = .cancelled
             } catch {
                 self.imageState = .completed(.failure(error))
             }
         }
         .onDisappear {
-            switch imageState {
-            case .loading(_, let imageTask):
-            imageTask.cancel()
-            default:
-                break
-            }
+            imageState.cancel()
         }
         .transition(AnyTransition.opacity.animation(.easeInOut(duration: 3.0)))
     }
