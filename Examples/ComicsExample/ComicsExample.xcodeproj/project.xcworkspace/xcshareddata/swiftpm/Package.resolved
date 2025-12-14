@@ -1,5 +1,5 @@
 {
-  "originHash" : "f34f6cf622f74154e07a1432000aa3b8330b70d0fcad4ce5aa3f784af030b828",
+  "originHash" : "a9c68f0eb2b699b37f607733cefd4450c947385ccd189bb8b4f815fd30ccada9",
   "pins" : [
     {
       "identity" : "nuke",
@@ -8,15 +8,6 @@
       "state" : {
         "revision" : "0ead44350d2737db384908569c012fe67c421e4d",
         "version" : "12.8.0"
-      }
-    },
-    {
-      "identity" : "settings",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/couchdeveloper/Settings.git",
-      "state" : {
-        "revision" : "a24414b18f0eb52441ba38f93b3279994f76a3e7",
-        "version" : "0.1.3"
       }
     },
     {

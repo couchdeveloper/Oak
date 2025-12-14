@@ -1,10 +1,12 @@
 import SwiftUI
 import Oak
-import Nuke
 import Common
 
 // MARK: - Image Loading IoC Port
-public struct ImageLoadingEnv {
+// Note: Currently, this is only used in ZoomableImageView. We may consider to
+// move the IoC port to a separate file when it will be used by other views as
+// well.
+public struct ImageLoadingEnv: Sendable{
     public var start: @Sendable (_ url: URL) -> Task<PlatformImage, Error>
     public init(start: @escaping @Sendable (_ url: URL) -> Task<PlatformImage, Error>) {
         self.start = start
@@ -12,21 +14,10 @@ public struct ImageLoadingEnv {
 }
 
 extension EnvironmentValues {
-    @Entry public var imageLoading: ImageLoadingEnv = .live
+    @Entry public var imageLoading: ImageLoadingEnv = .mock
 }
 
-extension ImageLoadingEnv {
-    static let live: ImageLoadingEnv = .init { url in
-        Task {
-            let imageTask = ImagePipeline.shared.imageTask(with: url)
-            return try await withTaskCancellationHandler {
-                try await imageTask.image
-            } onCancel: {
-                imageTask.cancel()
-            }
-        }
-    }
-}
+// MARK: - Internal View
 
 struct ZoomableImageView: View {
     @Environment(\.imageLoading) private var imageLoading
@@ -74,7 +65,9 @@ struct ZoomableImageView: View {
                     .clipped()
                     .gesture(MagnificationGesture()
                         .onChanged { value in
+                            #if DEBUG
                             print("scale: \(value)")
+                            #endif
                             self.scale = max(0.5, min(2, value.magnitude))
                         }
                         .onEnded({ _ in
@@ -113,6 +106,30 @@ struct ZoomableImageView: View {
 
 // MARK: - Previews
 
+#if DEBUG
+
+fileprivate extension ImageLoadingEnv {
+    static let mock: ImageLoadingEnv = .init { url in
+        Task {
+            let request = URLRequest(url: url)
+            let (data, repsonse) = try await URLSession.shared.data(for: request)
+            let httpResponse = repsonse as? HTTPURLResponse
+            switch (data, httpResponse) {
+            case (let data, .some(let httpResponse)) where (200..<300).contains(httpResponse.statusCode):
+                let image = try PlatformImage.image(from: data)
+                return image
+                
+            default:
+                throw URLError(.badServerResponse)
+            }
+        }
+    }
+}
+
+
 #Preview() {
     ZoomableImageView(url: URL(string: "https://picsum.photos/800/1600")!)
+        .environment(\.imageLoading, .mock)
 }
+
+#endif

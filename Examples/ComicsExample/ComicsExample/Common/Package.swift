@@ -1,6 +1,11 @@
 // swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
+// Note: Package Common may be a dependency in Feature packages. Its functions
+// must not have side effetcs, since Feautures should not directly or indirectly
+// depend on external packages which usually have side effects. That includes
+// infrastructure packages - such as API, Settings or ImageLoader, etc.
+
 import PackageDescription
 
 let package = Package(
@@ -17,7 +22,6 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/kean/Nuke.git", from: "12.0.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -25,7 +29,6 @@ let package = Package(
         .target(
             name: "Common",
             dependencies: [
-                "Nuke"
             ],
             resources: [
                 .process("Resources")

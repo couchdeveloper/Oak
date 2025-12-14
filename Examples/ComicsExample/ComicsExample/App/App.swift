@@ -6,6 +6,7 @@ struct ViewAppApp: App {
     var body: some Scene {
         WindowGroup {
             MainView()
+                .environment(\.imageLoading, .live)
         }
     }
 

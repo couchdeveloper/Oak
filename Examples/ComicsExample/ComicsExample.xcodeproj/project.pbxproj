@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		A11DD8702E916FFD00AF39BB /* Comics in Frameworks */ = {isa = PBXBuildFile; productRef = A11DD86F2E916FFD00AF39BB /* Comics */; };
 		A11DD8792E9172C700AF39BB /* Oak in Frameworks */ = {isa = PBXBuildFile; productRef = A11DD8782E9172C700AF39BB /* Oak */; };
+		A1424AF12EE5E91A00654480 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = A1424AF02EE5E91A00654480 /* Nuke */; };
+		A1424AF32EE5E91A00654480 /* NukeExtensions in Frameworks */ = {isa = PBXBuildFile; productRef = A1424AF22EE5E91A00654480 /* NukeExtensions */; };
 		A149A33B2E92C1A400804E8F /* API in Frameworks */ = {isa = PBXBuildFile; productRef = A149A33A2E92C1A400804E8F /* API */; };
 		A149A33E2E92C1BB00804E8F /* HTTPClient in Frameworks */ = {isa = PBXBuildFile; productRef = A149A33D2E92C1BB00804E8F /* HTTPClient */; };
 		A149A34E2E92C52500804E8F /* Main in Frameworks */ = {isa = PBXBuildFile; productRef = A149A34D2E92C52500804E8F /* Main */; };
@@ -82,6 +84,8 @@
 				A17D58522E8AF4D40025CC70 /* Oak in Frameworks */,
 				A149A34E2E92C52500804E8F /* Main in Frameworks */,
 				A1F258A02E92C6E60086024F /* Services in Frameworks */,
+				A1424AF12EE5E91A00654480 /* Nuke in Frameworks */,
+				A1424AF32EE5E91A00654480 /* NukeExtensions in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -149,6 +153,8 @@
 				A149A33D2E92C1BB00804E8F /* HTTPClient */,
 				A149A34D2E92C52500804E8F /* Main */,
 				A1F2589F2E92C6E60086024F /* Services */,
+				A1424AF02EE5E91A00654480 /* Nuke */,
+				A1424AF22EE5E91A00654480 /* NukeExtensions */,
 			);
 			productName = ComicsExample;
 			productReference = A17D57C62E8AD4650025CC70 /* ComicsExample.app */;
@@ -234,6 +240,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A149A34C2E92C52500804E8F /* XCLocalSwiftPackageReference "ComicsExample/Scenes/Main" */,
+				A1424AEF2EE5E91A00654480 /* XCRemoteSwiftPackageReference "Nuke" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A17D57C72E8AD4650025CC70 /* Products */;
@@ -665,6 +672,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		A1424AEF2EE5E91A00654480 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.8.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		A11DD86F2E916FFD00AF39BB /* Comics */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -673,6 +691,16 @@
 		A11DD8782E9172C700AF39BB /* Oak */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Oak;
+		};
+		A1424AF02EE5E91A00654480 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1424AEF2EE5E91A00654480 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		A1424AF22EE5E91A00654480 /* NukeExtensions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1424AEF2EE5E91A00654480 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeExtensions;
 		};
 		A149A33A2E92C1A400804E8F /* API */ = {
 			isa = XCSwiftPackageProductDependency;

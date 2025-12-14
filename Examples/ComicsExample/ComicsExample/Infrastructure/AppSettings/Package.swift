@@ -18,8 +18,8 @@ let package = Package(
             targets: ["AppSettings"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/couchdeveloper/Settings.git", from: "0.1.0"),
-        //.package(path: localSettingsPath)
+        // .package(url: "https://github.com/couchdeveloper/Settings.git", from: "0.2.0"),
+        .package(path: localSettingsPath)
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -27,7 +27,8 @@ let package = Package(
         .target(
             name: "AppSettings",
             dependencies: [
-                .product(name: "Settings", package: "Settings")
+                .product(name: "Settings", package: "Settings"),
+                .product(name: "SettingsMock", package: "Settings"),
             ]),
         .testTarget(
             name: "AppSettingsTests",
