@@ -44,9 +44,9 @@ public struct Effect<T: EffectTransducer> {
     public typealias Input = T.Input
     public typealias Event = T.Event
     public typealias Env = T.Env
-
+    
     private let f: (Env, Input, Context, isolated any Actor) async throws -> [Event]
-
+    
     /// **Internal Effect Constructor**
     ///
     /// Low-level initializer for creating custom effects. Used internally by
@@ -62,7 +62,7 @@ public struct Effect<T: EffectTransducer> {
     ) {
         self.f = f
     }
-
+    
     internal func invoke(
         env: Env,
         input: Input,
@@ -71,6 +71,12 @@ public struct Effect<T: EffectTransducer> {
     ) async throws -> [Event] {
         try await self.f(env, input, context, systemActor)
     }
+    
+}
+
+// MARK: - Initializers
+
+extension Effect {
 
     /// **Action Effect — Global Actor (Multiple Events)**
     ///
@@ -90,10 +96,13 @@ public struct Effect<T: EffectTransducer> {
     ///  further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` – Global actor isolation (single event)
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
+    /// - ``init(action:)-((Env)->Event)`` – Global actor isolation (single event)
+    /// - ``init(isolatedAction:)-((Env,Actor)->[Event])`` – System actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
     /// - ``init(id:operation:)`` – Async unstructured task on a global actor
+    /// - ``init(id:operation:after:tolerance:clock:)``  – Async unstructured task on a global actor
+    /// - ``init(id:isolatedOperation:)`` – System actor isolation
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor isolation
     public init(
         action: @Sendable @escaping @isolated(any) (
             Env
@@ -122,10 +131,13 @@ public struct Effect<T: EffectTransducer> {
     /// further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(action:)-(()(Effect<T>.Env)->[Effect<T>.Event])`` – Global actor isolation (multiple events)
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
+    /// - ``init(action:)-((Env)->[Event])`` – Global actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->[Event])`` – System actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
     /// - ``init(id:operation:)`` – Async unstructured task on a global actor
+    /// - ``init(id:operation:after:tolerance:clock:)``  – Async unstructured task on a global actor
+    /// - ``init(id:isolatedOperation:)`` – System actor isolation
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor isolation
     public init(
         action: @Sendable @escaping @isolated(any) (
             Env
@@ -156,9 +168,13 @@ public struct Effect<T: EffectTransducer> {
     ///  further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
-    /// - ``init(action:)-(()(Effect<T>.Env)->[Effect<T>.Event])`` – Global actor isolation (multiple events)
-    /// - ``init(id:isolatedOperation:)`` – Async unstructured task on the system actor
+    /// - ``init(action:)-((Env)->Event)`` – Global actor isolation (single event)
+    /// - ``init(action:)-((Env)->[Event])`` – Global actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
+    /// - ``init(id:operation:)`` – Async unstructured task on a global actor
+    /// - ``init(id:operation:after:tolerance:clock:)``  – Async unstructured task on a global actor
+    /// - ``init(id:isolatedOperation:)`` – System actor isolation
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor isolation
     public init(
         isolatedAction action: @Sendable @escaping (
             Env,
@@ -188,9 +204,13 @@ public struct Effect<T: EffectTransducer> {
     /// further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
-    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` – Global actor isolation (single event)
-    /// - ``init(id:isolatedOperation:)`` – Async unstructured task on the system actor
+    /// - ``init(action:)-((Env)->Event)`` – Global actor isolation (single event)
+    /// - ``init(action:)-((Env)->[Event])`` – Global actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->[Event])`` – System actor isolation (multiple events)
+    /// - ``init(id:operation:)`` – Async unstructured task on a global actor
+    /// - ``init(id:operation:after:tolerance:clock:)``  – Async unstructured task on a global actor
+    /// - ``init(id:isolatedOperation:)`` – System actor isolation
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor isolation
     public init(
         isolatedAction action: @Sendable @escaping (
             Env,
@@ -221,9 +241,13 @@ public struct Effect<T: EffectTransducer> {
     /// > Note: `CancellationError` is ignored; other errors terminate the transducer.
     ///
     /// ## Related Methods
-    /// - ``init(id:operation:)`` – Global actor task (immediate)
-    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor task (delayed)
-    /// - ``cancelTask(_:)`` – Cancel a running operation by ID
+    /// - ``init(action:)-((Env)->Event)`` – Global actor isolation (single event)
+    /// - ``init(action:)-((Env)->[Event])`` – Global actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->[Event])`` – System actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
+    /// - ``init(id:operation:)`` – Async unstructured task on a global actor
+    /// - ``init(id:operation:after:tolerance:clock:)``  – Async unstructured task on a global actor
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor isolation
     public init(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
         isolatedOperation operation: @Sendable @escaping (
@@ -295,9 +319,13 @@ public struct Effect<T: EffectTransducer> {
     /// > Note: `CancellationError` is ignored; other errors terminate the transducer.
     ///
     /// ## Related Methods
-    /// - ``init(id:isolatedOperation:)`` – System actor task (immediate)
-    /// - ``init(id:operation:after:tolerance:clock:)`` – Global actor task (delayed)
-    /// - ``cancelTask(_:)`` – Cancel a running operation by ID
+    /// - ``init(action:)-((Env)->Event)`` – Global actor isolation (single event)
+    /// - ``init(action:)-((Env)->[Event])`` – Global actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->[Event])`` – System actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
+    /// - ``init(id:operation:after:tolerance:clock:)``  – Async unstructured task on a global actor
+    /// - ``init(id:isolatedOperation:)`` – System actor isolation
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor isolation
     public init(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
         operation: @Sendable @escaping @isolated(any) (
@@ -354,9 +382,13 @@ extension Effect {
     /// > Note: `CancellationError` is ignored; other errors terminate the transducer.
     ///
     /// ## Related Methods
-    /// - ``init(id:operation:after:tolerance:clock:)`` – Global actor task (delayed)
-    /// - ``init(id:isolatedOperation:)`` – System actor task (immediate)
-    /// - ``cancelTask(_:)`` – Cancel a scheduled or running operation by ID
+    /// - ``init(action:)-((Env)->Event)`` – Global actor isolation (single event)
+    /// - ``init(action:)-((Env)->[Event])`` – Global actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->[Event])`` – System actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
+    /// - ``init(id:operation:)`` – Async unstructured task on a global actor
+    /// - ``init(id:operation:after:tolerance:clock:)``  – Async unstructured task on a global actor
+    /// - ``init(id:isolatedOperation:)`` – System actor isolation
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public init<C: Clock>(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
@@ -412,9 +444,13 @@ extension Effect {
     /// > Note: `CancellationError` is ignored; other errors terminate the transducer.
     ///
     /// ## Related Methods
-    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor task (delayed)
-    /// - ``init(id:operation:)`` – Global actor task (immediate)
-    /// - ``cancelTask(_:)`` – Cancel a scheduled or running operation by ID
+    /// - ``init(action:)-((Env)->Event)`` – Global actor isolation (single event)
+    /// - ``init(action:)-((Env)->[Event])`` – Global actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->[Event])`` – System actor isolation (multiple events)
+    /// - ``init(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
+    /// - ``init(id:operation:)`` – Async unstructured task on a global actor
+    /// - ``init(id:isolatedOperation:)`` – System actor isolation
+    /// - ``init(id:isolatedOperation:after:tolerance:clock:)`` – System actor isolation
     @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     public init<C: Clock>(
         id: (some Hashable & Sendable)? = Optional<ID>.none,
@@ -476,11 +512,11 @@ extension Effect {
 }
 
 
-// MARK: - New API
+// MARK: - Action API
 
 extension EffectTransducer {
     
-    /// Creteas an Action Effect whose action returns an array of events.
+    /// Creates an Action Effect whose action returns an array of events.
     ///
     /// Runs the action on a caller-specified global actor. Events returned from the action
     /// are delivered synchronously during the current computation cycle, before any buffered
@@ -498,10 +534,9 @@ extension EffectTransducer {
     ///  further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` – Global actor isolation (single event)
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
-    /// - ``init(id:operation:)`` – Async unstructured task on a global actor
+    /// - ``action(_:)-((Env)->Event)`` – Caller provided actor (single event)
+    /// - ``action(isolatedAction:)-((Env,Actor)->[Event])``– System actor isolation (multiple events)
+    /// - ``action(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
     public static func action(
         _ action: @Sendable @escaping @isolated(any) (Env) async throws -> sending [Event]
     ) -> Oak.Effect<Self> where Env: Sendable {
@@ -510,7 +545,37 @@ extension EffectTransducer {
         }
     }
 
-    /// Creates an Action Effect whose action runs on the given isolator.
+    /// Creates an Action Effect whose action returns a single event.
+    ///
+    /// Runs the action on a caller-specified global actor. The event returned from the action
+    /// is delivered synchronously during the current computation cycle, before any buffered
+    /// `Input` events.
+    ///
+    /// Use this when you need immediate, in-order processing on a particular global actor,
+    /// or when `Env` is isolated to that actor.
+    ///
+    /// - Parameter action: Async closure that receives the environment on the specified
+    ///   global actor. Return a single event to be processed immediately.
+    ///
+    /// > Tip: Minimize captures in the closure for best performance.
+    ///
+    /// > Caution: Because events are handled synchronously, reaching a terminal state halts
+    ///  further processing in this cycle.
+    ///
+    /// ## Related Methods
+    /// - ``action(_:)-((Env)->[Event])`` – Caller provided actor (multiple events)
+    /// - ``action(isolatedAction:)-((Env,Actor)->[Event])`` – System actor isolation (multiple events)
+    /// - ``action(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
+    public static func action(
+        _ action: @Sendable @escaping @isolated(any) (Env) async throws -> sending Event
+    ) -> Oak.Effect<Self> where Env: Sendable {
+        Effect { env, input, context, systemActor in
+            let event = try await action(env)
+            return [event]
+        }
+    }
+
+    /// Creates an Action Effect whose action runs on the given isolator and returns a single event.
     ///
     /// Runs the action on the transducer's system actor and returns a single event.
     /// The event is delivered synchronously during the current computation cycle,
@@ -528,9 +593,9 @@ extension EffectTransducer {
     /// further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->[Effect<T>.Event])`` – System actor isolation (multiple events)
-    /// - ``init(action:)-(()(Effect<T>.Env)->Effect<T>.Event)`` – Global actor isolation (single event)
-    /// - ``init(id:isolatedOperation:)`` – Async unstructured task on the system actor
+    /// - ``action(_:)-((Env)->Event)`` – Caller provided actor (single event)
+    /// - ``action(_:)-((Env)->[Event])`` – Caller provided actor (multiple events)
+    /// - ``action(isolatedAction:)-((Env,Actor)->[Event])`` – System actor isolation (multiple events)
     public static func action(
         isolatedAction action: @Sendable @escaping (
             Env,
@@ -544,7 +609,7 @@ extension EffectTransducer {
     }
 
     
-    /// **Action Effect — System Actor (Multiple Events)**
+    /// Creates an Action Effect whose action runs on the given isolator and returns an array of events.
     ///
     /// Runs the action on the same actor as the transducer's run loop (the “system actor”),
     /// independent of any global-actor isolation on `Env`. Events returned from the action
@@ -563,9 +628,9 @@ extension EffectTransducer {
     ///  further processing in this cycle.
     ///
     /// ## Related Methods
-    /// - ``init(isolatedAction:)-((Effect<T>.Env,Actor)->Effect<T>.Event)`` – System actor isolation (single event)
-    /// - ``init(action:)-(()(Effect<T>.Env)->[Effect<T>.Event])`` – Global actor isolation (multiple events)
-    /// - ``init(id:isolatedOperation:)`` – Async unstructured task on the system actor
+    /// - ``action(_:)-((Env)->Event)``
+    /// - ``action(_:)-((Env)->[Event])``
+    /// - ``action(isolatedAction:)-((Env,Actor)->Event)`` – System actor isolation (single event)
     public static func action(
         isolatedAction action: @Sendable @escaping (
             Env,
@@ -578,105 +643,7 @@ extension EffectTransducer {
     }
 }
 
-
-
-
-#if false
-// Pattern that the region based isolation checker does not understand how to check. Please file a bug
-
-public func action<T: Transducer>(
-    type: T.Type,
-    action: sending @escaping (
-        sending T.Env,
-        T.Input,
-        isolated (any Actor)?
-    ) -> Void,
-    // isolated: isolated (any Actor)? = #isolation
-) -> T.Effect {
-    // let boxedAction = UnsafeIsolatedBox2(action)
-    return T.Effect.init({ env, input, _, isolated in  // Pattern that the region based isolation checker does not understand how to check. Please file a bug
-        // boxedAction.open()(env, input, isolated)
-    })
-}
-#endif
-
-#if false
-extension Effect {
-
-    // MARK: - Public
-
-    public static func action(
-        _ action: sending @escaping (
-            sending Env,
-            Input,
-            isolated (any Actor)?
-        ) -> Void,
-        // isolated: isolated (any Actor)? = #isolation
-    ) -> Self {
-        // let boxedAction = UnsafeIsolatedBox2(action)
-        return Effect({ env, input, _, isolated in  // Pattern that the region based isolation checker does not understand how to check. Please file a bug
-            // boxedAction.open()(env, input, isolated)
-        })
-    }
-
-}
-#endif
-
-#if false
-extension Effect {
-
-    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-    public static func event<C: Clock>(
-        _ event: sending Event,
-        id: some Hashable & Sendable,
-        after duration: C.Instant.Duration,
-        tolerance: C.Instant.Duration? = nil,
-        clock: C = ContinuousClock(),
-        isolated: isolated (any Actor)? = #isolation
-    ) -> Self {
-        let boxedEvent = UnsafeIsolatedBox(event)
-        return Self.init({ env, proxy, context, currentActor in
-            let uid = context.uid()
-            let task = Task.init {
-                do {
-                    try await Task.sleep(for: duration, tolerance: tolerance, clock: clock)
-                    try proxy.send(boxedEvent.open(isolated))
-                } catch {
-                    // TODO: handle error
-                }
-                context.removeCompleted(uid: uid, id: ID(id), isolated: isolated)
-            }
-            context.register(task: task, uid: uid, id: ID(id), isolated: currentActor)
-        })
-    }
-
-    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
-    public static func event<C: Clock>(
-        _ event: sending Event,
-        after duration: C.Instant.Duration,
-        tolerance: C.Instant.Duration? = nil,
-        clock: C = ContinuousClock(),
-        // isolated: isolated (any Actor)? = #isolation
-    ) -> Self {
-        let boxedEvent = UnsafeIsolatedBox(event)
-        return Self.init({ env, proxy, context, currentActor in
-            let id = context.id()
-            let uid = context.uid()
-            let task = Task.init {
-                do {
-                    try await Task.sleep(for: duration, tolerance: tolerance, clock: clock)
-                    try proxy.send(boxedEvent.open(currentActor))
-                } catch {
-                    // TODO: handle error
-                }
-                context.removeCompleted(uid: uid, id: id, isolated: currentActor)
-            }
-            context.register(task: task, uid: uid, id: id, isolated: currentActor)
-        })
-    }
-
-}
-#endif
+// MARK: Sequence API
 
 extension Effect {
 

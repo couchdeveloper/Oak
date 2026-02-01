@@ -425,9 +425,6 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
     /// > Note: State observation is not supported in this implementation of the
     ///   run function.
     ///
-    /// - Returns: The final output produced by the transducer when the state
-    ///   becomes terminal.
-    ///
     /// - Throws:
     ///   - `TransducerError.noOutputProduced`: If no output is produced before
     ///     reaching the terminal state.
@@ -459,10 +456,7 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
     /// The proxy, or more specifically, the `Input` interface of the proxy, is
     /// used to send events to the transducer.
     ///
-    /// - Parameter storage: A reference to a storage which is used by the
-    ///   transducer to store its state. The storage must conform to the `Storage`
-    ///   protocol. The storage is used to read and write the state of the
-    ///   transducer.
+    /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
     /// - Parameter env: The environment used for the transducer.
@@ -471,9 +465,6 @@ extension EffectTransducer where TransducerOutput == Effect?, Output == Void {
     ///
     /// > Note: State observation is not supported in this implementation of the
     ///   run function.
-    ///
-    /// - Returns: The final output produced by the transducer when the state
-    ///   becomes terminal.
     ///
     /// - Throws:
     ///   - `TransducerError.noOutputProduced`: If no output is produced before
@@ -557,10 +548,7 @@ extension EffectTransducer where TransducerOutput == (Effect?, Output) {
     /// The proxy, or more specifically, the `Input` interface of the proxy, is
     /// used to send events to the transducer.
     ///
-    /// - Parameter storage: A reference to a storage which is used by the
-    ///   transducer to store its state. The storage must conform to the `Storage`
-    ///   protocol. The storage is used to read and write the state of the
-    ///   transducer.
+    /// - Parameter initialState: The initial state of the transducer.
     /// - Parameter proxy: The transducer proxy that provides the input interface
     ///   and an event buffer.
     /// - Parameter env: The environment used for the transducer.
