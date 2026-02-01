@@ -1,42 +1,38 @@
 // swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
-// Note: Package Common may be a dependency in Feature packages. Its functions
-// must not have side effetcs, since Feautures should not directly or indirectly
-// depend on external packages which usually have side effects. That includes
-// infrastructure packages - such as API, Settings or ImageLoader, etc.
-
 import PackageDescription
 
+let localSettingsPath = "/Users/agrosam/Developer/Oak Project/Settings"
+
 let package = Package(
-    name: "Common",
+    name: "AppSettings",
     platforms: [
         .iOS(.v18),
-        .macOS(.v15),
+        .macOS(.v15)
     ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "Common",
-            targets: ["Common"]
-        ),
+            name: "AppSettings",
+            targets: ["AppSettings"]),
     ],
     dependencies: [
+        // .package(url: "https://github.com/couchdeveloper/Settings.git", from: "0.2.0"),
+        .package(path: localSettingsPath)
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "Common",
+            name: "AppSettings",
             dependencies: [
-            ],
-            resources: [
-                .process("Resources")
-            ]
-        ),
+                .product(name: "Settings", package: "Settings"),
+                .product(name: "SettingsMock", package: "Settings"),
+            ]),
         .testTarget(
-            name: "CommonTests",
-            dependencies: ["Common"]
+            name: "AppSettingsTests",
+            dependencies: ["AppSettings"]
         ),
     ]
 )

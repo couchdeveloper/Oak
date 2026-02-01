@@ -1,8 +1,26 @@
 import SwiftUI
-import Nuke
+import Oak
 import Common
 
+// MARK: - Image Loading IoC Port
+// Note: Currently, this is only used in ZoomableImageView. We may consider to
+// move the IoC port to a separate file when it will be used by other views as
+// well.
+public struct ImageLoadingEnv: Sendable{
+    public var start: @Sendable (_ url: URL) -> Task<PlatformImage, Error>
+    public init(start: @escaping @Sendable (_ url: URL) -> Task<PlatformImage, Error>) {
+        self.start = start
+    }
+}
+
+extension EnvironmentValues {
+    @Entry public var imageLoading: ImageLoadingEnv = .mock
+}
+
+// MARK: - Internal View
+
 struct ZoomableImageView: View {
+    @Environment(\.imageLoading) private var imageLoading
     let url: URL
 
     @State private var scale: CGFloat = 1.0
@@ -10,16 +28,13 @@ struct ZoomableImageView: View {
 
     enum ImageState {
         case start
-        case loading(url: URL, imageTask: ImageTask)
+        case loading(task: Task<PlatformImage, Error>)
         case cancelled
         case completed(Result<PlatformImage, Swift.Error>)
         
         func cancel() {
-            switch self {
-            case .loading(_, let imageTask):
-                imageTask.cancel()
-            default:
-                break
+            if case .loading(let task) = self {
+                task.cancel()
             }
         }
     }
@@ -30,7 +45,7 @@ struct ZoomableImageView: View {
             case .start:
                 Color.clear
             
-            case .loading(url: _, imageTask: _):
+            case .loading:
                 Image(systemName: "photo")
                     .font(.system(size: 20, weight: .light))
                     .tint(Color.gray)
@@ -50,7 +65,9 @@ struct ZoomableImageView: View {
                     .clipped()
                     .gesture(MagnificationGesture()
                         .onChanged { value in
+                            #if DEBUG
                             print("scale: \(value)")
+                            #endif
                             self.scale = max(0.5, min(2, value.magnitude))
                         }
                         .onEnded({ _ in
@@ -69,25 +86,19 @@ struct ZoomableImageView: View {
         }
         .task(id: url) {
             imageState.cancel()
-            let imageTask = ImagePipeline.shared.imageTask(with: url)
-            imageState = .loading(
-                url: url,
-                imageTask: imageTask
-            )
+            let task = imageLoading.start(url)
+            imageState = .loading(task: task)
             do {
-                let image = try await imageTask.image
+                let image = try await task.value
                 self.imageState = .completed(.success(image))
+            } catch is CancellationError {
+                self.imageState = .cancelled
             } catch {
                 self.imageState = .completed(.failure(error))
             }
         }
         .onDisappear {
-            switch imageState {
-            case .loading(_, let imageTask):
-            imageTask.cancel()
-            default:
-                break
-            }
+            imageState.cancel()
         }
         .transition(AnyTransition.opacity.animation(.easeInOut(duration: 3.0)))
     }
@@ -95,6 +106,30 @@ struct ZoomableImageView: View {
 
 // MARK: - Previews
 
+#if DEBUG
+
+fileprivate extension ImageLoadingEnv {
+    static let mock: ImageLoadingEnv = .init { url in
+        Task {
+            let request = URLRequest(url: url)
+            let (data, repsonse) = try await URLSession.shared.data(for: request)
+            let httpResponse = repsonse as? HTTPURLResponse
+            switch (data, httpResponse) {
+            case (let data, .some(let httpResponse)) where (200..<300).contains(httpResponse.statusCode):
+                let image = try PlatformImage.image(from: data)
+                return image
+                
+            default:
+                throw URLError(.badServerResponse)
+            }
+        }
+    }
+}
+
+
 #Preview() {
     ZoomableImageView(url: URL(string: "https://picsum.photos/800/1600")!)
+        .environment(\.imageLoading, .mock)
 }
+
+#endif

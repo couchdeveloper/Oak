@@ -1,5 +1,6 @@
 import SwiftUI
 import Oak
+import Foundation
 
 enum CountdownTimer {}
 
@@ -13,6 +14,12 @@ extension CountdownTimer: EffectTransducer {
         case counting(current: Int, startValue: Int)
         case paused(current: Int, startValue: Int)
         case finished(startValue: Int)
+        case error(Error, current: Int)
+        
+        var error: Error? {
+            if case .error(let error, _) = self { return error }
+            return nil
+        }
     }
     
     enum Event {
@@ -24,10 +31,15 @@ extension CountdownTimer: EffectTransducer {
         case intentResume
         case intentCancel
         case intentReset
-        case timerTick
+        case serviceTimerTick
+        case serviceTimerError(Error)
     }
         
-    struct Env: Sendable {}
+    struct Env: Sendable {
+        var tick: () async throws -> Void = {
+            try await Task.sleep(for: .seconds(1))
+        }
+    }
     
     static func update(_ state: inout State, event: Event) -> Self.Effect? {
         switch (state, event) {
@@ -48,7 +60,7 @@ extension CountdownTimer: EffectTransducer {
             state = .ready(startValue: newValue)
             return nil
             
-        case (.counting(let current, let startValue), .timerTick):
+        case (.counting(let current, let startValue), .serviceTimerTick):
             if current > 1 {
                 state = .counting(current: current - 1, startValue: startValue)
                 return timerEffect()
@@ -57,6 +69,10 @@ extension CountdownTimer: EffectTransducer {
                 return .cancelTask("countdown")
             }
             
+        case (.counting(let current, _), .serviceTimerError(let error)):
+            state = .error(error, current: current)
+            return .cancelTask("countdown")
+
         case (.counting(let current, let startValue), .intentPause):
             state = .paused(current: current, startValue: startValue)
             return .cancelTask("countdown")
@@ -69,7 +85,7 @@ extension CountdownTimer: EffectTransducer {
             state = .start
             return .sequence(.cancelTask("countdown"), .event(.start()))
             
-        case (.finished, .intentReset):
+        case (.finished, .intentReset), (.error, .intentReset):
             state = .start
             return .event(.start())
             
@@ -83,13 +99,61 @@ extension CountdownTimer: EffectTransducer {
         
     private static func timerEffect() -> Effect {
         Effect(id: "countdown") { env, input in
-            try await Task.sleep(for: .seconds(1))
-            try input.send(.timerTick)
+            do {
+                try await env.tick()
+            } catch {
+                try input.send(.serviceTimerError(error))
+                return
+            }
+            try input.send(.serviceTimerTick)
         }
     }
 }
 
 // MARK: - Views
+
+struct AnyLocalizedError: LocalizedError {
+    let underylingError: Error
+    let _errorDescription: () -> String?
+    let _failureReason: () -> String?
+    let _recoverySuggestion: () -> String?
+    let _failureSuggestion: () -> String?
+    
+    init(_ error: any LocalizedError) {
+        self.underylingError = error
+        self._errorDescription = { error.errorDescription }
+        self._failureReason = { error.failureReason }
+        self._recoverySuggestion = { error.recoverySuggestion }
+        self._failureSuggestion = { error.failureReason }
+    }
+    
+    init (_ error: Error) {
+        self.underylingError = error
+        self._errorDescription = { error.localizedDescription }
+        self._failureReason = { nil }
+        self._recoverySuggestion = { nil }
+        self._failureSuggestion = { nil }
+    }
+    
+    init(
+        underylingError: Error,
+        errorDescription: @escaping () -> String?,
+        failureReason: @escaping () -> String?,
+        recoverySuggestion: @escaping () -> String?,
+        failureSuggestion: @escaping () -> String?
+    ) {
+        self.underylingError = underylingError
+        self._errorDescription = errorDescription
+        self._failureReason = failureReason
+        self._recoverySuggestion = recoverySuggestion
+        self._failureSuggestion = failureSuggestion
+    }
+    
+    var errorDescription: String? { _errorDescription() }
+    var failureReason: String? { _failureReason() }
+    var recoverySuggestion: String? { _recoverySuggestion() }
+    var failureSuggestion: String? { _failureSuggestion() }
+}
 
 extension CountdownTimer { enum Views {} }
 
@@ -97,6 +161,7 @@ extension CountdownTimer.Views {
     
     public struct ContentView: View {
         @State private var state = CountdownTimer.initialState
+        @State private var presentError: Bool = false
         
         public init() {}
         
@@ -105,9 +170,7 @@ extension CountdownTimer.Views {
                 of: CountdownTimer.self,
                 initialState: $state,
                 env: CountdownTimer.Env()
-            ) {
-                state,
-                input in
+            ) { state, input in
                 VStack(spacing: 20) {
                     Text("Countdown Timer")
                         .font(.largeTitle)
@@ -143,6 +206,15 @@ extension CountdownTimer.Views {
                             startValue: startValue,
                             input: input
                         )
+                        
+                    case .error(let error, let startValue):
+                        VStack {
+                            ErrorView(
+                                error: AnyLocalizedError(error),
+                                startValue: startValue,
+                                input: input
+                            )
+                        }
                     }
                 }
                 .padding()
@@ -275,7 +347,23 @@ extension CountdownTimer.Views {
             }
         }
     }
-    
+
+    struct ErrorView: View {
+        let error: AnyLocalizedError
+        let startValue: Int
+        let input: CountdownTimer.Proxy.Input
+
+        var body: some View {
+            let localizedError = AnyLocalizedError(error)
+            FinishedView(startValue: startValue, input: input)
+            .alert(isPresented: .constant(true), error: error) {
+                Button("OK") {
+                    try? input.send(.intentReset)
+                }
+            }
+        }
+    }
+
 }
 
 // MARK: - Previews
