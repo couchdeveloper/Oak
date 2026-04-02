@@ -332,7 +332,7 @@ extension Effect {
             Env,
             Input
         ) async throws -> Void
-    ) where Env: Sendable {
+    ) where Env: Sendable, Input: Sendable {
         self.f = { env, input, context, systemActor in
             let id = id == nil ? context.id() : ID(id!)
             let uid = context.uid()
@@ -461,7 +461,7 @@ extension Effect {
         after duration: C.Instant.Duration,
         tolerance: C.Instant.Duration? = nil,
         clock: C = ContinuousClock(),
-    ) {
+    ) where Env: Sendable, Input: Sendable {
         self.f = { env, input, context, systemActor in
             let id = id == nil ? context.id() : ID(id!)
             let uid = context.uid()
