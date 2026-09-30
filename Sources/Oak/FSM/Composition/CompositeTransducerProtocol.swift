@@ -158,19 +158,22 @@ where
         systemActor: isolated any Actor = #isolation
     ) async throws -> Output
     where P: ProductTypeProxy, P.ProxyA == TransducerA.Proxy, P.ProxyB == TransducerB.Proxy {
+        // Lift the output outside the callbacks to satisfy Swift 6.4 isolation. This is safe
+        // because the callbacks below guard on `actor === systemActor`, meaning `output` will only
+        // ever be used within the systemActor isolation.
+        nonisolated(unsafe) let output = output
+
         // Create output subjects that wrap the outputs from each component
         let outputA = SyncCallback<TransducerA.Output> { valueA, actor in
             guard actor === systemActor else {
                 return
             }
-            nonisolated(unsafe) let output = output
             try await output.send(.outputA(valueA), isolated: actor)
         }
         let outputB = SyncCallback<TransducerB.Output> { valueB, actor in
             guard actor === systemActor else {
                 return
             }
-            nonisolated(unsafe) let output = output
             try await output.send(.outputB(valueB), isolated: actor)
         }
 
